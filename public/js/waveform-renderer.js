@@ -14,8 +14,12 @@ class WaveformRenderer {
     
     setupCanvases() {
         if (this.overviewCanvas) {
-            this.overviewCanvas.width = this.overviewCanvas.offsetWidth * 2;
+            // Wait for DOM to be ready and canvas to have size
+            const width = this.overviewCanvas.offsetWidth || this.overviewCanvas.parentElement?.offsetWidth || 800;
+            this.overviewCanvas.width = width * 2;
             this.overviewCanvas.height = 120;
+            
+            console.log('Setup overview canvas:', { width: this.overviewCanvas.width, height: this.overviewCanvas.height });
             
             this.overviewCanvas.addEventListener('click', (e) => {
                 this.handleOverviewClick(e);
@@ -23,8 +27,11 @@ class WaveformRenderer {
         }
         
         if (this.detailedCanvas) {
-            this.detailedCanvas.width = this.detailedCanvas.offsetWidth * 2;
+            const width = this.detailedCanvas.offsetWidth || this.detailedCanvas.parentElement?.offsetWidth || 800;
+            this.detailedCanvas.width = width * 2;
             this.detailedCanvas.height = 240;
+            
+            console.log('Setup detailed canvas:', { width: this.detailedCanvas.width, height: this.detailedCanvas.height });
             
             this.detailedCanvas.addEventListener('click', (e) => {
                 this.handleDetailedClick(e);
@@ -44,6 +51,12 @@ class WaveformRenderer {
         this.duration = duration;
         this.detailedScrollOffset = 0;
         this.playheadPosition = 0;
+        
+        // Re-setup canvases if they have zero width
+        if (this.overviewCanvas && this.overviewCanvas.width === 0) {
+            console.log('Canvas width was 0, re-setting up canvases...');
+            this.setupCanvases();
+        }
         
         this.renderOverview();
         this.renderDetailed();

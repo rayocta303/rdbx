@@ -1,28 +1,35 @@
-# Rekordbox Export Reader - PHP Edition
+# Rekordbox Export Reader - MIXXX Edition
 
-Tool PHP untuk membaca, mem-parse, dan menampilkan data dari database ekspor Rekordbox (PDB files) dengan Web GUI.
+Professional DJ Library Manager untuk membaca dan menampilkan data dari Rekordbox USB exports dengan Web GUI bergaya MIXXX DJ Software.
 
-## ✨ Fitur
+## ✨ Fitur Utama
+
+### 🎨 MIXXX-Inspired Professional UI
+- **Dark Theme**: Interface profesional bergaya MIXXX LateNight Skin
+- **FontAwesome Icons**: Modern icon system menggantikan emoji
+- **Professional Deck Layout**: Library browser, waveform display, dan hot cue pads
+- **Color-Coded Waveforms**: Visualisasi waveform dengan analisis frekuensi RGB
+- **Hot Cue Pads**: 8 cue point pads dengan color coding dan gradient effects
+- **Real-time Waveform Rendering**: Canvas-based waveform dengan glow effects
 
 ### 📀 Parsing Database Lengkap
-- Membaca file `export.pdb` dan `exportExt.pdb`
+- Membaca file `export.pdb` dan `exportExt.pdb` (DeviceSQL format)
 - Ekstraksi track metadata (title, artist, album, BPM, key, duration)
 - Parsing playlist structure dan folder hierarchy
-- Ekstraksi cue points dan beatgrid information dari ANLZ files
-- Corruption detection untuk playlist yang rusak
+- **ANLZ File Integration**: Parse waveform dan cue points dari `USBANLZ/*.DAT/*.EXT/*.2EX`
+- Audio streaming dengan byte-range support untuk playback
+- Corruption detection dan graceful error handling
 
-### 🎨 Web GUI Modern
-- Interface berbasis Tailwind CSS (CDN - no build tools)
-- Real-time search dan filter tracks
-- Tab navigation (Tracks, Playlists, Metadata)
-- Statistics dashboard
-- Responsive design
-
-### 🔧 Arsitektur Modular
-- Struktur kode PHP yang terorganisir dan mudah di-maintenance
-- Pemisahan concerns (Parsers, Utils, Views)
-- No framework dependencies - PHP murni
-- Logging system dengan corruption tracking
+### 🎵 Analisis Audio
+- **Waveform Visualization**: 
+  - Overview waveform (full track)
+  - Detailed waveform dengan zoom navigation
+  - Color-coded frequency data (RGB dari ANLZ files)
+- **Cue Points & Loops**:
+  - Hot cue display dengan posisi timeline
+  - Memory cues dan loop points
+  - Click-to-jump functionality pada waveform
+- **Audio Playback**: Built-in HTML5 audio player dengan seek support
 
 ## 📁 Struktur Project
 
@@ -30,21 +37,36 @@ Tool PHP untuk membaca, mem-parse, dan menampilkan data dari database ekspor Rek
 .
 ├── src/
 │   ├── Parsers/
-│   │   ├── PdbParser.php       # Parser untuk export.pdb (DeviceSQL format)
-│   │   ├── TrackParser.php     # Ekstraksi metadata track
-│   │   ├── PlaylistParser.php  # Parser playlist dengan corruption handling
-│   │   └── AnlzParser.php      # Parser ANLZ files (beatgrid, waveform, cue)
+│   │   ├── PdbParser.php           # Parser export.pdb (DeviceSQL)
+│   │   ├── TrackParser.php         # Ekstraksi track metadata
+│   │   ├── PlaylistParser.php      # Parser playlist structure
+│   │   ├── AnlzParser.php          # Parser ANLZ files (waveform, cue, beatgrid)
+│   │   ├── ArtistAlbumParser.php   # Artist & album data
+│   │   ├── GenreParser.php         # Genre information
+│   │   └── KeyParser.php           # Musical key data
 │   ├── Utils/
-│   │   └── Logger.php          # Logging system
-│   └── RekordboxReader.php     # Main class orchestrator
+│   │   └── Logger.php              # Logging system
+│   └── RekordboxReader.php         # Main orchestrator class
 ├── public/
-│   └── index.php               # Web GUI dengan Tailwind CDN
-├── output/                     # Log files dan hasil parsing
-└── Rekordbox-USB/              # Directory USB/SD Rekordbox export
-    └── PIONEER/
-        └── rekordbox/
-            ├── export.pdb
-            └── exportExt.pdb
+│   ├── js/
+│   │   ├── waveform-renderer.js    # Canvas waveform rendering
+│   │   ├── cue-manager.js          # Cue point management
+│   │   ├── track-detail.js         # Track detail panel controller
+│   │   └── audio-player.js         # HTML5 audio player wrapper
+│   ├── index.php                   # Main web interface (MIXXX theme)
+│   └── audio.php                   # Audio streaming endpoint
+├── output/                         # Log files
+└── Rekordbox-USB/                  # Rekordbox USB/SD export
+    ├── PIONEER/
+    │   ├── rekordbox/
+    │   │   ├── export.pdb
+    │   │   └── exportExt.pdb
+    │   └── USBANLZ/                # Analysis files
+    │       ├── P000/00000001/
+    │       │   ├── ANLZ0000.DAT    # Beatgrid & waveform
+    │       │   ├── ANLZ0000.EXT    # Extended waveform (preferred)
+    │       │   └── ANLZ0000.2EX    # 3-band waveform (CDJ-3000)
+    └── Contents/                   # Audio files (.mp3, .flac, etc)
 ```
 
 ## 🚀 Cara Penggunaan
@@ -52,16 +74,18 @@ Tool PHP untuk membaca, mem-parse, dan menampilkan data dari database ekspor Rek
 ### Requirements
 - PHP 8.2 atau lebih tinggi
 - Extension: mbstring (untuk UTF-16LE string handling)
+- Browser modern dengan HTML5 Canvas support
 
 ### Menjalankan Web GUI
 
 1. Pastikan folder `Rekordbox-USB` berisi export dari Rekordbox
 2. Jalankan PHP built-in server:
    ```bash
-   php -S 0.0.0.0:5000 -t public
+   cd public
+   php -S 0.0.0.0:5000 -t .
    ```
 3. Buka browser ke `http://localhost:5000`
-4. Data akan otomatis ter-load dan ditampilkan
+4. Data akan otomatis ter-load dan ditampilkan dalam MIXXX-style interface
 
 ### Struktur Rekordbox USB Export
 
@@ -69,16 +93,15 @@ Tool PHP untuk membaca, mem-parse, dan menampilkan data dari database ekspor Rek
 Rekordbox-USB/
 ├── PIONEER/
 │   ├── rekordbox/
-│   │   ├── export.pdb       # Database utama
-│   │   └── exportExt.pdb    # Extended database
-│   ├── USBANLZ/              # Analysis files
-│   │   ├── P000/
-│   │   │   └── 00000001/
-│   │   │       ├── ANLZ0000.DAT  # Beatgrid, waveform
-│   │   │       ├── ANLZ0000.EXT  # Extended waveform
-│   │   │       └── ANLZ0000.2EX  # 3-band waveform (CDJ-3000)
-│   └── Artwork/              # Album artwork
-└── Contents/                 # Audio files
+│   │   ├── export.pdb              # Database utama
+│   │   └── exportExt.pdb           # Extended database
+│   ├── USBANLZ/                    # Analysis files
+│   │   └── P{XXX}/{TrackID}/
+│   │       ├── ANLZ0000.DAT        # Beatgrid, basic waveform
+│   │       ├── ANLZ0000.EXT        # Extended RGB waveform (most complete)
+│   │       └── ANLZ0000.2EX        # 3-band waveform (CDJ-3000 only)
+│   └── Artwork/                    # Album artwork
+└── Contents/                       # Audio files
 ```
 
 ## 📖 Format Database
@@ -96,17 +119,69 @@ Database Rekordbox menggunakan format binary proprietary dengan struktur page-ba
 Files dengan tag-based structure untuk data analysis:
 
 - **PQTZ**: Beatgrid data (beat position, tempo, time)
-- **PCOB/PCO2**: Cue points dan loops
-- **PWAV/PWV3/PWV5**: Waveform data (monochrome & colored)
-- **Big-endian**: Berbeda dengan PDB format
+- **PCOB/PCO2**: Cue points dan loops (big-endian time values)
+- **PWAV/PWV3/PWV5**: Waveform data (monochrome & RGB colored)
+- **Big-endian**: Berbeda dengan PDB format (critical untuk parsing cue times)
 
-## 🔍 Fitur Corruption Handling
+#### ANLZ File Priority
+Parser menggunakan prioritas file:
+1. `.EXT` files (most complete RGB waveform data)
+2. `.DAT` files (basic waveform & beatgrid)
+3. `.2EX` files (often empty, CDJ-3000 specific)
 
-Parser secara otomatis:
-- Mendeteksi playlist yang corrupt/rusak
-- Melewati data yang invalid tanpa crash
-- Logging semua corruption yang ditemukan
-- Melanjutkan parsing untuk data yang valid
+## 🎨 UI Design - MIXXX LateNight Theme
+
+Interface dirancang dengan inspirasi dari **MIXXX DJ Software LateNight Skin**:
+
+### Color Palette
+- **Background**: `#1a1a1a` (dark base), `#2a2a2a` (elevated surfaces)
+- **Primary Accent**: `#00d4ff` (cyan) untuk highlights dan aktif state
+- **Text**: `#f5f5f5` (light gray) dengan hierarchy untuk readability
+- **Keys**: Color-coded (`#a855f7` minor, `#00d4ff` major)
+- **Waveforms**: RGB frequency analysis dengan glow effects
+
+### Layout Components
+- **Library Browser**: Track table dengan sortable columns
+- **Waveform Display**: Dual canvas (overview + detailed zoom)
+- **Hot Cue Pads**: 8-pad grid dengan color gradients
+- **Track Info Panel**: BPM, Key, Genre, Duration dengan icons
+- **Search Bar**: Real-time filtering dengan FontAwesome search icon
+
+### Icons
+Menggunakan **FontAwesome 6.5.1** (CDN):
+- `fa-music`: Tracks
+- `fa-list`: Playlists
+- `fa-fire`: Hot cues
+- `fa-check-circle`: Valid tracks
+- `fa-triangle-exclamation`: Corrupt data
+- Dan lainnya untuk UI consistency
+
+## 🔍 Fitur Teknis
+
+### Canvas Waveform Rendering
+- Dynamic canvas sizing dengan device pixel ratio support
+- Fallback sizing untuk DOM load timing issues
+- RGB color data dari ANLZ files
+- Glow effects dengan shadow rendering
+- Click-to-seek pada overview dan detailed waveforms
+
+### Cue Point Management
+- Parse semua cue types (hot cue, memory cue, loops)
+- Render cue markers pada waveform canvas
+- Hot cue pads dengan color matching
+- Jump-to-cue functionality
+
+### Audio Streaming
+- PHP byte-range request handling
+- Seekable audio playback
+- Synchronization antara playhead dan waveform
+- Real-time position tracking
+
+### Error Handling
+- Graceful degradation untuk missing ANLZ files
+- Corruption detection pada playlist data
+- Comprehensive logging untuk debugging
+- Fallback rendering untuk missing waveform data
 
 ## 📚 Referensi
 
@@ -143,18 +218,22 @@ Project ini didasarkan pada reverse-engineering work dan dokumentasi format Reko
 ### Technical Resources
 
 - **Rekordbox Database Format**: DeviceSQL (SQLite-like proprietary format)
-- **ANLZ Files**: Tag-based binary format for waveform, beatgrid, and cue points
-- **Endianness**: PDB uses little-endian, ANLZ uses big-endian
+- **ANLZ Files**: Tag-based binary format untuk waveform, beatgrid, dan cue points
+- **Endianness**: 
+  - PDB uses little-endian
+  - ANLZ uses big-endian (critical untuk cue point timestamps)
 - **String Encoding**: Short ASCII, Long ASCII, UTF-16LE (in PDB)
 
-## 🎨 UI Design
+## 🐛 Known Issues & Solutions
 
-Interface dirancang dengan inspirasi dari **MIXXX DJ Software**, menggunakan:
-- Dark theme profesional untuk lingkungan DJ
-- Waveform visualization dengan color-coded frequency analysis
-- Hot cue pads dengan color coding
-- Professional deck layout
-- Real-time track browsing dan search
+### Waveform Canvas Width = 0
+**Solution**: Canvas setup dipanggil ulang saat `loadWaveform()` jika width masih 0, dengan fallback ke parent width atau default 800px.
+
+### ANLZ Cue Point Times Incorrect
+**Solution**: Menggunakan big-endian (`N` format) untuk time fields, bukan little-endian (`V`).
+
+### Empty .2EX Files
+**Solution**: File priority order `.EXT` → `.DAT` → `.2EX`, dengan `hasData` flag untuk skip empty files.
 
 ## 📝 License
 
@@ -170,3 +249,7 @@ Reverse-engineering format Rekordbox dilakukan oleh:
 - **MIXXX Development Team** - UI/UX Design Inspiration
 
 Special thanks kepada seluruh komunitas yang berkontribusi dalam reverse-engineering format Rekordbox untuk mendukung interoperability di ekosistem DJ software.
+
+---
+
+**v2.0 - MIXXX Edition** | Powered by PHP 8.2 | UI inspired by MIXXX DJ Software
