@@ -4,7 +4,21 @@
 Tool PHP untuk membaca dan menampilkan database Rekordbox USB/SD export dengan web GUI modern. Project ini mengkonversi implementasi Python menjadi PHP murni dengan struktur modular.
 
 ## Recent Changes
-- **2025-11-20**: Modularisasi frontend public/index.php
+- **2025-11-20**: Implementasi Dual DJ Player dengan BPM Sync
+  - Dual deck player dengan full DJ controls:
+    - Play/Pause functionality per deck
+    - Hot cue pads (8 pads per deck) dengan trigger functionality
+    - Waveform visualization dengan beatgrid overlay
+    - Zoom controls (1x-64x, default 16x) dengan drag support
+    - Center playhead dengan scrolling waveform
+    - BPM Pitch control (-16% to +16%) dengan Master Tempo toggle
+    - BPM Sync buttons integrated dalam deck headers
+  - Sync buttons dipindahkan ke dalam player component untuk UI yang lebih rapi
+  - Deck A: Tombol "→ B" untuk sync tempo ke Deck B
+  - Deck B: Tombol "→ A" untuk sync tempo ke Deck A
+  - Fixed JavaScript syntax errors di dual-player.js
+
+- **2025-11-20 (sebelumnya)**: Modularisasi frontend public/index.php
   - Refactor file monolitik menjadi struktur modular terorganisir:
     - `public/css/main.css`: Semua CSS styles terpisah dari HTML
     - `public/partials/head.php`: HTML head section dengan meta tags dan asset links
@@ -53,9 +67,15 @@ Tool PHP untuk membaca dan menampilkan database Rekordbox USB/SD export dengan w
 - **partials/footer.php**: JavaScript logic dan closing HTML tags
 - **components/stats.php**: Statistics display component
 - **components/browser.php**: Library browser, playlist tree, track listing
+- **components/player.php**: Dual deck DJ player dengan sync buttons integrated
 - **components/debug.php**: Database metadata debug panel
 - **css/main.css**: All custom CSS styles
-- **js/**: JavaScript modules (audio-player, waveform-renderer, cue-manager, track-detail)
+- **js/**: JavaScript modules
+  - **dual-player.js**: Main orchestrator untuk dual deck player (626 lines)
+  - **audio-player.js**: Web Audio API wrapper untuk playback
+  - **waveform-renderer.js**: Canvas-based waveform dengan beatgrid overlay
+  - **cue-manager.js**: Hot cue triggers dan markers
+  - **track-detail.js**: Track detail modal display
 
 ### Tech Stack
 - PHP 8.2 (no frameworks)
@@ -95,12 +115,19 @@ Tool PHP untuk membaca dan menampilkan database Rekordbox USB/SD export dengan w
 
 ## Completed Features
 - ✅ Genre parsing dengan fallback untuk empty pages
-- ✅ Track 1 metadata fully functional (title, artist, genre, BPM, key)
+- ✅ Track metadata parsing (title, artist, genre, BPM, key)
 - ✅ Playlist parsing dan display
 - ✅ ANLZ Parser implementation untuk cue points dan waveform
 - ✅ Frontend modal dengan detail view
-- ✅ Waveform canvas visualization
+- ✅ Waveform canvas visualization dengan beatgrid overlay
 - ✅ 32-bit track ID support
+- ✅ Dual deck DJ player dengan professional controls
+- ✅ Hot cue pads (8 per deck) dengan trigger functionality
+- ✅ BPM Pitch control dengan Master Tempo toggle
+- ✅ BPM Sync functionality antar deck
+- ✅ Zoom/drag controls untuk waveform (1x-64x)
+- ✅ Center playhead dengan scrolling waveform
+- ✅ Integrated sync buttons dalam deck headers
 
 ## References
 - Deep Symmetry crate-digger: https://github.com/Deep-Symmetry/crate-digger

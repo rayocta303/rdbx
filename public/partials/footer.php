@@ -2,6 +2,7 @@
     <script src="js/waveform-renderer.js"></script>
     <script src="js/cue-manager.js"></script>
     <script src="js/track-detail.js"></script>
+    <script src="js/dual-player.js"></script>
     
     <script>
         <?php if ($data): ?>
@@ -106,6 +107,18 @@
                     <td class="px-4 py-3 text-sm text-gray-400">${escapeHtml(track.genre)}</td>
                     <td class="px-4 py-3 text-sm">${cueIcon}</td>
                     <td class="px-4 py-3 text-sm text-gray-400 font-mono">${formatDuration(track.duration)}</td>
+                    <td class="px-4 py-3 text-sm">
+                        <div class="flex gap-1">
+                            <button onclick="event.stopPropagation(); loadTrackToDeck(${track.id}, 'a')" 
+                                    class="load-deck-btn load-deck-a" title="Load to Deck A">
+                                A
+                            </button>
+                            <button onclick="event.stopPropagation(); loadTrackToDeck(${track.id}, 'b')" 
+                                    class="load-deck-btn load-deck-b" title="Load to Deck B">
+                                B
+                            </button>
+                        </div>
+                    </td>
                 `;
                 
                 tbody.appendChild(row);
@@ -156,6 +169,13 @@
             } else {
                 panel.classList.add('hidden');
                 toggleText.textContent = 'Show Details';
+            }
+        }
+
+        function loadTrackToDeck(trackId, deckId) {
+            const track = tracksData.find(t => t.id === trackId);
+            if (track && window.dualPlayer) {
+                window.dualPlayer.loadTrack(track, deckId);
             }
         }
     </script>

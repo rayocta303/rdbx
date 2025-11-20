@@ -131,6 +131,9 @@
                             <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider">
                                 <i class="fas fa-clock mr-1"></i>Time
                             </th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider w-32">
+                                <i class="fas fa-play-circle mr-1"></i>Load
+                            </th>
                         </tr>
                     </thead>
                     <tbody id="tracksTable" class="divide-y divide-gray-800">

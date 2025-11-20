@@ -51,6 +51,8 @@ require_once 'partials/head.php';
         <?php require_once 'components/stats.php'; ?>
     </div>
 
+    <?php require_once 'components/player.php'; ?>
+
     <?php require_once 'components/browser.php'; ?>
 
     <?php require_once 'components/debug.php'; ?>
