@@ -185,46 +185,43 @@ class TrackParser {
                 return null;
             }
 
+            // Parse according to Kaitai Struct rekordbox_pdb.ksy track_row definition
             $fixed = unpack(
-                'Vu1/' .           // 0x00
-                'Vu2/' .           // 0x04
-                'Vsample_rate/' .  // 0x08
-                'Vu3/' .           // 0x0C
-                'Vfile_size/' .    // 0x10
-                'Vu4/' .           // 0x14
-                'Vu5/' .           // 0x18
-                'Vu6/' .           // 0x1C
-                'Vu7/' .           // 0x20
-                'Vu8/' .           // 0x24
-                'Vu9/' .           // 0x28
-                'vu10/' .          // 0x2C
-                'vu11/' .          // 0x2E
-                'vbitrate/' .      // 0x30
-                'vu12/' .          // 0x32
-                'vu13/' .          // 0x34
-                'vu14/' .          // 0x36
-                'vtempo/' .        // 0x38 - BPM * 100
-                'vu15/' .          // 0x3A
-                'vu16/' .          // 0x3C
-                'vu17/' .          // 0x3E
-                'vgenre_id/' .     // 0x40
-                'valbum_id/' .     // 0x42
-                'vartist_id/' .    // 0x44
-                'vu18/' .          // 0x46
-                'Vid/' .           // 0x48 - Track ID (32-bit)
-                'vplay_count/' .   // 0x4C
-                'vyear/' .         // 0x4E
-                'vsample_depth/' . // 0x50
-                'vu19/' .          // 0x52
-                'vu20/' .          // 0x54
-                'vduration/' .     // 0x56 - Duration in seconds
-                'Ccolor_id/' .     // 0x58
-                'Crating/' .       // 0x59
-                'vkey_id/' .       // 0x5A - Musical Key ID
-                'vu22',            // 0x5C
+                'vsubtype/' .          // 0x00 - Always 0x24
+                'vindex_shift/' .      // 0x02
+                'Vbitmask/' .          // 0x04
+                'Vsample_rate/' .      // 0x08
+                'Vcomposer_id/' .      // 0x0C
+                'Vfile_size/' .        // 0x10
+                'Vu1/' .               // 0x14
+                'vu2/' .               // 0x18 - Always 19048?
+                'vu3/' .               // 0x1A - Always 30967?
+                'Vartwork_id/' .       // 0x1C
+                'Vkey_id/' .           // 0x20 - Musical Key ID (32-bit)
+                'Voriginal_artist_id/' . // 0x24
+                'Vlabel_id/' .         // 0x28
+                'Vremixer_id/' .       // 0x2C
+                'Vbitrate/' .          // 0x30
+                'Vtrack_number/' .     // 0x34
+                'Vtempo/' .            // 0x38 - BPM * 100
+                'Vgenre_id/' .         // 0x3C
+                'Valbum_id/' .         // 0x40
+                'Vartist_id/' .        // 0x44
+                'Vid/' .               // 0x48 - Track ID
+                'vdisc_number/' .      // 0x4C
+                'vplay_count/' .       // 0x4E
+                'vyear/' .             // 0x50
+                'vsample_depth/' .     // 0x52
+                'vduration/' .         // 0x54 - Duration in seconds
+                'vu4/' .               // 0x56 - Always 41?
+                'Ccolor_id/' .         // 0x58
+                'Crating/' .           // 0x59
+                'vu5/' .               // 0x5A - Always 1?
+                'vu6',                 // 0x5C - Alternating 2 or 3
                 substr($pageData, $offset, 0x5E)
             );
 
+            // String offsets start at 0x5E
             $stringOffsets = [];
             $stringBase = $offset + 0x5E;
             
@@ -240,25 +237,14 @@ class TrackParser {
                     if ($absOffset < strlen($pageData)) {
                         list($str, $newOffset) = $this->pdbParser->extractString($pageData, $absOffset);
                         
+                        // Clean null bytes
                         $nullPos = strpos($str, "\x00");
                         if ($nullPos !== false) {
                             $str = substr($str, 0, $nullPos);
                         }
                         
-                        // Don't split on semicolon for title - keep full title
-                        // Only clean up trailing parts after extension
-                        if ($idx == 17) { // Title string
-                            // Remove duplicate title after semicolon (e.g., "Title;Title.mp3")
-                            if (strpos($str, ';') !== false) {
-                                $parts = explode(';', $str);
-                                $str = $parts[0];
-                            }
-                        } else {
-                            if (strpos($str, ';') !== false) {
-                                $parts = explode(';', $str);
-                                $str = $parts[0];
-                            }
-                        }
+                        // Remove control characters that interfere with parsing
+                        $str = preg_replace('/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/', '', $str);
                         
                         $strings[$idx] = trim($str);
                     } else {
@@ -269,83 +255,89 @@ class TrackParser {
                 }
             }
 
-            $title = $strings[17] ?? '';
+            // Extract title from string[17] (as per Kaitai spec)
+            $title = '';
             
-            if (empty($title) && isset($strings[15])) {
-                $analyzeDate = $strings[15];
-                if (preg_match('/\d{4}-\d{2}-\d{2}.(.+)/', $analyzeDate, $matches)) {
+            // Try title field first (string index 17)
+            if (!empty($strings[17])) {
+                $title = $strings[17];
+            }
+            
+            // Fallback: try filename from string[19]
+            if (empty($title) && !empty($strings[19])) {
+                $title = $strings[19];
+                // Remove file extension
+                $title = preg_replace('/\.(mp3|wav|flac|aac|m4a)$/i', '', $title);
+            }
+            
+            // Fallback: try to extract from file path (string index 20)
+            if (empty($title) && !empty($strings[20])) {
+                if (preg_match('/([^\/]+)\.[^.]+$/', $strings[20], $matches)) {
                     $title = $matches[1];
                 }
             }
             
-            if (empty($title) && isset($strings[20])) {
-                $filePath = $strings[20];
-                if (preg_match('/([^\/]+)$/', $filePath, $matches)) {
-                    $title = $matches[1];
-                }
+            // Clean up title
+            if (!empty($title)) {
+                // Remove file extension if present
+                $title = preg_replace('/\.(mp3|wav|flac|aac|m4a)$/i', '', $title);
             }
             
             if (empty($title)) {
                 $title = 'Unknown Title';
             }
-            
-            if (strpos($title, ';') !== false) {
-                $parts = explode(';', $title);
-                $title = trim($parts[0]);
-            }
-            if (strpos($title, '.mp3') !== false) {
-                $title = str_replace('.mp3', '', $title);
-            }
-            if (strpos($title, '.') !== false && preg_match('/\.[a-z]{3,4}$/i', $title)) {
-                $title = substr($title, 0, strrpos($title, '.'));
-            }
 
-            $artistName = 'Unknown Artist';
-            $albumName = '';
-            
-            if ($this->artistAlbumParser && isset($fixed['artist_id'])) {
+            // Parse Artist (return empty if not found, not "Unknown Artist")
+            $artistName = '';
+            if ($this->artistAlbumParser && isset($fixed['artist_id']) && $fixed['artist_id'] > 0) {
                 $artistName = $this->artistAlbumParser->getArtistName($fixed['artist_id']);
-            } elseif (isset($fixed['artist_id'])) {
-                $artistName = "Artist #{$fixed['artist_id']}";
             }
             
-            if ($this->artistAlbumParser && isset($fixed['album_id'])) {
+            // Parse Album
+            $albumName = '';
+            if ($this->artistAlbumParser && isset($fixed['album_id']) && $fixed['album_id'] > 0) {
                 $albumName = $this->artistAlbumParser->getAlbumName($fixed['album_id']);
-            } elseif (isset($fixed['album_id'])) {
-                $albumName = "Album #{$fixed['album_id']}";
             }
 
+            // Parse Genre (return empty if not found)
             $genreName = '';
-            if ($this->genreParser && isset($fixed['genre_id'])) {
+            if ($this->genreParser && isset($fixed['genre_id']) && $fixed['genre_id'] > 0) {
                 $genreName = $this->genreParser->getGenreName($fixed['genre_id']);
-            } elseif (isset($fixed['genre_id']) && $fixed['genre_id'] > 0) {
-                $genreName = "Genre #{$fixed['genre_id']}";
             }
 
+            // Parse Musical Key
             $keyName = '';
             $keyId = $fixed['key_id'] ?? 0;
-            
             if ($this->keyParser && $keyId > 0) {
                 $keyName = $this->keyParser->getKeyName($keyId);
             }
+            
+            // BPM normalization: convert from tempo (BPM * 100) to integer BPM
+            $bpm = isset($fixed['tempo']) && $fixed['tempo'] > 0 ? intval(round($fixed['tempo'] / 100.0)) : 0;
+            
+            // Extract analyze path (ANLZ file path, string index 14 as per Kaitai spec)
+            $analyzePath = $strings[14] ?? '';
+            
+            // Extract file path (string index 20)
+            $filePath = $strings[20] ?? '';
 
             return [
                 'id' => $fixed['id'],
-                'title' => $title,
-                'artist' => $artistName,
-                'album' => $albumName,
-                'label' => isset($fixed['label_id']) ? "Label #{$fixed['label_id']}" : '',
-                'key' => $keyName,
+                'title' => trim($title),
+                'artist' => trim($artistName),
+                'album' => trim($albumName),
+                'label' => '',
+                'key' => trim($keyName),
                 'key_id' => $keyId,
-                'genre' => $genreName,
+                'genre' => trim($genreName),
                 'artist_id' => $fixed['artist_id'] ?? 0,
                 'album_id' => $fixed['album_id'] ?? 0,
                 'genre_id' => $fixed['genre_id'] ?? 0,
-                'file_path' => $strings[1] ?? '',
-                'analyze_path' => $strings[14] ?? '',
-                'comment' => $strings[16] ?? '',
+                'file_path' => trim($filePath),
+                'analyze_path' => trim($analyzePath),
+                'comment' => trim($strings[16] ?? ''),
                 'duration' => $fixed['duration'] ?? 0,
-                'bpm' => isset($fixed['tempo']) ? round($fixed['tempo'] / 100.0, 2) : 0,
+                'bpm' => $bpm,
                 'sample_rate' => $fixed['sample_rate'] ?? 0,
                 'bitrate' => $fixed['bitrate'] ?? 0,
                 'year' => $fixed['year'] ?? 0,

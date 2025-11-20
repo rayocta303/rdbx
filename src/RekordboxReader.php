@@ -126,64 +126,51 @@ class RekordboxReader {
     }
 
     private function integrateAnlzData($tracks) {
-        $pioneerPath = $this->exportPath . '/PIONEER';
-
-        if (!is_dir($pioneerPath)) {
-            return $tracks;
-        }
-
-        $anlzFiles = AnlzParser::findAnlzFiles($pioneerPath);
-
-        if (empty($anlzFiles)) {
-            return $tracks;
-        }
-
-        // Create mapping of ANLZ files by track ID
-        $anlzByTrackId = [];
-        foreach ($anlzFiles as $anlzFile) {
-            // Extract track ID from path (e.g., USBANLZ/P03F/000272DD/ANLZ0000.DAT)
-            if (preg_match('/([0-9A-F]{8})\/ANLZ0000\.(DAT|EXT|2EX)$/i', $anlzFile, $matches)) {
-                $trackIdHex = $matches[1];
-                $trackId = hexdec($trackIdHex);
-                $ext = strtoupper($matches[2]);
-                
-                if (!isset($anlzByTrackId[$trackId])) {
-                    $anlzByTrackId[$trackId] = [];
-                }
-                $anlzByTrackId[$trackId][$ext] = $anlzFile;
-            }
-        }
-
-        // Parse ANLZ data for each track
+        // Parse ANLZ data for each track using analyze_path from database
         foreach ($tracks as &$track) {
             $track['cue_points'] = [];
             $track['waveform'] = null;
+            $track['beat_grid'] = [];
             
-            if (isset($anlzByTrackId[$track['id']])) {
-                $trackAnlz = $anlzByTrackId[$track['id']];
+            if (empty($track['analyze_path'])) {
+                continue;
+            }
+            
+            // Try to find and parse ANLZ files (.DAT, .EXT, .2EX)
+            $filesToTry = [
+                ['ext' => '2EX', 'suffix' => '.2EX'],
+                ['ext' => 'EXT', 'suffix' => '.EXT'],
+                ['ext' => 'DAT', 'suffix' => '.DAT']
+            ];
+            
+            foreach ($filesToTry as $fileInfo) {
+                // Replace .DAT extension with current extension being tried
+                $anlzPath = preg_replace('/\.DAT$/i', $fileInfo['suffix'], $track['analyze_path']);
+                $fullPath = $this->exportPath . $anlzPath;
                 
-                // Try to parse extended file first (2EX), then EXT, then DAT
-                $filesToTry = ['2EX', 'EXT', 'DAT'];
-                foreach ($filesToTry as $ext) {
-                    if (isset($trackAnlz[$ext])) {
-                        try {
-                            $parser = new AnlzParser($trackAnlz[$ext], $this->logger);
-                            $anlzData = $parser->parse();
+                if (file_exists($fullPath)) {
+                    try {
+                        $parser = new AnlzParser($fullPath, null); // No logger for speed
+                        $anlzData = $parser->parse();
 
-                            if (!empty($anlzData['cue_points'])) {
-                                $track['cue_points'] = $anlzData['cue_points'];
-                            }
-                            
-                            if (!empty($anlzData['waveform'])) {
-                                $track['waveform'] = $anlzData['waveform'];
-                            }
-
-                            $this->stats['anlz_files_processed']++;
-                            break; // Stop after first successful parse
-
-                        } catch (\Exception $e) {
-                            $this->logger->debug("Error parsing ANLZ for track {$track['id']}: " . $e->getMessage());
+                        if (!empty($anlzData['cue_points'])) {
+                            $track['cue_points'] = $anlzData['cue_points'];
                         }
+                        
+                        if (!empty($anlzData['waveform'])) {
+                            $track['waveform'] = $anlzData['waveform'];
+                        }
+                        
+                        if (!empty($anlzData['beat_grid'])) {
+                            $track['beat_grid'] = $anlzData['beat_grid'];
+                        }
+
+                        $this->stats['anlz_files_processed']++;
+                        break; // Stop after first successful parse
+
+                    } catch (\Exception $e) {
+                        // Try next file type
+                        continue;
                     }
                 }
             }

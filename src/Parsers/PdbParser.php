@@ -151,13 +151,16 @@ class PdbParser {
         $flags = ord($data[$offset]);
         $offset += 1;
 
-        if (($flags & 0x40) == 0) {
-            $length = $flags & 0x7F;
-            if ($offset + $length > strlen($data)) {
+        if (($flags & 0x01) == 1) {
+            $totalLength = $flags >> 1;
+            $dataLength = $totalLength - 1;
+            
+            if ($dataLength <= 0 || $offset + $dataLength > strlen($data)) {
                 return ['', $offset];
             }
-            $text = substr($data, $offset, $length);
-            return [$text, $offset + $length];
+            
+            $text = substr($data, $offset, $dataLength);
+            return [$text, $offset + $dataLength];
         }
 
         elseif ($flags == 0x40) {
