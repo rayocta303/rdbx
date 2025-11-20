@@ -110,20 +110,51 @@ Parser secara otomatis:
 
 ## 📚 Referensi
 
-Project ini didasarkan pada reverse-engineering work dari:
+### File Format Documentation
 
-1. **Deep Symmetry - crate-digger** (Java)
-   - https://github.com/Deep-Symmetry/crate-digger
-   - Dokumentasi: https://djl-analysis.deepsymmetry.org/
+Project ini didasarkan pada reverse-engineering work dan dokumentasi format Rekordbox:
 
-2. **Holzhaus - rekordcrate** (Rust)
-   - https://github.com/holzhaus/rekordcrate
+1. **Deep Symmetry - crate-digger** (Java Implementation)
+   - Repository: https://github.com/Deep-Symmetry/crate-digger
+   - Kaitai Struct ANLZ: https://github.com/Deep-Symmetry/crate-digger/blob/main/src/main/kaitai/rekordbox_anlz.ksy
+   - Kaitai Struct PDB: https://github.com/Deep-Symmetry/crate-digger/blob/main/src/main/kaitai/rekordbox_pdb.ksy
+   - Documentation: https://github.com/Deep-Symmetry/crate-digger/tree/main/doc
+   - Analysis Guide: https://djl-analysis.deepsymmetry.org/rekordbox-export-analysis/exports.html
 
-3. **Henry Betts - Rekordbox Decoding**
-   - https://github.com/henrybetts/Rekordbox-Decoding
+2. **Holzhaus - rekordcrate** (Rust Implementation)
+   - Repository: https://github.com/holzhaus/rekordcrate
+   - PDB Module Docs: https://holzhaus.github.io/rekordcrate/rekordcrate/pdb/index.html
+   - ANLZ Module Docs: https://holzhaus.github.io/rekordcrate/rekordcrate/anlz/index.html
+   - Settings Module: https://holzhaus.github.io/rekordcrate/rekordcrate/setting/index.html
+   - Utils Module: https://holzhaus.github.io/rekordcrate/rekordcrate/util/index.html
+   - Main Docs: https://holzhaus.github.io/rekordcrate/rekordcrate/index.html
 
-4. **Fabian Lesniak - python-prodj-link** (Python)
-   - https://github.com/mtgto/python-prodj-link
+3. **Henry Betts - Rekordbox Decoding** (C# Implementation)
+   - Repository: https://github.com/henrybetts/Rekordbox-Decoding
+
+4. **Digital DJ Tools - DJ Data Converter**
+   - Repository: https://github.com/digital-dj-tools/dj-data-converter
+
+5. **MIXXX DJ Software** (Open Source DJ Application)
+   - Repository: https://github.com/mixxxdj/mixxx
+   - Website: https://mixxx.org
+   - UI Design Inspiration: MIXXX LateNight Skin
+
+### Technical Resources
+
+- **Rekordbox Database Format**: DeviceSQL (SQLite-like proprietary format)
+- **ANLZ Files**: Tag-based binary format for waveform, beatgrid, and cue points
+- **Endianness**: PDB uses little-endian, ANLZ uses big-endian
+- **String Encoding**: Short ASCII, Long ASCII, UTF-16LE (in PDB)
+
+## 🎨 UI Design
+
+Interface dirancang dengan inspirasi dari **MIXXX DJ Software**, menggunakan:
+- Dark theme profesional untuk lingkungan DJ
+- Waveform visualization dengan color-coded frequency analysis
+- Hot cue pads dengan color coding
+- Professional deck layout
+- Real-time track browsing dan search
 
 ## 📝 License
 
@@ -132,7 +163,10 @@ Project ini dibuat untuk tujuan educational dan interoperability.
 ## 🙏 Credits
 
 Reverse-engineering format Rekordbox dilakukan oleh:
-- Henry Betts (@henrybetts)
-- Fabian Lesniak (@flesniak)
-- James Elliott (@brunchboy) - Deep Symmetry
-- Jan Holthuis (@Holzhaus)
+- **Henry Betts** (@henrybetts) - Rekordbox Decoding (C#)
+- **Fabian Lesniak** (@flesniak) - Python ProDJ Link
+- **James Elliott** (@brunchboy) - Deep Symmetry / Crate Digger (Java)
+- **Jan Holthuis** (@Holzhaus) - Rekordcrate (Rust)
+- **MIXXX Development Team** - UI/UX Design Inspiration
+
+Special thanks kepada seluruh komunitas yang berkontribusi dalam reverse-engineering format Rekordbox untuk mendukung interoperability di ekosistem DJ software.

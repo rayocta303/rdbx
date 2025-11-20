@@ -33,6 +33,13 @@ class WaveformRenderer {
     }
     
     loadWaveform(waveformData, duration) {
+        console.log('WaveformRenderer.loadWaveform called', {
+            hasWaveformData: !!waveformData,
+            duration: duration,
+            previewData: waveformData?.preview_data?.length || 0,
+            colorData: waveformData?.color_data?.length || 0
+        });
+        
         this.waveformData = waveformData;
         this.duration = duration;
         this.detailedScrollOffset = 0;
@@ -43,34 +50,57 @@ class WaveformRenderer {
     }
     
     renderOverview() {
-        if (!this.overviewCanvas || !this.waveformData) return;
+        if (!this.overviewCanvas || !this.waveformData) {
+            console.log('renderOverview skipped:', { hasCanvas: !!this.overviewCanvas, hasData: !!this.waveformData });
+            return;
+        }
         
         const ctx = this.overviewCanvas.getContext('2d');
         const width = this.overviewCanvas.width;
         const height = this.overviewCanvas.height;
         
-        ctx.fillStyle = '#1a1a1a';
+        ctx.fillStyle = '#0a0a0a';
         ctx.fillRect(0, 0, width, height);
         
         const waveData = this.waveformData.preview_data || this.waveformData.color_data;
-        if (!waveData || waveData.length === 0) return;
+        console.log('renderOverview waveData:', { 
+            hasPreview: !!this.waveformData.preview_data, 
+            hasColor: !!this.waveformData.color_data,
+            waveDataLength: waveData?.length || 0,
+            canvasWidth: width,
+            canvasHeight: height
+        });
+        
+        if (!waveData || waveData.length === 0) {
+            ctx.fillStyle = '#333';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('No waveform data available', width / 2, height / 2);
+            return;
+        }
         
         const step = width / waveData.length;
         const isColorWaveform = waveData[0].r !== undefined;
         
         waveData.forEach((sample, i) => {
             const x = i * step;
-            const barHeight = (sample.height / 255) * height * 0.9;
+            const barHeight = (sample.height / 255) * height * 0.85;
             const y = (height - barHeight) / 2;
             
             if (isColorWaveform) {
-                ctx.fillStyle = `rgb(${sample.r}, ${sample.g}, ${sample.b})`;
+                const brightness = Math.max(sample.r, sample.g, sample.b) / 255;
+                ctx.fillStyle = `rgba(${sample.r}, ${sample.g}, ${sample.b}, ${0.8 + brightness * 0.2})`;
             } else {
-                ctx.fillStyle = '#00D9FF';
+                const intensity = sample.height / 255;
+                ctx.fillStyle = `rgba(0, 217, 255, ${0.7 + intensity * 0.3})`;
             }
             
             ctx.fillRect(x, y, Math.max(1, step), barHeight);
         });
+        
+        ctx.strokeStyle = '#00d4ff30';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(0, 0, width, height);
         
         this.drawOverviewPlayhead();
     }
@@ -82,11 +112,17 @@ class WaveformRenderer {
         const width = this.detailedCanvas.width;
         const height = this.detailedCanvas.height;
         
-        ctx.fillStyle = '#1a1a1a';
+        ctx.fillStyle = '#0a0a0a';
         ctx.fillRect(0, 0, width, height);
         
         const waveData = this.waveformData.preview_data || this.waveformData.color_data;
-        if (!waveData || waveData.length === 0) return;
+        if (!waveData || waveData.length === 0) {
+            ctx.fillStyle = '#333';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('No waveform data available', width / 2, height / 2);
+            return;
+        }
         
         const visibleDuration = this.duration / this.detailedZoom;
         const startTime = this.detailedScrollOffset;
@@ -101,17 +137,23 @@ class WaveformRenderer {
         
         visibleData.forEach((sample, i) => {
             const x = i * step;
-            const barHeight = (sample.height / 255) * height * 0.9;
+            const barHeight = (sample.height / 255) * height * 0.85;
             const y = (height - barHeight) / 2;
             
             if (isColorWaveform) {
-                ctx.fillStyle = `rgb(${sample.r}, ${sample.g}, ${sample.b})`;
+                const brightness = Math.max(sample.r, sample.g, sample.b) / 255;
+                ctx.fillStyle = `rgba(${sample.r}, ${sample.g}, ${sample.b}, ${0.8 + brightness * 0.2})`;
             } else {
-                ctx.fillStyle = '#00D9FF';
+                const intensity = sample.height / 255;
+                ctx.fillStyle = `rgba(0, 217, 255, ${0.7 + intensity * 0.3})`;
             }
             
             ctx.fillRect(x, y, Math.max(1, step), barHeight);
         });
+        
+        ctx.strokeStyle = '#00d4ff30';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(0, 0, width, height);
         
         this.drawDetailedPlayhead();
     }
@@ -125,14 +167,17 @@ class WaveformRenderer {
         
         const x = (this.playheadPosition / this.duration) * width;
         
-        ctx.strokeStyle = '#FF0000';
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = '#FF4444';
+        ctx.strokeStyle = '#FF4444';
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.moveTo(x, 0);
         ctx.lineTo(x, height);
         ctx.stroke();
+        ctx.shadowBlur = 0;
         
-        ctx.fillStyle = '#FF0000';
+        ctx.fillStyle = '#FF4444';
         ctx.beginPath();
         ctx.moveTo(x, 0);
         ctx.lineTo(x - 6, 10);
@@ -154,14 +199,17 @@ class WaveformRenderer {
         if (relativePosition >= 0 && relativePosition <= visibleDuration) {
             const x = (relativePosition / visibleDuration) * width;
             
-            ctx.strokeStyle = '#FF0000';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#FF4444';
+            ctx.strokeStyle = '#FF4444';
             ctx.lineWidth = 3;
             ctx.beginPath();
             ctx.moveTo(x, 0);
             ctx.lineTo(x, height);
             ctx.stroke();
+            ctx.shadowBlur = 0;
             
-            ctx.fillStyle = '#FF0000';
+            ctx.fillStyle = '#FF4444';
             ctx.beginPath();
             ctx.moveTo(x, 0);
             ctx.lineTo(x - 6, 10);

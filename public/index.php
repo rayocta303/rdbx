@@ -32,62 +32,264 @@ try {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rekordbox Export Reader - PHP Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        .table-container {
-            max-height: 600px;
-            overflow-y: auto;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
+        
+        body {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+        
+        .mixxx-container {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+        
+        .mixxx-header {
+            background: linear-gradient(180deg, #2a2a2a 0%, #1e1e1e 100%);
+            border-bottom: 2px solid #00d4ff;
+            padding: 1rem 1.5rem;
+        }
+        
+        .deck-section {
+            background: #252525;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+        }
+        
+        .library-panel {
+            background: #1a1a1a;
+            border-right: 2px solid #2a2a2a;
+        }
+        
+        .playlist-item {
+            transition: all 0.2s ease;
+            color: #b0b0b0;
+        }
+        
+        .playlist-item:hover {
+            background: #2a2a2a;
+            color: #00d4ff;
+        }
+        
+        .playlist-item.active {
+            background: linear-gradient(90deg, #00d4ff20 0%, transparent 100%);
+            border-left: 3px solid #00d4ff;
+            color: #00d4ff;
+            font-weight: 600;
+        }
+        
+        .track-row {
+            background: #1e1e1e;
+            border-bottom: 1px solid #2a2a2a;
+            transition: all 0.15s ease;
+            color: #d0d0d0;
+        }
+        
         .track-row:hover {
-            background-color: #f3f4f6;
+            background: #252525;
+            border-left: 3px solid #00d4ff;
         }
+        
         .track-row.selected {
-            background-color: #dbeafe;
+            background: linear-gradient(90deg, #00d4ff30 0%, #252525 100%);
+            border-left: 3px solid #00d4ff;
+            color: #ffffff;
         }
+        
+        .waveform-container {
+            background: #0a0a0a;
+            border: 2px solid #2a2a2a;
+            border-radius: 4px;
+            position: relative;
+        }
+        
         canvas {
             width: 100%;
             height: auto;
             display: block;
         }
+        
+        .cue-pad {
+            background: linear-gradient(135deg, #2a2a2a 0%, #1e1e1e 100%);
+            border: 1px solid #3a3a3a;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+        
+        .cue-pad:hover {
+            border-color: #00d4ff;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #2a2a2a 0%, #1e1e1e 100%);
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+            padding: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            border-color: #00d4ff;
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.2);
+        }
+        
+        .search-input {
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            color: #e0e0e0;
+            transition: all 0.3s ease;
+        }
+        
+        .search-input:focus {
+            background: #303030;
+            border-color: #00d4ff;
+            outline: none;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.2);
+        }
+        
+        .table-header {
+            background: #1a1a1a;
+            border-bottom: 2px solid #00d4ff;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .bpm-indicator {
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            color: #00ff88;
+        }
+        
+        .key-major {
+            color: #ff9500;
+            font-weight: 700;
+        }
+        
+        .key-minor {
+            color: #a855f7;
+            font-weight: 700;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: #3a3a3a;
+            border-radius: 4px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+            background: #00d4ff;
+        }
+        
+        .deck-title {
+            color: #00d4ff;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+        
+        .metadata-label {
+            color: #888;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .metadata-value {
+            color: #e0e0e0;
+            font-weight: 600;
+        }
     </style>
 </head>
-<body class="bg-gray-50">
-    <div class="container mx-auto px-4 py-8 max-w-7xl">
-        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <div class="flex items-center justify-between mb-6">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-800">Rekordbox Export Reader</h1>
-                    <p class="text-gray-600 mt-2">PHP Edition - Membaca Library Rekordbox dari USB/SD Export</p>
+<body>
+    <div class="container mx-auto px-4 py-6 max-w-full">
+        <div class="mixxx-container rounded-lg mb-6">
+            <div class="mixxx-header">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <i class="fas fa-compact-disc text-4xl text-cyan-400 animate-spin" style="animation-duration: 10s;"></i>
+                        <div>
+                            <h1 class="text-3xl font-bold deck-title">Rekordbox Export Reader</h1>
+                            <p class="text-gray-400 mt-1 text-sm">Professional DJ Library Manager - Powered by PHP</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="text-right">
+                            <div class="text-xs text-gray-500">MIXXX EDITION</div>
+                            <div class="text-sm text-cyan-400 font-mono">v2.0</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <?php if ($error): ?>
-            <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-                <h3 class="text-red-800 font-semibold mb-2">❌ Error</h3>
-                <p class="text-red-700"><?= htmlspecialchars($error) ?></p>
+            <div class="bg-red-900 bg-opacity-30 border border-red-500 rounded-lg p-4 m-6">
+                <h3 class="text-red-400 font-semibold mb-2"><i class="fas fa-times-circle"></i> System Error</h3>
+                <p class="text-red-300"><?= htmlspecialchars($error) ?></p>
             </div>
             <?php endif; ?>
 
             <?php if ($stats): ?>
-            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-                <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white shadow">
-                    <div class="text-3xl font-bold"><?= $stats['total_tracks'] ?></div>
-                    <div class="text-blue-100 text-sm">Total Tracks</div>
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3 p-6">
+                <div class="stat-card group">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-music text-2xl text-cyan-400 group-hover:scale-110 transition-transform"></i>
+                        <div>
+                            <div class="text-2xl font-bold text-cyan-400"><?= $stats['total_tracks'] ?></div>
+                            <div class="text-gray-400 text-xs uppercase tracking-wide">Tracks</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-white shadow">
-                    <div class="text-3xl font-bold"><?= $stats['total_playlists'] ?></div>
-                    <div class="text-green-100 text-sm">Total Playlists</div>
+                <div class="stat-card group">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-list text-2xl text-green-400 group-hover:scale-110 transition-transform"></i>
+                        <div>
+                            <div class="text-2xl font-bold text-green-400"><?= $stats['total_playlists'] ?></div>
+                            <div class="text-gray-400 text-xs uppercase tracking-wide">Playlists</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-white shadow">
-                    <div class="text-3xl font-bold"><?= $stats['valid_playlists'] ?></div>
-                    <div class="text-purple-100 text-sm">Valid Playlists</div>
+                <div class="stat-card group">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-check-circle text-2xl text-purple-400 group-hover:scale-110 transition-transform"></i>
+                        <div>
+                            <div class="text-2xl font-bold text-purple-400"><?= $stats['valid_playlists'] ?></div>
+                            <div class="text-gray-400 text-xs uppercase tracking-wide">Valid</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-lg p-4 text-white shadow">
-                    <div class="text-3xl font-bold"><?= $stats['corrupt_playlists'] ?></div>
-                    <div class="text-yellow-100 text-sm">Corrupt Playlists</div>
+                <div class="stat-card group">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-exclamation-triangle text-2xl text-yellow-400 group-hover:scale-110 transition-transform"></i>
+                        <div>
+                            <div class="text-2xl font-bold text-yellow-400"><?= $stats['corrupt_playlists'] ?></div>
+                            <div class="text-gray-400 text-xs uppercase tracking-wide">Corrupt</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg p-4 text-white shadow">
-                    <div class="text-3xl font-bold"><?= $stats['processing_time'] ?>s</div>
-                    <div class="text-indigo-100 text-sm">Processing Time</div>
+                <div class="stat-card group">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-clock text-2xl text-orange-400 group-hover:scale-110 transition-transform"></i>
+                        <div>
+                            <div class="text-2xl font-bold text-orange-400"><?= $stats['processing_time'] ?>s</div>
+                            <div class="text-gray-400 text-xs uppercase tracking-wide">Parse Time</div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <?php endif; ?>
@@ -95,19 +297,23 @@ try {
 
         <?php if ($data): ?>
         
-        <div class="bg-white rounded-lg shadow-lg mb-6">
-            <div class="flex gap-4" style="height: 700px;">
-                <div class="w-64 border-r border-gray-200 overflow-y-auto flex-shrink-0">
-                    <div class="p-4 bg-gray-100 border-b border-gray-200">
-                        <h3 class="font-semibold text-gray-700">📋 Playlists</h3>
+        <div class="mixxx-container rounded-lg mb-6">
+            <div class="flex gap-0" style="height: 750px;">
+                <div class="w-64 library-panel overflow-y-auto flex-shrink-0 scrollbar-thin">
+                    <div class="p-4 bg-gradient-to-r from-cyan-900 to-cyan-800 border-b border-cyan-600">
+                        <h3 class="font-semibold text-cyan-100 flex items-center gap-2">
+                            <i class="fas fa-list"></i> 
+                            <span>Library</span>
+                        </h3>
                     </div>
                     
                     <div class="p-2">
                         <button 
                             onclick="showAllTracks()" 
                             id="playlist_all"
-                            class="playlist-item w-full text-left px-3 py-2 rounded hover:bg-blue-50 mb-1 bg-blue-100 text-blue-700 font-medium">
-                            🎵 All Tracks (<?= count($data['tracks']) ?>)
+                            class="playlist-item w-full text-left px-3 py-2 rounded mb-1 active">
+                            <i class="fas fa-music mr-2"></i> All Tracks 
+                            <span class="text-xs ml-1 opacity-70">(<?= count($data['tracks']) ?>)</span>
                         </button>
                         
                         <?php if (count($data['playlists']) > 0): ?>
@@ -138,8 +344,8 @@ try {
                                     
                                     if ($playlist['is_folder']) {
                                         echo '<div class="folder-item">';
-                                        echo '<button class="w-full text-left px-3 py-2 text-gray-700 hover:bg-gray-100 font-semibold">';
-                                        echo $indent . '📁 ' . htmlspecialchars($playlist['name']);
+                                        echo '<button class="w-full text-left px-3 py-2 text-gray-400 hover:text-cyan-400 hover:bg-gray-800 font-semibold transition-all">';
+                                        echo $indent . '<i class="fas fa-folder mr-2"></i> ' . htmlspecialchars($playlist['name']);
                                         echo '</button>';
                                         if (!empty($playlist['children'])) {
                                             echo '<div class="ml-2">';
@@ -150,10 +356,10 @@ try {
                                     } else {
                                         echo '<button onclick="showPlaylist(' . $playlist['id'] . ')" ';
                                         echo 'id="playlist_' . $playlist['id'] . '" ';
-                                        echo 'class="playlist-item w-full text-left px-3 py-2 rounded hover:bg-blue-50 mb-1 text-gray-700">';
+                                        echo 'class="playlist-item w-full text-left px-3 py-2 rounded mb-1">';
                                         echo '<div class="flex items-center justify-between">';
-                                        echo '<span class="truncate">' . $indent . '🎵 ' . htmlspecialchars($playlist['name']) . '</span>';
-                                        echo '<span class="text-xs text-gray-500 ml-2">' . $playlist['track_count'] . '</span>';
+                                        echo '<span class="truncate">' . $indent . '<i class="fas fa-music mr-2"></i> ' . htmlspecialchars($playlist['name']) . '</span>';
+                                        echo '<span class="text-xs opacity-60 ml-2">' . $playlist['track_count'] . '</span>';
                                         echo '</div>';
                                         echo '</button>';
                                     }
@@ -167,95 +373,128 @@ try {
                     </div>
                 </div>
 
-                <div class="flex-1 flex flex-col overflow-hidden">
-                    <div class="p-4 border-b border-gray-200 bg-gray-50">
+                <div class="flex-1 flex flex-col overflow-hidden bg-gray-900">
+                    <div class="p-4 border-b-2 border-cyan-600 bg-gradient-to-r from-gray-800 to-gray-900">
                         <div class="flex items-center justify-between">
-                            <h2 class="text-xl font-bold text-gray-800" id="currentPlaylistTitle">All Tracks</h2>
-                            <input 
-                                type="text" 
-                                id="searchTracks" 
-                                placeholder="🔍 Search tracks..."
-                                onkeyup="filterTracks()"
-                                class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64">
+                            <h2 class="text-xl font-bold deck-title flex items-center gap-2" id="currentPlaylistTitle">
+                                <i class="fas fa-headphones"></i>
+                                <span>All Tracks</span>
+                            </h2>
+                            <div class="relative w-80">
+                                <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
+                                <input 
+                                    type="text" 
+                                    id="searchTracks" 
+                                    placeholder="Search tracks, artists, or genres..."
+                                    onkeyup="filterTracks()"
+                                    class="pl-10 pr-4 py-2 w-full search-input rounded-lg">
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="flex-1 overflow-y-auto">
+                    <div class="flex-1 overflow-y-auto scrollbar-thin">
                         <?php if (count($data['tracks']) > 0): ?>
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-100 sticky top-0">
+                        <table class="min-w-full">
+                            <thead class="table-header">
                                 <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase w-12">#</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Title</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Artist</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">BPM</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Key</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Genre</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Cues</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Duration</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider w-12">#</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider">
+                                        <i class="fas fa-music mr-1"></i>Title
+                                    </th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider">
+                                        <i class="fas fa-user mr-1"></i>Artist
+                                    </th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider">
+                                        <i class="fas fa-drum mr-1"></i>BPM
+                                    </th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider">
+                                        <i class="fas fa-key mr-1"></i>Key
+                                    </th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider">
+                                        <i class="fas fa-tag mr-1"></i>Genre
+                                    </th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider">
+                                        <i class="fas fa-map-marker-alt mr-1"></i>Cues
+                                    </th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider">
+                                        <i class="fas fa-clock mr-1"></i>Time
+                                    </th>
                                 </tr>
                             </thead>
-                            <tbody id="tracksTable" class="bg-white divide-y divide-gray-200">
+                            <tbody id="tracksTable" class="divide-y divide-gray-800">
                             </tbody>
                         </table>
                         <?php else: ?>
                         <div class="text-center py-12 text-gray-500">
+                            <i class="fas fa-music text-4xl mb-3"></i>
                             <p class="text-lg">No tracks found in database</p>
                         </div>
                         <?php endif; ?>
                     </div>
                 </div>
 
-                <div id="trackDetailPanel" class="w-2/5 border-l border-gray-200 overflow-y-auto hidden flex-shrink-0">
-                    <div class="p-6">
-                        <div class="mb-6">
-                            <h2 id="detailTrackTitle" class="text-2xl font-bold text-gray-800 mb-2">Track Title</h2>
-                            <p id="detailTrackArtist" class="text-lg text-gray-600">Artist Name</p>
+                <div id="trackDetailPanel" class="w-2/5 border-l-2 border-cyan-600 overflow-y-auto hidden flex-shrink-0 scrollbar-thin deck-section">
+                    <div class="p-6 bg-gradient-to-b from-gray-900 to-gray-800">
+                        <div class="mb-6 p-4 bg-gradient-to-r from-cyan-900 to-blue-900 rounded-lg border border-cyan-700">
+                            <h2 id="detailTrackTitle" class="text-2xl font-bold text-white mb-2">Track Title</h2>
+                            <p id="detailTrackArtist" class="text-lg text-cyan-300">Artist Name</p>
                         </div>
 
-                        <div class="grid grid-cols-2 gap-4 mb-6 text-sm">
+                        <div class="grid grid-cols-2 gap-4 mb-6 p-4 bg-gray-800 bg-opacity-50 rounded-lg border border-gray-700">
                             <div>
-                                <span class="text-gray-500">BPM:</span>
-                                <span id="detailTrackBPM" class="font-semibold ml-2">120.00</span>
+                                <div class="metadata-label">BPM</div>
+                                <div id="detailTrackBPM" class="bpm-indicator text-xl">120.00</div>
                             </div>
                             <div>
-                                <span class="text-gray-500">Key:</span>
-                                <span id="detailTrackKey" class="font-semibold ml-2">Am</span>
+                                <div class="metadata-label">Key</div>
+                                <div id="detailTrackKey" class="metadata-value text-xl">Am</div>
                             </div>
                             <div>
-                                <span class="text-gray-500">Genre:</span>
-                                <span id="detailTrackGenre" class="font-semibold ml-2">-</span>
+                                <div class="metadata-label">Genre</div>
+                                <div id="detailTrackGenre" class="metadata-value">-</div>
                             </div>
                             <div>
-                                <span class="text-gray-500">Duration:</span>
-                                <span id="detailTrackDuration" class="font-semibold ml-2">0:00</span>
+                                <div class="metadata-label">Duration</div>
+                                <div id="detailTrackDuration" class="metadata-value">0:00</div>
                             </div>
                             <div class="col-span-2">
-                                <span class="text-gray-500">Rating:</span>
-                                <span id="detailTrackRating" class="ml-2">-</span>
+                                <div class="metadata-label">Rating</div>
+                                <div id="detailTrackRating" class="mt-1">-</div>
                             </div>
                         </div>
 
                         <div id="audioPlayerContainer" class="mb-6"></div>
 
                         <div class="mb-6">
-                            <h3 class="text-sm font-semibold text-gray-700 mb-2">Waveform Overview</h3>
-                            <div class="bg-gray-900 rounded overflow-hidden">
+                            <h3 class="text-sm font-semibold text-cyan-400 mb-2 flex items-center gap-2">
+                                <i class="fas fa-chart-area"></i>
+                                <span>WAVEFORM OVERVIEW</span>
+                            </h3>
+                            <div class="waveform-container">
                                 <canvas id="waveformOverview" class="cursor-pointer"></canvas>
                             </div>
                         </div>
 
                         <div class="mb-6">
-                            <h3 class="text-sm font-semibold text-gray-700 mb-2">Waveform Detailed</h3>
-                            <div class="bg-gray-900 rounded overflow-hidden">
+                            <h3 class="text-sm font-semibold text-cyan-400 mb-2 flex items-center gap-2">
+                                <i class="fas fa-waveform-path"></i>
+                                <span>WAVEFORM DETAILED</span>
+                            </h3>
+                            <div class="waveform-container">
                                 <canvas id="waveformDetailed" class="cursor-pointer"></canvas>
                             </div>
                         </div>
 
                         <div>
-                            <h3 class="text-sm font-semibold text-gray-700 mb-3">Cue Points</h3>
-                            <div id="cueListContainer" class="bg-gray-50 rounded p-3">
-                                <div class="text-center text-gray-500 py-4">No cue points</div>
+                            <h3 class="text-sm font-semibold text-cyan-400 mb-3 flex items-center gap-2">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <span>HOT CUES & MEMORY POINTS</span>
+                            </h3>
+                            <div id="cueListContainer" class="bg-gray-900 bg-opacity-50 rounded-lg p-3 border border-gray-700">
+                                <div class="text-center text-gray-500 py-4">
+                                    <i class="fas fa-map-marker-alt text-2xl mb-2"></i>
+                                    <div>No cue points</div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -263,19 +502,22 @@ try {
             </div>
         </div>
 
-        <div class="bg-white rounded-lg shadow-lg mb-6">
-            <div class="border-b border-gray-200">
+        <div class="mixxx-container rounded-lg mb-6">
+            <div class="border-b-2 border-cyan-600">
                 <nav class="flex -mb-px">
-                    <button onclick="showTab('metadata')" id="metadataTab" class="tab-button px-6 py-4 text-sm font-medium border-b-2 border-blue-500 text-blue-600">
-                        ℹ️ Database Metadata
+                    <button onclick="showTab('metadata')" id="metadataTab" class="tab-button px-6 py-4 text-sm font-medium border-b-2 border-cyan-500 text-cyan-400 bg-gray-800">
+                        <i class="fas fa-info-circle"></i> Database Metadata
                     </button>
                 </nav>
             </div>
 
             <div id="metadataContent" class="tab-content p-6">
-                <h2 class="text-2xl font-bold text-gray-800 mb-4">Database Metadata</h2>
-                <div class="bg-gray-50 rounded-lg p-4">
-                    <pre class="text-sm text-gray-700 overflow-x-auto"><?= json_encode($data['metadata'], JSON_PRETTY_PRINT) ?></pre>
+                <h2 class="text-2xl font-bold deck-title mb-4 flex items-center gap-2">
+                    <i class="fas fa-database"></i>
+                    <span>Database Metadata</span>
+                </h2>
+                <div class="bg-gray-900 rounded-lg p-4 border border-gray-700">
+                    <pre class="text-sm text-cyan-300 overflow-x-auto"><?= json_encode($data['metadata'], JSON_PRETTY_PRINT) ?></pre>
                 </div>
             </div>
         </div>
@@ -312,26 +554,24 @@ try {
             });
             
             document.querySelectorAll('.tab-button').forEach(button => {
-                button.classList.remove('border-blue-500', 'text-blue-600');
-                button.classList.add('border-transparent', 'text-gray-500');
+                button.classList.remove('border-cyan-500', 'text-cyan-400', 'bg-gray-800');
+                button.classList.add('border-transparent', 'text-gray-500', 'bg-transparent');
             });
 
             document.getElementById(tabName + 'Content').classList.remove('hidden');
-            document.getElementById(tabName + 'Tab').classList.remove('border-transparent', 'text-gray-500');
-            document.getElementById(tabName + 'Tab').classList.add('border-blue-500', 'text-blue-600');
+            document.getElementById(tabName + 'Tab').classList.remove('border-transparent', 'text-gray-500', 'bg-transparent');
+            document.getElementById(tabName + 'Tab').classList.add('border-cyan-500', 'text-cyan-400', 'bg-gray-800');
         }
 
         function showAllTracks() {
             currentPlaylistId = 'all';
-            document.getElementById('currentPlaylistTitle').textContent = 'All Tracks';
+            document.getElementById('currentPlaylistTitle').innerHTML = '<i class="fas fa-headphones"></i><span>All Tracks</span>';
             
             document.querySelectorAll('.playlist-item').forEach(btn => {
-                btn.classList.remove('bg-blue-100', 'text-blue-700', 'font-medium');
-                btn.classList.add('text-gray-700');
+                btn.classList.remove('active');
             });
             
-            document.getElementById('playlist_all').classList.add('bg-blue-100', 'text-blue-700', 'font-medium');
-            document.getElementById('playlist_all').classList.remove('text-gray-700');
+            document.getElementById('playlist_all').classList.add('active');
             
             renderTracks(tracksData);
         }
@@ -342,17 +582,15 @@ try {
             const playlist = playlistsData.find(p => p.id == playlistId);
             if (!playlist) return;
             
-            document.getElementById('currentPlaylistTitle').textContent = playlist.name;
+            document.getElementById('currentPlaylistTitle').innerHTML = '<i class="fas fa-list"></i><span>' + escapeHtml(playlist.name) + '</span>';
             
             document.querySelectorAll('.playlist-item').forEach(btn => {
-                btn.classList.remove('bg-blue-100', 'text-blue-700', 'font-medium');
-                btn.classList.add('text-gray-700');
+                btn.classList.remove('active');
             });
             
             const btn = document.getElementById('playlist_' + playlistId);
             if (btn) {
-                btn.classList.add('bg-blue-100', 'text-blue-700', 'font-medium');
-                btn.classList.remove('text-gray-700');
+                btn.classList.add('active');
             }
             
             const trackIds = playlist.entries || [];
@@ -383,17 +621,17 @@ try {
                 };
                 
                 const cueCount = track.cue_points ? track.cue_points.length : 0;
-                const cueInfo = cueCount > 0 ? `${cueCount} cue${cueCount > 1 ? 's' : ''}` : '-';
+                const cueIcon = cueCount > 0 ? `<i class="fas fa-map-marker-alt text-orange-400"></i> ${cueCount}` : '-';
                 
                 row.innerHTML = `
                     <td class="px-4 py-3 text-sm text-gray-500">${index + 1}</td>
-                    <td class="px-4 py-3 text-sm font-medium text-gray-900">${escapeHtml(track.title)}</td>
-                    <td class="px-4 py-3 text-sm text-gray-600">${escapeHtml(track.artist)}</td>
-                    <td class="px-4 py-3 text-sm text-gray-600">${track.bpm.toFixed(2)}</td>
-                    <td class="px-4 py-3 text-sm text-gray-600 font-semibold ${getKeyColor(track.key)}">${escapeHtml(track.key)}</td>
-                    <td class="px-4 py-3 text-sm text-gray-600">${escapeHtml(track.genre)}</td>
-                    <td class="px-4 py-3 text-sm text-blue-600">${cueInfo}</td>
-                    <td class="px-4 py-3 text-sm text-gray-600">${formatDuration(track.duration)}</td>
+                    <td class="px-4 py-3 text-sm font-medium text-white">${escapeHtml(track.title)}</td>
+                    <td class="px-4 py-3 text-sm text-cyan-300">${escapeHtml(track.artist)}</td>
+                    <td class="px-4 py-3 text-sm bpm-indicator">${track.bpm.toFixed(2)}</td>
+                    <td class="px-4 py-3 text-sm font-semibold ${getKeyColor(track.key)}">${escapeHtml(track.key)}</td>
+                    <td class="px-4 py-3 text-sm text-gray-400">${escapeHtml(track.genre)}</td>
+                    <td class="px-4 py-3 text-sm">${cueIcon}</td>
+                    <td class="px-4 py-3 text-sm text-gray-400 font-mono">${formatDuration(track.duration)}</td>
                 `;
                 
                 tbody.appendChild(row);
@@ -403,9 +641,8 @@ try {
         
         function getKeyColor(key) {
             if (!key) return '';
-            if (key.endsWith('A') || key.endsWith('m')) return 'text-purple-600';
-            if (key.endsWith('B') || !key.endsWith('m')) return 'text-blue-600';
-            return '';
+            if (key.endsWith('A') || key.endsWith('m')) return 'key-minor';
+            return 'key-major';
         }
         
         function formatDuration(seconds) {

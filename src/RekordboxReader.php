@@ -136,13 +136,15 @@ class RekordboxReader {
                 continue;
             }
             
-            // Try to find and parse ANLZ files (.DAT, .EXT, .2EX)
+            // Try to find and parse ANLZ files (.EXT, .DAT, .2EX)
+            // Priority: EXT files have the most complete data
             $filesToTry = [
-                ['ext' => '2EX', 'suffix' => '.2EX'],
                 ['ext' => 'EXT', 'suffix' => '.EXT'],
-                ['ext' => 'DAT', 'suffix' => '.DAT']
+                ['ext' => 'DAT', 'suffix' => '.DAT'],
+                ['ext' => '2EX', 'suffix' => '.2EX']
             ];
             
+            $hasData = false;
             foreach ($filesToTry as $fileInfo) {
                 // Replace .DAT extension with current extension being tried
                 $anlzPath = preg_replace('/\.DAT$/i', $fileInfo['suffix'], $track['analyze_path']);
@@ -150,23 +152,29 @@ class RekordboxReader {
                 
                 if (file_exists($fullPath)) {
                     try {
-                        $parser = new AnlzParser($fullPath, null); // No logger for speed
+                        $parser = new AnlzParser($fullPath, null);
                         $anlzData = $parser->parse();
 
                         if (!empty($anlzData['cue_points'])) {
                             $track['cue_points'] = $anlzData['cue_points'];
+                            $hasData = true;
                         }
                         
                         if (!empty($anlzData['waveform'])) {
                             $track['waveform'] = $anlzData['waveform'];
+                            $hasData = true;
                         }
                         
                         if (!empty($anlzData['beat_grid'])) {
                             $track['beat_grid'] = $anlzData['beat_grid'];
+                            $hasData = true;
                         }
 
-                        $this->stats['anlz_files_processed']++;
-                        break; // Stop after first successful parse
+                        // Only break if we got actual data
+                        if ($hasData) {
+                            $this->stats['anlz_files_processed']++;
+                            break;
+                        }
 
                     } catch (\Exception $e) {
                         // Try next file type

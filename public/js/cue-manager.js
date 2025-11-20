@@ -25,7 +25,12 @@ class CueManager {
         if (!this.cueListContainer) return;
         
         if (this.cuePoints.length === 0) {
-            this.cueListContainer.innerHTML = '<div class="text-center text-gray-500 py-4">No cue points</div>';
+            this.cueListContainer.innerHTML = `
+                <div class="text-center text-gray-500 py-6">
+                    <i class="fas fa-map-marker-alt text-3xl mb-2 opacity-30"></i>
+                    <div class="text-sm">No hot cues or memory points</div>
+                </div>
+            `;
             return;
         }
         
@@ -33,20 +38,33 @@ class CueManager {
         
         this.cuePoints.forEach((cue, index) => {
             const isHotCue = cue.hot_cue > 0;
-            const cueName = isHotCue ? `Hot Cue ${String.fromCharCode(64 + cue.hot_cue)}` : `Memory ${index + 1}`;
-            const color = isHotCue ? this.hotCueColors[(cue.hot_cue - 1) % this.hotCueColors.length] : '#888888';
+            const cueName = isHotCue ? `HOT CUE ${String.fromCharCode(64 + cue.hot_cue)}` : `MEMORY ${index + 1}`;
+            const color = isHotCue ? this.hotCueColors[(cue.hot_cue - 1) % this.hotCueColors.length] : '#6B7280';
             const timeStr = this.formatTime(cue.time / 1000);
+            const typeIcon = isHotCue ? 'fa-circle' : 'fa-bookmark';
             
             html += `
-                <div class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer group" onclick="window.trackDetailPanel.jumpToCue(${cue.time / 1000})">
-                    <div class="w-12 h-8 rounded flex items-center justify-center text-white text-xs font-bold" style="background-color: ${color}">
-                        ${isHotCue ? String.fromCharCode(64 + cue.hot_cue) : 'M'}
+                <div class="flex items-stretch gap-3 cue-pad cursor-pointer group hover:scale-102 transition-all" 
+                     onclick="window.trackDetailPanel.jumpToCue(${cue.time / 1000})"
+                     style="border-left: 4px solid ${color};">
+                    <div class="flex items-center justify-center px-3 py-2" 
+                         style="background: linear-gradient(135deg, ${color}80 0%, ${color}40 100%);">
+                        <div class="text-center">
+                            <i class="fas ${typeIcon} text-white text-lg mb-1"></i>
+                            <div class="text-white text-xs font-bold">
+                                ${isHotCue ? String.fromCharCode(64 + cue.hot_cue) : 'M'}
+                            </div>
+                        </div>
                     </div>
-                    <div class="flex-1">
-                        <div class="text-sm font-semibold text-gray-800">${cueName}</div>
-                        ${cue.comment ? `<div class="text-xs text-gray-600 italic">${this.escapeHtml(cue.comment)}</div>` : ''}
+                    <div class="flex-1 py-2 pr-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="text-xs font-bold text-cyan-400 uppercase tracking-wide">${cueName}</div>
+                                ${cue.comment ? `<div class="text-xs text-gray-400 mt-0.5">${this.escapeHtml(cue.comment)}</div>` : ''}
+                            </div>
+                            <div class="text-sm text-gray-300 font-mono font-semibold">${timeStr}</div>
+                        </div>
                     </div>
-                    <div class="text-sm text-gray-600 font-mono">${timeStr}</div>
                 </div>
             `;
         });

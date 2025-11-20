@@ -53,22 +53,52 @@ class TrackDetailPanel {
         document.getElementById('detailTrackKey').textContent = track.key;
         document.getElementById('detailTrackGenre').textContent = track.genre || '-';
         document.getElementById('detailTrackDuration').textContent = this.formatDuration(track.duration);
-        document.getElementById('detailTrackRating').textContent = '⭐'.repeat(track.rating || 0) || '-';
+        
+        const ratingElement = document.getElementById('detailTrackRating');
+        if (track.rating && track.rating > 0) {
+            ratingElement.innerHTML = '<i class="fas fa-star text-yellow-400"></i>'.repeat(track.rating);
+        } else {
+            ratingElement.textContent = '-';
+        }
         
         const keyElement = document.getElementById('detailTrackKey');
-        keyElement.className = '';
+        keyElement.className = 'metadata-value text-xl';
         if (track.key) {
             if (track.key.endsWith('A') || track.key.endsWith('m')) {
-                keyElement.className = 'text-purple-600 font-bold';
+                keyElement.classList.add('key-minor');
             } else {
-                keyElement.className = 'text-blue-600 font-bold';
+                keyElement.classList.add('key-major');
             }
         }
         
+        console.log('TrackDetailPanel.loadTrack:', {
+            title: track.title,
+            duration: track.duration,
+            hasWaveform: !!track.waveform,
+            hasColorData: track.waveform?.color_data?.length || 0,
+            hasPreviewData: track.waveform?.preview_data?.length || 0,
+            hasCuePoints: track.cue_points?.length || 0
+        });
+        
         this.audioPlayer.loadTrack(track);
         
-        this.waveformRenderer.clear();
-        this.cueManager.loadCues([], 0);
+        if (!track.waveform || (!track.waveform.color_data && !track.waveform.preview_data)) {
+            console.log('No waveform data, clearing...');
+            this.waveformRenderer.clear();
+            this.cueManager.loadCues([], 0);
+        } else {
+            console.log('Waveform data found, loading...');
+            // Load waveform and cues immediately if data exists
+            if (track.duration && track.duration > 0) {
+                this.waveformRenderer.loadWaveform(track.waveform, track.duration);
+                if (track.cue_points && track.cue_points.length > 0) {
+                    this.cueManager.loadCues(track.cue_points, track.duration);
+                    this.cueManager.renderCuesOnWaveform(this.waveformRenderer);
+                }
+            } else {
+                console.log('No duration, skipping waveform load');
+            }
+        }
     }
     
     jumpToCue(timeInSeconds) {

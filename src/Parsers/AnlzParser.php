@@ -237,15 +237,15 @@ class AnlzParser {
         for ($i = 0; $i < $numCues && $offset + 56 <= strlen($sectionData); $i++) {
             $cueData = unpack(
                 'Nhot_cue/' .
-                'Vstatus/' .
-                'Vunknown1/' .
-                'vorder_first/' .
-                'vorder_last/' .
+                'Nstatus/' .
+                'Nunknown1/' .
+                'norder_first/' .
+                'norder_last/' .
                 'Ctype/' .
                 'Cu1/' .
-                'vu2/' .
-                'Vtime/' .
-                'Vloop_time',
+                'nu2/' .
+                'Ntime/' .
+                'Nloop_time',
                 substr($sectionData, $offset + 12, 28)
             );
             
@@ -287,7 +287,7 @@ class AnlzParser {
             $entryHeader = unpack(
                 'Nlen_header/' .
                 'Nlen_entry/' .
-                'Vhot_cue',
+                'Nhot_cue',
                 substr($sectionData, $offset + 4, 12)
             );
             
@@ -297,9 +297,9 @@ class AnlzParser {
             $cueData = unpack(
                 'Ctype/' .
                 'Cu1/' .
-                'vu2/' .
-                'Vtime/' .
-                'Vloop_time/' .
+                'nu2/' .
+                'Ntime/' .
+                'Nloop_time/' .
                 'Ccolor_id',
                 substr($sectionData, $offset + 16, 14)
             );
