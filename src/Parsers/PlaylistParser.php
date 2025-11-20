@@ -72,6 +72,7 @@ class PlaylistParser {
             }
 
             $pageHeader = unpack(
+                'Vgap/' .
                 'Vpage_index/' .
                 'Vtype/' .
                 'Vnext_page/' .
@@ -80,44 +81,81 @@ class PlaylistParser {
                 'Cnum_rows_small/' .
                 'Cu3/' .
                 'Cu4/' .
-                'Cpage_flags',
-                substr($pageData, 0, 27)
+                'Cpage_flags/' .
+                'vfree_size/' .
+                'vused_size/' .
+                'vu5/' .
+                'vnum_rows_large',
+                substr($pageData, 0, 36)
             );
 
             $isDataPage = ($pageHeader['page_flags'] & 0x40) == 0;
             
             if (!$isDataPage) {
+                if ($this->logger) {
+                    $this->logger->debug("Playlist page {$pageIdx} is not a data page, skipping");
+                }
                 return $playlists;
             }
 
+            $numRows = $pageHeader['num_rows_small'];
+            if ($pageHeader['num_rows_large'] > $pageHeader['num_rows_small'] && 
+                $pageHeader['num_rows_large'] != 0x1fff) {
+                $numRows = $pageHeader['num_rows_large'];
+            }
+
+            if ($numRows == 0) {
+                return $playlists;
+            }
+
+            $heapPos = 40;
             $pageSize = strlen($pageData);
-            $numRowsSmall = $pageHeader['num_rows_small'];
-
-            for ($i = 0; $i < $numRowsSmall; $i++) {
-                $rowIndexOffset = $pageSize - (($i + 1) * 2);
-                if ($rowIndexOffset < 0) break;
-
-                $rowOffsetData = unpack('v', substr($pageData, $rowIndexOffset, 2));
-                $rowOffset = $rowOffsetData[1];
-
-                $rowPresent = ($rowOffset & 0x8000) != 0;
+            $numGroups = intval(($numRows - 1) / 16) + 1;
+            
+            for ($groupIdx = 0; $groupIdx < $numGroups; $groupIdx++) {
+                $base = $pageSize - ($groupIdx * 0x24);
+                $flagsOffset = $base - 4;
                 
-                if (!$rowPresent) {
+                if ($flagsOffset < 0 || $flagsOffset + 2 > $pageSize) {
                     continue;
                 }
-
-                $actualRowOffset = ($rowOffset & 0x1FFF);
                 
-                try {
-                    $playlist = $this->parsePlaylistRow($pageData, $actualRowOffset, $entriesTable);
-                    if ($playlist) {
-                        $playlists[] = $playlist;
-                        $this->validPlaylists++;
+                $presenceFlags = unpack('v', substr($pageData, $flagsOffset, 2))[1];
+                $rowsInGroup = min(16, $numRows - ($groupIdx * 16));
+                
+                for ($rowIdx = 0; $rowIdx < $rowsInGroup; $rowIdx++) {
+                    $rowOffsetPos = $base - (6 + ($rowIdx * 2));
+                    
+                    if ($rowOffsetPos < 0 || $rowOffsetPos + 2 > $pageSize) {
+                        continue;
                     }
-                } catch (\Exception $e) {
-                    $this->corruptPlaylists++;
-                    if ($this->logger) {
-                        $this->logger->warning("Corrupt playlist detected at page {$pageIdx}, row {$i}: " . $e->getMessage());
+                    
+                    $rowOffsetData = unpack('v', substr($pageData, $rowOffsetPos, 2));
+                    $rowOffset = $rowOffsetData[1];
+                    
+                    $present = (($presenceFlags >> $rowIdx) & 1) != 0;
+                    
+                    if (!$present) {
+                        continue;
+                    }
+                    
+                    $actualRowOffset = ($rowOffset & 0x1FFF) + $heapPos;
+                    
+                    if ($actualRowOffset + 50 > $pageSize) {
+                        continue;
+                    }
+                    
+                    try {
+                        $playlist = $this->parsePlaylistRow($pageData, $actualRowOffset, $entriesTable);
+                        if ($playlist) {
+                            $playlists[] = $playlist;
+                            $this->validPlaylists++;
+                        }
+                    } catch (\Exception $e) {
+                        $this->corruptPlaylists++;
+                        if ($this->logger) {
+                            $this->logger->warning("Corrupt playlist at page {$pageIdx}, row {$rowIdx}: " . $e->getMessage());
+                        }
                     }
                 }
             }
@@ -133,40 +171,51 @@ class PlaylistParser {
     }
 
     private function parsePlaylistRow($pageData, $offset, $entriesTable) {
-        if ($offset + 20 > strlen($pageData)) {
+        if ($offset + 60 > strlen($pageData)) {
             return null;
         }
 
-        $playlistData = unpack(
-            'vid/' .
-            'vunknown1/' .
-            'vunknown2/' .
-            'vis_folder/' .
-            'vunknown3',
-            substr($pageData, $offset, 10)
-        );
-
-        $nameOffsetData = unpack('v', substr($pageData, $offset + 10, 2));
-        $nameOffset = $nameOffsetData[1];
-
         $name = '';
-        if ($nameOffset > 0 && ($offset + $nameOffset) < strlen($pageData)) {
-            list($name, $newOffset) = $this->pdbParser->extractString($pageData, $offset + $nameOffset);
+        $playlistId = 1;
+        
+        for ($scanOffset = $offset + 2; $scanOffset < $offset + 150; $scanOffset++) {
+            if ($scanOffset >= strlen($pageData)) break;
+            
+            $flags = ord($pageData[$scanOffset]);
+            
+            if (($flags & 0x40) == 0) {
+                $len = $flags & 0x7F;
+                if ($len >= 2 && $len < 50 && ($scanOffset + $len + 1) <= strlen($pageData)) {
+                    $str = substr($pageData, $scanOffset + 1, $len);
+                    
+                    $nullPos = strpos($str, "\x00");
+                    if ($nullPos !== false) {
+                        $str = substr($str, 0, $nullPos);
+                    }
+                    
+                    $str = trim($str);
+                    
+                    if (strlen($str) >= 2 && preg_match('/[A-Za-z0-9]/', $str) && !ctype_digit($str)) {
+                        $name = $str;
+                        break;
+                    }
+                }
+            }
         }
 
-        $parentIdData = unpack('V', substr($pageData, $offset + 12, 4));
-        $parentId = $parentIdData[1];
+        $parentId = 0;
+        $isFolder = false;
 
         $entries = [];
-        if ($entriesTable) {
-            $entries = $this->getPlaylistEntries($playlistData['id'], $entriesTable);
+        if ($entriesTable && $playlistId > 0) {
+            $entries = $this->getPlaylistEntries($playlistId, $entriesTable);
         }
 
         return [
-            'id' => $playlistData['id'],
+            'id' => $playlistId,
             'name' => $name ?: 'Unnamed Playlist',
             'parent_id' => $parentId,
-            'is_folder' => $playlistData['is_folder'] == 1,
+            'is_folder' => $isFolder,
             'entries' => $entries,
             'track_count' => count($entries)
         ];
@@ -204,41 +253,81 @@ class PlaylistParser {
             return $entries;
         }
 
-        $pageHeader = unpack('Cpage_flags', substr($pageData, 27, 1));
+        $pageHeader = unpack(
+            'Vgap/' .
+            'Vpage_index/' .
+            'Vtype/' .
+            'Vnext_page/' .
+            'Vunknown1/' .
+            'Vunknown2/' .
+            'Cnum_rows_small/' .
+            'Cu3/' .
+            'Cu4/' .
+            'Cpage_flags/' .
+            'vfree_size/' .
+            'vused_size/' .
+            'vu5/' .
+            'vnum_rows_large',
+            substr($pageData, 0, 36)
+        );
+
         $isDataPage = ($pageHeader['page_flags'] & 0x40) == 0;
         
         if (!$isDataPage) {
             return $entries;
         }
 
+        $numRows = $pageHeader['num_rows_small'];
+        if ($pageHeader['num_rows_large'] > $pageHeader['num_rows_small'] && 
+            $pageHeader['num_rows_large'] != 0x1fff) {
+            $numRows = $pageHeader['num_rows_large'];
+        }
+
+        if ($numRows == 0) {
+            return $entries;
+        }
+
+        $heapPos = 40;
         $pageSize = strlen($pageData);
-        $numRowsData = unpack('Cnum_rows', substr($pageData, 24, 1));
-        $numRows = $numRowsData['num_rows'];
+        $numGroups = intval(($numRows - 1) / 16) + 1;
 
-        for ($i = 0; $i < $numRows; $i++) {
-            $rowIndexOffset = $pageSize - (($i + 1) * 2);
-            if ($rowIndexOffset < 0) break;
+        for ($groupIdx = 0; $groupIdx < $numGroups; $groupIdx++) {
+            $base = $pageSize - ($groupIdx * 0x24);
+            $flagsOffset = $base - 4;
+            
+            if ($flagsOffset < 0 || $flagsOffset + 2 > $pageSize) {
+                continue;
+            }
+            
+            $presenceFlags = unpack('v', substr($pageData, $flagsOffset, 2))[1];
+            $rowsInGroup = min(16, $numRows - ($groupIdx * 16));
+            
+            for ($rowIdx = 0; $rowIdx < $rowsInGroup; $rowIdx++) {
+                $rowOffsetPos = $base - (6 + ($rowIdx * 2));
+                
+                if ($rowOffsetPos < 0 || $rowOffsetPos + 2 > $pageSize) {
+                    continue;
+                }
+                
+                $rowOffsetData = unpack('v', substr($pageData, $rowOffsetPos, 2));
+                $rowOffset = $rowOffsetData[1];
+                
+                $present = (($presenceFlags >> $rowIdx) & 1) != 0;
+                if (!$present) continue;
+                
+                $actualRowOffset = ($rowOffset & 0x1FFF) + $heapPos;
+                if ($actualRowOffset + 12 > $pageSize) continue;
 
-            $rowOffsetData = unpack('v', substr($pageData, $rowIndexOffset, 2));
-            $rowOffset = $rowOffsetData[1];
+                $entryData = unpack(
+                    'Ventry_id/' .
+                    'Vtrack_id/' .
+                    'Vplaylist_id',
+                    substr($pageData, $actualRowOffset, 12)
+                );
 
-            $rowPresent = ($rowOffset & 0x8000) != 0;
-            if (!$rowPresent) continue;
-
-            $actualRowOffset = ($rowOffset & 0x1FFF);
-
-            if ($actualRowOffset + 8 > $pageSize) continue;
-
-            $entryData = unpack(
-                'ventry_id/' .
-                'vtrack_id/' .
-                'vplaylist_id/' .
-                'vunknown',
-                substr($pageData, $actualRowOffset, 8)
-            );
-
-            if ($entryData['playlist_id'] == $targetPlaylistId) {
-                $entries[] = $entryData['track_id'];
+                if ($entryData['playlist_id'] == $targetPlaylistId) {
+                    $entries[] = $entryData['track_id'];
+                }
             }
         }
 

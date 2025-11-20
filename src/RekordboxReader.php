@@ -6,12 +6,16 @@ require_once __DIR__ . '/Parsers/PdbParser.php';
 require_once __DIR__ . '/Parsers/TrackParser.php';
 require_once __DIR__ . '/Parsers/PlaylistParser.php';
 require_once __DIR__ . '/Parsers/AnlzParser.php';
+require_once __DIR__ . '/Parsers/ArtistAlbumParser.php';
+require_once __DIR__ . '/Parsers/GenreParser.php';
 require_once __DIR__ . '/Utils/Logger.php';
 
 use RekordboxReader\Parsers\PdbParser;
 use RekordboxReader\Parsers\TrackParser;
 use RekordboxReader\Parsers\PlaylistParser;
 use RekordboxReader\Parsers\AnlzParser;
+use RekordboxReader\Parsers\ArtistAlbumParser;
+use RekordboxReader\Parsers\GenreParser;
 use RekordboxReader\Utils\Logger;
 
 class RekordboxReader {
@@ -87,7 +91,16 @@ class RekordboxReader {
         $pdbParser = new PdbParser($this->pdbPath, $this->logger);
         $pdbData = $pdbParser->parse();
 
+        $artistAlbumParser = new ArtistAlbumParser($pdbParser, $this->logger);
+        $artists = $artistAlbumParser->parseArtists();
+        $albums = $artistAlbumParser->parseAlbums();
+        
+        $genreParser = new GenreParser($pdbParser, $this->logger);
+        $genres = $genreParser->parseGenres();
+        
         $trackParser = new TrackParser($pdbParser, $this->logger);
+        $trackParser->setArtistAlbumParser($artistAlbumParser);
+        $trackParser->setGenreParser($genreParser);
         $tracks = $trackParser->parseTracks();
         $result['tracks'] = $tracks;
         $this->stats['total_tracks'] = count($tracks);
