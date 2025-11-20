@@ -15,22 +15,27 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Rekordbox Export Reader Demo"
+args = "Rekordbox Web UI"
 
 [[workflows.workflow]]
-name = "Rekordbox Export Reader Demo"
+name = "Rekordbox Web UI"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python demo.py"
+args = "python app.py"
+waitForPort = 5000
 
 [workflows.workflow.metadata]
-outputType = "console"
+outputType = "webview"
 
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 45057
+externalPort = 3000
 
 [deployment]
 deploymentTarget = "autoscale"
