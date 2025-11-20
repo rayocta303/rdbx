@@ -380,14 +380,24 @@ try {
                                 <i class="fas fa-headphones"></i>
                                 <span>All Tracks</span>
                             </h2>
-                            <div class="relative w-80">
-                                <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
-                                <input 
-                                    type="text" 
-                                    id="searchTracks" 
-                                    placeholder="Search tracks, artists, or genres..."
-                                    onkeyup="filterTracks()"
-                                    class="pl-10 pr-4 py-2 w-full search-input rounded-lg">
+                            <div class="flex items-center gap-3">
+                                <button 
+                                    id="toggleDetailPanel" 
+                                    onclick="toggleTrackDetailPanel()"
+                                    class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition-all flex items-center gap-2"
+                                    title="Toggle Detail Panel">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span id="toggleDetailPanelText">Hide Details</span>
+                                </button>
+                                <div class="relative w-80">
+                                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
+                                    <input 
+                                        type="text" 
+                                        id="searchTracks" 
+                                        placeholder="Search tracks, artists, or genres..."
+                                        onkeyup="filterTracks()"
+                                        class="pl-10 pr-4 py-2 w-full search-input rounded-lg">
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -669,6 +679,20 @@ try {
                     row.style.display = 'none';
                 }
             });
+        }
+
+        function toggleTrackDetailPanel() {
+            const panel = document.getElementById('trackDetailPanel');
+            const toggleBtn = document.getElementById('toggleDetailPanel');
+            const toggleText = document.getElementById('toggleDetailPanelText');
+            
+            if (panel.classList.contains('hidden')) {
+                panel.classList.remove('hidden');
+                toggleText.textContent = 'Hide Details';
+            } else {
+                panel.classList.add('hidden');
+                toggleText.textContent = 'Show Details';
+            }
         }
     </script>
 </body>
