@@ -16,3 +16,7 @@ output/
 .coverage
 htmlcov/
 .pythonlibs/
+
+vendor/
+composer.lock
+*.log

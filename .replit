@@ -15,15 +15,15 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Rekordbox Web UI"
+args = "PHP Server"
 
 [[workflows.workflow]]
-name = "Rekordbox Web UI"
+name = "PHP Server"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python app.py"
+args = "php -S 0.0.0.0:5000 -t public"
 waitForPort = 5000
 
 [workflows.workflow.metadata]
@@ -34,7 +34,7 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 45057
+localPort = 46487
 externalPort = 3000
 
 [deployment]
