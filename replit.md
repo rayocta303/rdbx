@@ -4,13 +4,24 @@
 Tool PHP untuk membaca dan menampilkan database Rekordbox USB/SD export dengan web GUI modern. Project ini mengkonversi implementasi Python menjadi PHP murni dengan struktur modular.
 
 ## Recent Changes
-- **2025-11-20**: Konversi lengkap dari Python ke PHP
-  - Implementasi PdbParser untuk membaca format DeviceSQL
+- **2025-11-20**: Implementasi lengkap ANLZ parser dan frontend cue/waveform display
+  - Fixed GenreParser untuk correct genre extraction (Track 1: "Indonesian Bounce" ✓)
+  - Upgraded Track ID dari 16-bit ke 32-bit untuk ANLZ file mapping
+  - Implementasi complete AnlzParser dengan support untuk:
+    - Cue points (PCO2/PCOB): memory cues, hot cues, loops
+    - Waveform (PWAV/PWV5): preview, detail, color waveform
+  - Frontend updates:
+    - Added "Cues" column untuk menampilkan jumlah cue points
+    - Click-to-view modal dengan detail track info
+    - Canvas-based waveform visualization
+    - Cue points display dengan timing dan type info
+  - Known issues: Track 2 title dan key parsing memerlukan investigation lebih lanjut terhadap PDB string encoding
+
+- **2025-11-20 (sebelumnya)**: Konversi dari Python ke PHP
+  - PdbParser untuk membaca format DeviceSQL
   - TrackParser untuk ekstraksi metadata track
   - PlaylistParser dengan corruption detection
-  - AnlzParser untuk beatgrid dan waveform analysis
   - Web GUI dengan Tailwind CDN (no build tools)
-  - Auto-load data tanpa API endpoint
 
 ## Project Architecture
 
@@ -51,8 +62,24 @@ Tool PHP untuk membaca dan menampilkan database Rekordbox USB/SD export dengan w
 - Multiple file types: .DAT, .EXT, .2EX
 
 ## Known Issues
-- TrackParser perlu perbaikan struktur byte untuk match spesifikasi Deep Symmetry
-- ANLZ beatgrid dan cue point extraction masih stub implementation
+- **Track 2 Title Truncation**: Title menampilkan "eHardwell -" alih-alih "Hardwell - Spaceman (Reyputra & Jayjax Edit) TRIM"
+  - Root cause: PDB string encoding complexity dengan flag 0x03 dan multi-byte encoding
+  - Requires deeper investigation of DeviceSQL string format variations
+- **Track 2 Key Mapping**: Key menampilkan "9A" (key_id=1) seharusnya "2A" (key_id=2)
+  - Need to map correct analyzed key field in track row structure
+- **ANLZ File Mapping**: Cue points dan waveform belum ter-load karena ANLZ filename tidak match dengan track IDs
+  - Track IDs: 1, 2
+  - ANLZ folders: P044/00015948 (88392), P03F/000272DD (2568925)
+  - Requires investigation of correct ANLZ-to-track mapping mechanism
+
+## Completed Features
+- ✅ Genre parsing dengan fallback untuk empty pages
+- ✅ Track 1 metadata fully functional (title, artist, genre, BPM, key)
+- ✅ Playlist parsing dan display
+- ✅ ANLZ Parser implementation untuk cue points dan waveform
+- ✅ Frontend modal dengan detail view
+- ✅ Waveform canvas visualization
+- ✅ 32-bit track ID support
 
 ## References
 - Deep Symmetry crate-digger: https://github.com/Deep-Symmetry/crate-digger
