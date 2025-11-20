@@ -64,7 +64,7 @@ class RekordboxReader {
 
             $this->stats['processing_time'] = round(microtime(true) - $startTime, 2);
 
-            $this->printSummary();
+            // $this->printSummary();
             $this->logger->saveCorruptPlaylistLog();
 
             return $result;
