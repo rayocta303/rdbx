@@ -42,10 +42,6 @@ class Logger {
         $logMessage = "[{$timestamp}] [{$level}] {$message}\n";
         
         file_put_contents($this->logFile, $logMessage, FILE_APPEND);
-        
-        if ($this->verbose || $level === 'ERROR' || $level === 'INFO') {
-            echo $logMessage;
-        }
     }
 
     public function logCorruptPlaylist($playlistName, $reason, $context = []) {
@@ -66,8 +62,6 @@ class Logger {
 
         $outputFile = dirname($this->logFile) . '/corrupt_playlists.json';
         file_put_contents($outputFile, json_encode($this->corruptPlaylists, JSON_PRETTY_PRINT));
-        
-        $this->info("Corrupt playlist log saved to: {$outputFile}");
     }
 
     public function getCorruptPlaylists() {
