@@ -4,7 +4,19 @@
 Tool PHP untuk membaca dan menampilkan database Rekordbox USB/SD export dengan web GUI modern. Project ini mengkonversi implementasi Python menjadi PHP murni dengan struktur modular.
 
 ## Recent Changes
-- **2025-11-20**: Implementasi lengkap ANLZ parser dan frontend cue/waveform display
+- **2025-11-20**: Modularisasi frontend public/index.php
+  - Refactor file monolitik menjadi struktur modular terorganisir:
+    - `public/css/main.css`: Semua CSS styles terpisah dari HTML
+    - `public/partials/head.php`: HTML head section dengan meta tags dan asset links
+    - `public/partials/footer.php`: JavaScript includes dan closing HTML tags
+    - `public/components/stats.php`: Komponen statistik database
+    - `public/components/browser.php`: Komponen library browser dan track listing
+    - `public/components/debug.php`: Komponen debug metadata
+  - File index.php sekarang hanya 58 baris (dari 700+ baris)
+  - Semua functionality terjaga, tidak ada breaking changes
+  - Lebih mudah untuk maintenance dan development
+
+- **2025-11-20 (sebelumnya)**: Implementasi lengkap ANLZ parser dan frontend cue/waveform display
   - Fixed GenreParser untuk correct genre extraction (Track 1: "Indonesian Bounce" ✓)
   - Upgraded Track ID dari 16-bit ke 32-bit untuk ANLZ file mapping
   - Implementasi complete AnlzParser dengan support untuk:
@@ -17,7 +29,7 @@ Tool PHP untuk membaca dan menampilkan database Rekordbox USB/SD export dengan w
     - Cue points display dengan timing dan type info
   - Known issues: Track 2 title dan key parsing memerlukan investigation lebih lanjut terhadap PDB string encoding
 
-- **2025-11-20 (sebelumnya)**: Konversi dari Python ke PHP
+- **2025-11-20 (awal)**: Konversi dari Python ke PHP
   - PdbParser untuk membaca format DeviceSQL
   - TrackParser untuk ekstraksi metadata track
   - PlaylistParser dengan corruption detection
@@ -34,7 +46,16 @@ Tool PHP untuk membaca dan menampilkan database Rekordbox USB/SD export dengan w
 ### Main Components
 - **RekordboxReader.php**: Orchestrator yang mengkoordinasikan semua parser
 - **Logger.php**: Logging system dengan corrupt playlist tracking
-- **public/index.php**: Web GUI dengan PHP server-side rendering
+
+### Frontend Structure (public/)
+- **index.php**: Entry point utama, load data dan orchestrate components (58 lines)
+- **partials/head.php**: HTML head section, meta tags, CSS/JS links
+- **partials/footer.php**: JavaScript logic dan closing HTML tags
+- **components/stats.php**: Statistics display component
+- **components/browser.php**: Library browser, playlist tree, track listing
+- **components/debug.php**: Database metadata debug panel
+- **css/main.css**: All custom CSS styles
+- **js/**: JavaScript modules (audio-player, waveform-renderer, cue-manager, track-detail)
 
 ### Tech Stack
 - PHP 8.2 (no frameworks)
