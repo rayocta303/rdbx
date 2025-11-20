@@ -1,0 +1,58 @@
+Buatkan sebuah project tools "Rekordbox Export Reader" yang dapat membaca 
+database ekspor USB Rekordbox (format DeviceSQL .pdb), termasuk:
+- export.pdb
+- exportExt.pdb (jika ada)
+- file analisis ANLZxxxx.DAT atau .EXT (opsional)
+
+Spesifikasi penting:
+1. Bahasa: Python (3.10+)
+2. Struktur project rapi dan modular.
+
+Fitur utama:
+- Baca file Rekordbox export.pdb menggunakan parser DeviceSQL buatan sendiri 
+  atau integrasi dengan library open-source seperti 'rekordcrate' (Rust via binary)
+  atau implementasi ringan Python berdasarkan dokumentasi reverse-engineered.
+- Ekstraksi:
+    - daftar track
+    - playlist dan folder playlist
+    - cue points
+    - beatgrid
+    - waveform summary (jika tersedia)
+- Saat parsing playlist, jika ditemukan playlist corrupt (checksum salah, pointer offset invalid,
+  length < expected, atau section tidak bisa di-decode) maka:
+    - Jangan hentikan program
+    - Log error ke console + simpan ke logs/error.log
+    - Skip playlist tersebut dan lanjut proses playlist lainnya
+    - Pastikan tool tidak crash meskipun banyak playlist rusak.
+
+Tambahan:
+- CLI tool:
+    - python main.py --input /path/to/PIONEER/rekordbox/export.pdb
+    - opsi: --json-output untuk ekspor hasil ke file JSON
+    - opsi: --skip-corrupted (default ON)
+
+- Tampilkan summary setelah load database:
+    - Total tracks
+    - Total playlist valid
+    - Total playlist corrupted (skipped)
+    - Waktu proses
+
+- Buat modul terpisah:
+    src/devicesql_parser.py     → parser page/table Rekordbox
+    src/playlist_reader.py      → decode playlist + auto skip corrupted
+    src/track_reader.py         → extract track metadata
+    src/anlz_reader.py          → optional parsing waveform/beatgrid
+    src/utils/logger.py         → logging helper
+
+- Sediakan contoh export database dummy untuk testing (mock).
+- Sertakan unit test (pytest) minimal untuk:
+    - parser sidebar playlist
+    - detection corrupted playlist
+    - skip logic
+
+Output akhir:
+- Project lengkap
+- Dokumentasi README.md:
+    - cara menjalankan
+    - cara membaca PDB Rekordbox
+    - cara menambah fitur baru
