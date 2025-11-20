@@ -19,8 +19,6 @@ class WaveformRenderer {
             this.overviewCanvas.width = width * 2;
             this.overviewCanvas.height = 120;
             
-            console.log('Setup overview canvas:', { width: this.overviewCanvas.width, height: this.overviewCanvas.height });
-            
             this.overviewCanvas.addEventListener('click', (e) => {
                 this.handleOverviewClick(e);
             });
@@ -31,8 +29,6 @@ class WaveformRenderer {
             this.detailedCanvas.width = width * 2;
             this.detailedCanvas.height = 240;
             
-            console.log('Setup detailed canvas:', { width: this.detailedCanvas.width, height: this.detailedCanvas.height });
-            
             this.detailedCanvas.addEventListener('click', (e) => {
                 this.handleDetailedClick(e);
             });
@@ -40,13 +36,6 @@ class WaveformRenderer {
     }
     
     loadWaveform(waveformData, duration) {
-        console.log('WaveformRenderer.loadWaveform called', {
-            hasWaveformData: !!waveformData,
-            duration: duration,
-            previewData: waveformData?.preview_data?.length || 0,
-            colorData: waveformData?.color_data?.length || 0
-        });
-        
         this.waveformData = waveformData;
         this.duration = duration;
         this.detailedScrollOffset = 0;
@@ -54,7 +43,6 @@ class WaveformRenderer {
         
         // Re-setup canvases if they have zero width
         if (this.overviewCanvas && this.overviewCanvas.width === 0) {
-            console.log('Canvas width was 0, re-setting up canvases...');
             this.setupCanvases();
         }
         
@@ -64,7 +52,6 @@ class WaveformRenderer {
     
     renderOverview() {
         if (!this.overviewCanvas || !this.waveformData) {
-            console.log('renderOverview skipped:', { hasCanvas: !!this.overviewCanvas, hasData: !!this.waveformData });
             return;
         }
         
@@ -76,14 +63,6 @@ class WaveformRenderer {
         ctx.fillRect(0, 0, width, height);
         
         const waveData = this.waveformData.preview_data || this.waveformData.color_data;
-        console.log('renderOverview waveData:', { 
-            hasPreview: !!this.waveformData.preview_data, 
-            hasColor: !!this.waveformData.color_data,
-            waveDataLength: waveData?.length || 0,
-            canvasWidth: width,
-            canvasHeight: height
-        });
-        
         if (!waveData || waveData.length === 0) {
             ctx.fillStyle = '#333';
             ctx.font = '14px Arial';

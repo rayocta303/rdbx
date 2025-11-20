@@ -71,23 +71,12 @@ class TrackDetailPanel {
             }
         }
         
-        console.log('TrackDetailPanel.loadTrack:', {
-            title: track.title,
-            duration: track.duration,
-            hasWaveform: !!track.waveform,
-            hasColorData: track.waveform?.color_data?.length || 0,
-            hasPreviewData: track.waveform?.preview_data?.length || 0,
-            hasCuePoints: track.cue_points?.length || 0
-        });
-        
         this.audioPlayer.loadTrack(track);
         
         if (!track.waveform || (!track.waveform.color_data && !track.waveform.preview_data)) {
-            console.log('No waveform data, clearing...');
             this.waveformRenderer.clear();
             this.cueManager.loadCues([], 0);
         } else {
-            console.log('Waveform data found, loading...');
             // Load waveform and cues immediately if data exists
             if (track.duration && track.duration > 0) {
                 this.waveformRenderer.loadWaveform(track.waveform, track.duration);
@@ -95,8 +84,6 @@ class TrackDetailPanel {
                     this.cueManager.loadCues(track.cue_points, track.duration);
                     this.cueManager.renderCuesOnWaveform(this.waveformRenderer);
                 }
-            } else {
-                console.log('No duration, skipping waveform load');
             }
         }
     }
