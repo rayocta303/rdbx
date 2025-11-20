@@ -269,8 +269,16 @@ class TrackParser {
             }
 
             $keyName = '';
-            if ($this->keyParser && isset($fixed['key_id'])) {
-                $keyName = $this->keyParser->getKeyName($fixed['key_id']);
+            $keyId = 0;
+            
+            if (isset($strings[6]) && $strings[6]) {
+                if (is_numeric($strings[6])) {
+                    $keyId = intval($strings[6]);
+                }
+            }
+            
+            if ($this->keyParser && $keyId > 0) {
+                $keyName = $this->keyParser->getKeyName($keyId);
             }
 
             return [
@@ -280,6 +288,7 @@ class TrackParser {
                 'album' => $albumName,
                 'label' => isset($fixed['label_id']) ? "Label #{$fixed['label_id']}" : '',
                 'key' => $keyName,
+                'key_id' => $keyId,
                 'genre' => $genreName,
                 'artist_id' => $fixed['artist_id'] ?? 0,
                 'album_id' => $fixed['album_id'] ?? 0,

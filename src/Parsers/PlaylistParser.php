@@ -175,10 +175,26 @@ class PlaylistParser {
             return null;
         }
 
-        $name = '';
-        $playlistId = 1;
+        $fixedData = unpack(
+            'Vparent_id/' .
+            'Vu1/' .
+            'Vu2/' .
+            'Vplaylist_id',
+            substr($pageData, $offset, 16)
+        );
+
+        $playlistId = $fixedData['playlist_id'] ?? 0;
+        $parentId = $fixedData['parent_id'] ?? 0;
         
-        for ($scanOffset = $offset + 2; $scanOffset < $offset + 150; $scanOffset++) {
+        $isFolder = false;
+        if ($offset + 16 < strlen($pageData)) {
+            $flagByte = ord($pageData[$offset + 16]);
+            $isFolder = ($flagByte & 0x01) != 0;
+        }
+
+        $name = '';
+        
+        for ($scanOffset = $offset + 17; $scanOffset < $offset + 150; $scanOffset++) {
             if ($scanOffset >= strlen($pageData)) break;
             
             $flags = ord($pageData[$scanOffset]);
@@ -202,9 +218,6 @@ class PlaylistParser {
                 }
             }
         }
-
-        $parentId = 0;
-        $isFolder = false;
 
         $entries = [];
         if ($entriesTable && $playlistId > 0) {
