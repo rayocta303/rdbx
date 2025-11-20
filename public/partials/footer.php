@@ -1,8 +1,8 @@
-    <script src="js/audio-player.js"></script>
-    <script src="js/waveform-renderer.js"></script>
-    <script src="js/cue-manager.js"></script>
-    <script src="js/track-detail.js"></script>
-    <script src="js/dual-player.js"></script>
+    <script src="js/audio-player.js?v=<?= time() ?>"></script>
+    <script src="js/waveform-renderer.js?v=<?= time() ?>"></script>
+    <script src="js/cue-manager.js?v=<?= time() ?>"></script>
+    <script src="js/track-detail.js?v=<?= time() ?>"></script>
+    <script src="js/dual-player.js?v=<?= time() ?>"></script>
     
     <script>
         <?php if ($data): ?>
