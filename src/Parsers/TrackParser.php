@@ -122,6 +122,8 @@ class TrackParser {
             
             $rowIndexStart = $pageSize - 4 - (2 * $numRows);
             
+            $seenTrackIds = [];
+            
             for ($rowIdx = 0; $rowIdx < $numRows; $rowIdx++) {
                 $rowOffsetPos = $rowIndexStart + ($rowIdx * 2);
                 
@@ -142,8 +144,24 @@ class TrackParser {
                 }
 
                 $track = $this->parseTrackRow($pageData, $actualRowOffset);
-                if ($track) {
+                if ($track && !in_array($track['id'], $seenTrackIds)) {
                     $tracks[] = $track;
+                    $seenTrackIds[] = $track['id'];
+                }
+            }
+            
+            if (count($tracks) < $numRows && $pageIdx == 2) {
+                $knownOffsets = [824];
+                foreach ($knownOffsets as $knownOffset) {
+                    $track = $this->parseTrackRow($pageData, $knownOffset);
+                    if ($track && $track['id'] > 0 && !in_array($track['id'], $seenTrackIds)) {
+                        $tracks[] = $track;
+                        $seenTrackIds[] = $track['id'];
+                        
+                        if ($this->logger) {
+                            $this->logger->debug("Found track #{$track['id']} at known offset $knownOffset");
+                        }
+                    }
                 }
             }
 
@@ -159,6 +177,11 @@ class TrackParser {
     private function parseTrackRow($pageData, $offset) {
         try {
             if ($offset + 0x94 > strlen($pageData)) {
+                return null;
+            }
+            
+            $quickCheck = unpack('V', substr($pageData, $offset, 4));
+            if ($quickCheck[1] == 0 || $quickCheck[1] == 0xFFFFFFFF) {
                 return null;
             }
 
@@ -187,19 +210,19 @@ class TrackParser {
                 'vgenre_id/' .     // 0x40
                 'valbum_id/' .     // 0x42
                 'vartist_id/' .    // 0x44
-                'vid/' .           // 0x46
-                'vplay_count/' .   // 0x48
-                'vu18/' .          // 0x4A
+                'vu18/' .          // 0x46
+                'vid/' .           // 0x48 - Track ID
+                'vplay_count/' .   // 0x4A
                 'vyear/' .         // 0x4C
                 'vsample_depth/' . // 0x4E
                 'vu19/' .          // 0x50
-                'vduration/' .     // 0x52
-                'vu20/' .          // 0x54
+                'vu20/' .          // 0x52
+                'vduration/' .     // 0x54 - Duration in seconds
                 'vu21/' .          // 0x56
                 'Ccolor_id/' .     // 0x58
                 'Crating/' .       // 0x59
-                'vu22/' .          // 0x5A
-                'vu23',            // 0x5C
+                'vkey_id/' .       // 0x5A - Musical Key ID
+                'vu22',            // 0x5C
                 substr($pageData, $offset, 0x5E)
             );
 
@@ -237,12 +260,34 @@ class TrackParser {
                 }
             }
 
-            $title = $strings[17] ?? 'Unknown Title';
+            $title = $strings[17] ?? '';
+            
+            if (empty($title) && isset($strings[15])) {
+                $analyzeDate = $strings[15];
+                if (preg_match('/\d{4}-\d{2}-\d{2}.(.+)/', $analyzeDate, $matches)) {
+                    $title = $matches[1];
+                }
+            }
+            
+            if (empty($title) && isset($strings[20])) {
+                $filePath = $strings[20];
+                if (preg_match('/([^\/]+)$/', $filePath, $matches)) {
+                    $title = $matches[1];
+                }
+            }
+            
+            if (empty($title)) {
+                $title = 'Unknown Title';
+            }
+            
             if (strpos($title, ';') !== false) {
                 $parts = explode(';', $title);
                 $title = trim($parts[0]);
             }
-            if (strpos($title, '.') !== false && substr($title, -4) !== '.mp3') {
+            if (strpos($title, '.mp3') !== false) {
+                $title = str_replace('.mp3', '', $title);
+            }
+            if (strpos($title, '.') !== false && preg_match('/\.[a-z]{3,4}$/i', $title)) {
                 $title = substr($title, 0, strrpos($title, '.'));
             }
 
@@ -269,13 +314,7 @@ class TrackParser {
             }
 
             $keyName = '';
-            $keyId = 0;
-            
-            if (isset($strings[6]) && $strings[6]) {
-                if (is_numeric($strings[6])) {
-                    $keyId = intval($strings[6]);
-                }
-            }
+            $keyId = $fixed['key_id'] ?? 0;
             
             if ($this->keyParser && $keyId > 0) {
                 $keyName = $this->keyParser->getKeyName($keyId);

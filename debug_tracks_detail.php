@@ -29,9 +29,8 @@ if ($keysTable) {
     }
 }
 
-echo "\n=== FIRST TRACK DETAIL ===\n";
-$firstPage = $tracksTable['first_page'];
-$pageData = $pdbParser->readPage($firstPage);
+echo "\n=== TRACK DETAIL FROM PAGE 2 ===\n";
+$pageData = $pdbParser->readPage(2);
 
 if ($pageData && strlen($pageData) >= 48) {
     $pageHeader = unpack(
