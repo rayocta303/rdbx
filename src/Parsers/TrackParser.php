@@ -8,6 +8,7 @@ class TrackParser {
     private $tracks;
     private $artistAlbumParser;
     private $genreParser;
+    private $keyParser;
 
     public function __construct($pdbParser, $logger = null) {
         $this->pdbParser = $pdbParser;
@@ -15,6 +16,7 @@ class TrackParser {
         $this->tracks = [];
         $this->artistAlbumParser = null;
         $this->genreParser = null;
+        $this->keyParser = null;
     }
 
     public function setArtistAlbumParser($parser) {
@@ -23,6 +25,10 @@ class TrackParser {
 
     public function setGenreParser($parser) {
         $this->genreParser = $parser;
+    }
+
+    public function setKeyParser($parser) {
+        $this->keyParser = $parser;
     }
 
     public function parseTracks() {
@@ -262,13 +268,18 @@ class TrackParser {
                 $genreName = "Genre #{$fixed['genre_id']}";
             }
 
+            $keyName = '';
+            if ($this->keyParser && isset($fixed['key_id'])) {
+                $keyName = $this->keyParser->getKeyName($fixed['key_id']);
+            }
+
             return [
                 'id' => $fixed['id'],
                 'title' => $title,
                 'artist' => $artistName,
                 'album' => $albumName,
                 'label' => isset($fixed['label_id']) ? "Label #{$fixed['label_id']}" : '',
-                'key' => isset($fixed['key_id']) ? "Key #{$fixed['key_id']}" : '',
+                'key' => $keyName,
                 'genre' => $genreName,
                 'artist_id' => $fixed['artist_id'] ?? 0,
                 'album_id' => $fixed['album_id'] ?? 0,
