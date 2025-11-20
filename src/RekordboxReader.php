@@ -52,10 +52,6 @@ class RekordboxReader {
     }
 
     public function run() {
-        $this->logger->info(str_repeat("=", 60));
-        $this->logger->info("Rekordbox Export Reader - Starting...");
-        $this->logger->info(str_repeat("=", 60));
-
         $startTime = microtime(true);
 
         try {
@@ -64,7 +60,6 @@ class RekordboxReader {
 
             $this->stats['processing_time'] = round(microtime(true) - $startTime, 2);
 
-            // $this->printSummary();
             $this->logger->saveCorruptPlaylistLog();
 
             return $result;
@@ -83,11 +78,9 @@ class RekordboxReader {
         ];
 
         if (!file_exists($this->pdbPath)) {
-            $this->logger->error("Database not found: " . $this->pdbPath);
             throw new \Exception("export.pdb not found at {$this->pdbPath}");
         }
 
-        $this->logger->info("Reading database: " . $this->pdbPath);
         $pdbParser = new PdbParser($this->pdbPath, $this->logger);
         $pdbData = $pdbParser->parse();
 
@@ -128,18 +121,14 @@ class RekordboxReader {
         $pioneerPath = $this->exportPath . '/PIONEER';
 
         if (!is_dir($pioneerPath)) {
-            $this->logger->warning("PIONEER directory not found, skipping ANLZ parsing");
             return;
         }
 
         $anlzFiles = AnlzParser::findAnlzFiles($pioneerPath);
 
         if (empty($anlzFiles)) {
-            $this->logger->info("No ANLZ files found");
             return;
         }
-
-        $this->logger->info("Found " . count($anlzFiles) . " ANLZ files");
 
         $limit = min(5, count($anlzFiles));
         for ($i = 0; $i < $limit; $i++) {
