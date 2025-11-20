@@ -4,7 +4,21 @@
 Tool PHP untuk membaca dan menampilkan database Rekordbox USB/SD export dengan web GUI modern. Project ini mengkonversi implementasi Python menjadi PHP murni dengan struktur modular.
 
 ## Recent Changes
-- **2025-11-20**: Implementasi Dual DJ Player dengan BPM Sync
+- **2025-11-20**: Implementasi Complete DJ Player Features
+  - **Tempo Nudge**: Temporary speed adjustment (±4%) untuk beat matching
+  - **Volume Control**: Independent volume slider per deck (0-100%)
+  - **Beat Sync**: BPM sync + beat grid phase alignment untuk perfect beat matching
+    - Uses actual Rekordbox beat grid offsets
+    - Calculates phase difference relative to first beat
+    - Snaps target deck to source deck's beat phase
+  - **Quantize**: Snap to nearest beat functionality
+    - Toggle per deck
+    - Applies to hot cue triggers
+    - Uses Rekordbox beat grid for accuracy
+  - Fixed browser cache dengan timestamp parameter
+  - Integrated sync buttons dalam deck headers
+
+- **2025-11-20 (sebelumnya)**: Implementasi Dual DJ Player dengan BPM Sync
   - Dual deck player dengan full DJ controls:
     - Play/Pause functionality per deck
     - Hot cue pads (8 pads per deck) dengan trigger functionality
@@ -123,11 +137,15 @@ Tool PHP untuk membaca dan menampilkan database Rekordbox USB/SD export dengan w
 - ✅ 32-bit track ID support
 - ✅ Dual deck DJ player dengan professional controls
 - ✅ Hot cue pads (8 per deck) dengan trigger functionality
-- ✅ BPM Pitch control dengan Master Tempo toggle
-- ✅ BPM Sync functionality antar deck
+- ✅ BPM Pitch control (-16% to +16%) dengan Master Tempo toggle
+- ✅ Tempo Nudge buttons untuk temporary speed adjustment
+- ✅ Independent volume control per deck
+- ✅ BPM Sync functionality (tempo only)
+- ✅ Beat Sync functionality (tempo + beat grid phase alignment)
+- ✅ Quantize toggle dengan beat grid snap
 - ✅ Zoom/drag controls untuk waveform (1x-64x)
 - ✅ Center playhead dengan scrolling waveform
-- ✅ Integrated sync buttons dalam deck headers
+- ✅ Integrated sync/beat sync buttons dalam deck headers
 
 ## References
 - Deep Symmetry crate-digger: https://github.com/Deep-Symmetry/crate-digger

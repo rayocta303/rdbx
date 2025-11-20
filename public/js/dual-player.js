@@ -31,7 +31,8 @@ class DualPlayer {
             nudgeActive: false,
             nudgeAmount: 0,
             basePitchValue: 0,
-            volume: 100
+            volume: 100,
+            quantizeEnabled: false
         };
     }
     
@@ -442,20 +443,6 @@ class DualPlayer {
         });
     }
     
-    triggerHotCue(deckId, cueNum) {
-        const deck = this.decks[deckId];
-        
-        if (!deck.track) return;
-        
-        if (deck.hotCues[cueNum]) {
-            deck.audio.currentTime = deck.hotCues[cueNum].time;
-            
-            if (!deck.isPlaying) {
-                this.togglePlay(deckId);
-            }
-        }
-    }
-    
     ejectDeck(deckId) {
         const deck = this.decks[deckId];
         const deckLabel = deckId.toUpperCase();
@@ -584,7 +571,7 @@ class DualPlayer {
         }
     }
     
-    syncBPM(sourceDeckId, targetDeckId) {
+    syncBPM(sourceDeckId, targetDeckId, snapBeats = false) {
         const sourceDeck = this.decks[sourceDeckId];
         const targetDeck = this.decks[targetDeckId];
         
@@ -608,7 +595,56 @@ class DualPlayer {
             this.setPitch(targetDeckId, requiredPitchPercent);
         }
         
-        console.log(`Synced ${targetDeckId.toUpperCase()} (${targetDeck.originalBPM} BPM) to ${sourceDeckId.toUpperCase()} (${targetBPM.toFixed(2)} BPM)`);
+        if (snapBeats) {
+            this.snapBeatsToGrid(sourceDeckId, targetDeckId, targetBPM);
+        }
+        
+        console.log(`Synced ${targetDeckId.toUpperCase()} (${targetDeck.originalBPM} BPM) to ${sourceDeckId.toUpperCase()} (${targetBPM.toFixed(2)} BPM)${snapBeats ? ' + Beat Grid' : ''}`);
+    }
+    
+    snapBeatsToGrid(sourceDeckId, targetDeckId, targetBPM) {
+        const sourceDeck = this.decks[sourceDeckId];
+        const targetDeck = this.decks[targetDeckId];
+        
+        const sourceBPM = sourceDeck.originalBPM * (1 + sourceDeck.pitchValue / 100);
+        const sourceCurrentTime = sourceDeck.audio.currentTime;
+        const targetCurrentTime = targetDeck.audio.currentTime;
+        
+        const sourceBeatLength = 60 / sourceBPM;
+        const targetBeatLength = 60 / targetBPM;
+        
+        let sourceFirstBeatOffset = 0;
+        let targetFirstBeatOffset = 0;
+        
+        if (sourceDeck.beatgridData && sourceDeck.beatgridData.beats && sourceDeck.beatgridData.beats.length > 0) {
+            sourceFirstBeatOffset = sourceDeck.beatgridData.beats[0].time;
+        }
+        
+        if (targetDeck.beatgridData && targetDeck.beatgridData.beats && targetDeck.beatgridData.beats.length > 0) {
+            targetFirstBeatOffset = targetDeck.beatgridData.beats[0].time;
+        }
+        
+        const sourceTimeFromFirstBeat = sourceCurrentTime - sourceFirstBeatOffset;
+        const targetTimeFromFirstBeat = targetCurrentTime - targetFirstBeatOffset;
+        
+        const sourceBeatPhase = (sourceTimeFromFirstBeat / sourceBeatLength) % 1;
+        const targetBeatPhase = (targetTimeFromFirstBeat / targetBeatLength) % 1;
+        
+        const phaseDifference = sourceBeatPhase - targetBeatPhase;
+        const timeAdjustment = phaseDifference * targetBeatLength;
+        
+        let newTargetTime = targetCurrentTime + timeAdjustment;
+        
+        if (newTargetTime < 0) {
+            newTargetTime += targetBeatLength;
+        } else if (newTargetTime >= targetDeck.duration) {
+            newTargetTime -= targetBeatLength;
+        }
+        
+        targetDeck.audio.currentTime = newTargetTime;
+        this.updatePlayhead(targetDeckId);
+        
+        console.log(`Beat Grid Snapped: Source offset=${sourceFirstBeatOffset.toFixed(3)}s, Target offset=${targetFirstBeatOffset.toFixed(3)}s, Phase diff=${(phaseDifference * 100).toFixed(1)}%, Adjustment=${(timeAdjustment * 1000).toFixed(0)}ms`);
     }
     
     updateBPMDisplay(deckId, currentBPM) {
@@ -675,6 +711,68 @@ class DualPlayer {
         const volumeValueEl = document.getElementById(`volumeValue${deckLabel}`);
         if (volumeValueEl) {
             volumeValueEl.textContent = `${Math.round(deck.volume)}%`;
+        }
+    }
+    
+    toggleQuantize(deckId) {
+        const deck = this.decks[deckId];
+        const deckLabel = deckId.toUpperCase();
+        
+        deck.quantizeEnabled = !deck.quantizeEnabled;
+        
+        const btn = document.getElementById(`quantize${deckLabel}`);
+        if (btn) {
+            if (deck.quantizeEnabled) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        }
+        
+        console.log(`Quantize ${deck.quantizeEnabled ? 'ON' : 'OFF'} for Deck ${deckLabel}`);
+    }
+    
+    quantizeTime(deckId, targetTime) {
+        const deck = this.decks[deckId];
+        
+        if (!deck.quantizeEnabled || !deck.track || !deck.originalBPM) {
+            return targetTime;
+        }
+        
+        const currentBPM = deck.originalBPM * (1 + deck.pitchValue / 100);
+        const beatLength = 60 / currentBPM;
+        
+        let firstBeatOffset = 0;
+        if (deck.beatgridData && deck.beatgridData.beats && deck.beatgridData.beats.length > 0) {
+            firstBeatOffset = deck.beatgridData.beats[0].time;
+        }
+        
+        const timeFromFirstBeat = targetTime - firstBeatOffset;
+        const beatNumber = Math.round(timeFromFirstBeat / beatLength);
+        const quantizedTime = firstBeatOffset + (beatNumber * beatLength);
+        
+        return Math.max(0, Math.min(quantizedTime, deck.duration));
+    }
+    
+    triggerHotCue(deckId, cueNumber) {
+        const deck = this.decks[deckId];
+        
+        if (!deck.track) return;
+        
+        const cueData = deck.hotCues[cueNumber];
+        if (cueData && cueData.time !== undefined) {
+            let targetTime = cueData.time;
+            
+            if (deck.quantizeEnabled) {
+                targetTime = this.quantizeTime(deckId, targetTime);
+            }
+            
+            deck.audio.currentTime = targetTime;
+            this.updatePlayhead(deckId);
+            
+            if (!deck.isPlaying) {
+                this.togglePlay(deckId);
+            }
         }
     }
 }

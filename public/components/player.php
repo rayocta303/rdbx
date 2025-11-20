@@ -18,9 +18,13 @@
                             <button class="eject-btn" onclick="window.dualPlayer.ejectDeck('a')" title="Eject Track">
                                 <i class="fas fa-eject"></i>
                             </button>
-                            <button class="sync-btn-compact" onclick="window.dualPlayer.syncBPM('a', 'b')" title="Sync Deck A to Deck B tempo">
+                            <button class="sync-btn-compact" onclick="window.dualPlayer.syncBPM('a', 'b', false)" title="Sync Tempo Only">
                                 <i class="fas fa-sync-alt"></i>
                                 <span>→ B</span>
+                            </button>
+                            <button class="beatsync-btn-compact" onclick="window.dualPlayer.syncBPM('a', 'b', true)" title="Beat Sync (Tempo + Beat Grid)">
+                                <i class="fas fa-wave-square"></i>
+                                <span>⚡B</span>
                             </button>
                         </div>
                         <div class="deck-controls">
@@ -47,6 +51,10 @@
                         <span class="zoom-level" id="zoomLevelA">16x</span>
                         <button class="zoom-btn" onclick="window.dualPlayer.zoomWaveform('a', 1)" title="Zoom In">
                             <i class="fas fa-search-plus"></i>
+                        </button>
+                        <button class="quantize-btn" id="quantizeA" onclick="window.dualPlayer.toggleQuantize('a')" title="Quantize (Snap to Beat)">
+                            <i class="fas fa-magnet"></i>
+                            <span>Q</span>
                         </button>
                         <div class="time-display" id="timeDisplayA">00:00 / 00:00</div>
                     </div>
@@ -126,9 +134,13 @@
                             <button class="eject-btn" onclick="window.dualPlayer.ejectDeck('b')" title="Eject Track">
                                 <i class="fas fa-eject"></i>
                             </button>
-                            <button class="sync-btn-compact" onclick="window.dualPlayer.syncBPM('b', 'a')" title="Sync Deck B to Deck A tempo">
+                            <button class="sync-btn-compact" onclick="window.dualPlayer.syncBPM('b', 'a', false)" title="Sync Tempo Only">
                                 <i class="fas fa-sync-alt"></i>
                                 <span>→ A</span>
+                            </button>
+                            <button class="beatsync-btn-compact" onclick="window.dualPlayer.syncBPM('b', 'a', true)" title="Beat Sync (Tempo + Beat Grid)">
+                                <i class="fas fa-wave-square"></i>
+                                <span>⚡A</span>
                             </button>
                         </div>
                         <div class="deck-controls">
@@ -155,6 +167,10 @@
                         <span class="zoom-level" id="zoomLevelB">16x</span>
                         <button class="zoom-btn" onclick="window.dualPlayer.zoomWaveform('b', 1)" title="Zoom In">
                             <i class="fas fa-search-plus"></i>
+                        </button>
+                        <button class="quantize-btn" id="quantizeB" onclick="window.dualPlayer.toggleQuantize('b')" title="Quantize (Snap to Beat)">
+                            <i class="fas fa-magnet"></i>
+                            <span>Q</span>
                         </button>
                         <div class="time-display" id="timeDisplayB">00:00 / 00:00</div>
                     </div>

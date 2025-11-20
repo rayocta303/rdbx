@@ -1,16 +1,33 @@
 # Rekordbox Export Reader - MIXXX Edition
 
-Professional DJ Library Manager untuk membaca dan menampilkan data dari Rekordbox USB exports dengan Web GUI bergaya MIXXX DJ Software.
+Professional DJ Library Manager dengan Dual Deck Player untuk membaca dan memainkan Rekordbox USB exports dengan Web GUI bergaya MIXXX DJ Software.
 
 ## ✨ Fitur Utama
+
+### 🎛️ Professional Dual DJ Player
+- **Independent Dual Decks**: Load dan play tracks pada Deck A dan Deck B secara bersamaan
+- **BPM Pitch Control**: ±16% tempo adjustment dengan real-time BPM display
+- **Master Tempo (Key Lock)**: Maintain pitch asli saat adjust tempo
+- **Tempo Nudge**: Temporary speed adjustment (±4%) untuk beat matching
+- **Volume Control**: Independent volume slider per deck (0-100%)
+- **BPM Sync**: Match tempo antar deck
+- **Beat Sync**: Sync tempo + snap beat grid phase untuk perfect alignment
+  - Uses actual Rekordbox beat grid offsets
+  - Calculates phase difference dan adjust playback position
+- **Quantize**: Snap to nearest beat functionality
+  - Toggle per deck
+  - Applies to hot cue triggers
+  - Uses Rekordbox beat grid untuk accuracy
 
 ### 🎨 MIXXX-Inspired Professional UI
 - **Dark Theme**: Interface profesional bergaya MIXXX LateNight Skin
 - **FontAwesome Icons**: Modern icon system menggantikan emoji
-- **Professional Deck Layout**: Library browser, waveform display, dan hot cue pads
+- **Dual Deck Layout**: Library browser, dual waveform display, dan hot cue pads
 - **Color-Coded Waveforms**: Visualisasi waveform dengan analisis frekuensi RGB
-- **Hot Cue Pads**: 8 cue point pads dengan color coding dan gradient effects
-- **Real-time Waveform Rendering**: Canvas-based waveform dengan glow effects
+- **Hot Cue Pads**: 8 pads per deck dengan color coding dan gradient effects
+- **Real-time Waveform Rendering**: Canvas-based waveform dengan beatgrid overlay dan glow effects
+- **Center Playhead**: Fixed playhead dengan auto-scrolling waveform
+- **Zoom Controls**: 1x to 64x zoom (default 16x) dengan drag-to-seek
 
 ### 📀 Parsing Database Lengkap
 - Membaca file `export.pdb` dan `exportExt.pdb` (DeviceSQL format)
@@ -20,16 +37,23 @@ Professional DJ Library Manager untuk membaca dan menampilkan data dari Rekordbo
 - Audio streaming dengan byte-range support untuk playback
 - Corruption detection dan graceful error handling
 
-### 🎵 Analisis Audio
+### 🎵 Audio & Analysis Features
 - **Waveform Visualization**: 
-  - Overview waveform (full track)
-  - Detailed waveform dengan zoom navigation
   - Color-coded frequency data (RGB dari ANLZ files)
-- **Cue Points & Loops**:
-  - Hot cue display dengan posisi timeline
-  - Memory cues dan loop points
-  - Click-to-jump functionality pada waveform
-- **Audio Playback**: Built-in HTML5 audio player dengan seek support
+  - Beatgrid overlay dengan glow effects
+  - Zoom controls (1x-64x, default 16x)
+  - Drag-to-seek navigation
+  - Center playhead dengan auto-scrolling
+- **Hot Cues**:
+  - 8 hot cue pads per deck
+  - Instant jump dengan auto-play
+  - Visual markers pada waveform
+  - Quantize support untuk beat-accurate triggers
+- **Audio Playback**: 
+  - Web Audio API dengan gain nodes
+  - Seekable playback dengan byte-range support
+  - Real-time position tracking
+  - Independent volume control per deck
 
 ## 📁 Struktur Project
 
@@ -49,11 +73,22 @@ Professional DJ Library Manager untuk membaca dan menampilkan data dari Rekordbo
 │   └── RekordboxReader.php         # Main orchestrator class
 ├── public/
 │   ├── js/
+│   │   ├── dual-player.js          # DJ player orchestrator
+│   │   ├── audio-player.js         # Web Audio API wrapper
 │   │   ├── waveform-renderer.js    # Canvas waveform rendering
-│   │   ├── cue-manager.js          # Cue point management
-│   │   ├── track-detail.js         # Track detail panel controller
-│   │   └── audio-player.js         # HTML5 audio player wrapper
-│   ├── index.php                   # Main web interface (MIXXX theme)
+│   │   ├── cue-manager.js          # Hot cue handler
+│   │   └── track-detail.js         # Track detail modal
+│   ├── components/
+│   │   ├── player.php              # Dual deck player UI
+│   │   ├── browser.php             # Library browser
+│   │   ├── stats.php               # Statistics
+│   │   └── debug.php               # Debug panel
+│   ├── partials/
+│   │   ├── head.php                # HTML head
+│   │   └── footer.php              # JavaScript includes
+│   ├── css/
+│   │   └── main.css                # All custom styles
+│   ├── index.php                   # Main entry point
 │   └── audio.php                   # Audio streaming endpoint
 ├── output/                         # Log files
 └── Rekordbox-USB/                  # Rekordbox USB/SD export
@@ -86,6 +121,30 @@ Professional DJ Library Manager untuk membaca dan menampilkan data dari Rekordbo
    ```
 3. Buka browser ke `http://localhost:5000`
 4. Data akan otomatis ter-load dan ditampilkan dalam MIXXX-style interface
+
+### Menggunakan DJ Player
+
+#### Loading Tracks
+1. Browse tracks dalam library panel
+2. Klik **A** atau **B** button untuk load track ke respective deck
+3. Tracks auto-load metadata, waveform, dan hot cues
+
+#### Playback Controls
+- **Play/Pause**: Klik play button pada masing-masing deck
+- **Seek**: Drag waveform atau klik posisi
+- **Volume**: Adjust slider (0-100%)
+
+#### Tempo & Beat Matching
+1. **Pitch Slider**: Move slider untuk permanent tempo change (±16%)
+2. **Master Tempo**: Toggle untuk lock musical key
+3. **Nudge**: Hold +/- buttons untuk temporary speed adjustment
+4. **Sync (→)**: Match tempo saja
+5. **Beat Sync (⚡)**: Match tempo + align beat grid phase
+
+#### Hot Cues
+1. Klik hot cue pad (1-8) untuk jump ke cue point
+2. Enable **Quantize** (Q button) untuk snap to nearest beat
+3. Cue markers terlihat pada waveform
 
 ### Struktur Rekordbox USB Export
 
@@ -252,4 +311,21 @@ Special thanks kepada seluruh komunitas yang berkontribusi dalam reverse-enginee
 
 ---
 
-**v2.0 - MIXXX Edition** | Powered by PHP 8.2 | UI inspired by MIXXX DJ Software
+**v2.0 - MIXXX Edition with Professional DJ Player** | Powered by PHP 8.2 | UI inspired by MIXXX DJ Software
+
+## 🎛️ DJ Player Features Summary
+
+| Feature | Description |
+|---------|-------------|
+| **Dual Decks** | Independent playback pada Deck A & B |
+| **Pitch Control** | ±16% tempo adjustment dengan real-time BPM |
+| **Master Tempo** | Key lock saat adjust tempo |
+| **Tempo Nudge** | Temporary ±4% speed adjustment |
+| **Volume** | Independent 0-100% control per deck |
+| **BPM Sync** | Match tempo between decks |
+| **Beat Sync** | Tempo + beat grid phase alignment |
+| **Quantize** | Snap to beat untuk hot cues |
+| **Hot Cues** | 8 pads per deck dengan instant jump |
+| **Waveform** | Color RGB dengan beatgrid overlay |
+| **Zoom** | 1x-64x (default 16x) dengan drag |
+| **Center Playhead** | Auto-scrolling waveform |

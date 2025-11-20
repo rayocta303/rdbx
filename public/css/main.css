@@ -253,6 +253,65 @@ canvas {
     font-size: 0.875rem;
 }
 
+.beatsync-btn-compact {
+    background: linear-gradient(135deg, #ff8c00 0%, #ff6600 100%);
+    border: 1px solid #ff8c00;
+    color: #fff;
+    padding: 0.375rem 0.625rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.beatsync-btn-compact:hover {
+    background: linear-gradient(135deg, #ffa500 0%, #ff7700 100%);
+    box-shadow: 0 0 10px rgba(255, 140, 0, 0.5);
+}
+
+.beatsync-btn-compact:active {
+    transform: scale(0.95);
+}
+
+.beatsync-btn-compact i {
+    font-size: 0.875rem;
+}
+
+.quantize-btn {
+    background: linear-gradient(135deg, #2a2a2a 0%, #1e1e1e 100%);
+    border: 1px solid #3a3a3a;
+    color: #888;
+    padding: 0.375rem 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.quantize-btn:hover {
+    border-color: #00d4ff;
+    color: #00d4ff;
+}
+
+.quantize-btn.active {
+    background: linear-gradient(135deg, #00d4ff20 0%, #00d4ff10 100%);
+    border-color: #00d4ff;
+    color: #00d4ff;
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+}
+
+.quantize-btn i {
+    font-size: 0.875rem;
+}
+
 .control-btn {
     background: #2a2a2a;
     border: 1px solid #3a3a3a;
