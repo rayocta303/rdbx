@@ -27,7 +27,11 @@ class DualPlayer {
             animationFrame: null,
             pitchValue: 0,
             masterTempo: false,
-            originalBPM: 0
+            originalBPM: 0,
+            nudgeActive: false,
+            nudgeAmount: 0,
+            basePitchValue: 0,
+            volume: 100
         };
     }
     
@@ -616,6 +620,61 @@ class DualPlayer {
             if (bpmDisplay) {
                 bpmDisplay.textContent = `${currentBPM.toFixed(2)} BPM`;
             }
+        }
+    }
+    
+    startNudge(deckId, direction) {
+        const deck = this.decks[deckId];
+        
+        if (!deck.track) return;
+        
+        deck.nudgeActive = true;
+        deck.basePitchValue = deck.pitchValue;
+        deck.nudgeAmount = direction * 4;
+        
+        const newPitch = deck.basePitchValue + deck.nudgeAmount;
+        const playbackRate = 1 + (newPitch / 100);
+        deck.audio.playbackRate = playbackRate;
+        deck.audio.preservesPitch = deck.masterTempo;
+        
+        if (deck.track && deck.originalBPM) {
+            const currentBPM = deck.originalBPM * playbackRate;
+            this.updateBPMDisplay(deckId, currentBPM);
+        }
+    }
+    
+    stopNudge(deckId) {
+        const deck = this.decks[deckId];
+        
+        if (!deck.track || !deck.nudgeActive) return;
+        
+        deck.nudgeActive = false;
+        deck.nudgeAmount = 0;
+        
+        const playbackRate = 1 + (deck.pitchValue / 100);
+        deck.audio.playbackRate = playbackRate;
+        deck.audio.preservesPitch = deck.masterTempo;
+        
+        if (deck.track && deck.originalBPM) {
+            const currentBPM = deck.originalBPM * playbackRate;
+            this.updateBPMDisplay(deckId, currentBPM);
+        }
+    }
+    
+    setVolume(deckId, volumePercent) {
+        const deck = this.decks[deckId];
+        const deckLabel = deckId.toUpperCase();
+        
+        deck.volume = parseFloat(volumePercent);
+        
+        const volumeValue = deck.volume / 100;
+        if (deck.gainNode) {
+            deck.gainNode.gain.value = volumeValue;
+        }
+        
+        const volumeValueEl = document.getElementById(`volumeValue${deckLabel}`);
+        if (volumeValueEl) {
+            volumeValueEl.textContent = `${Math.round(deck.volume)}%`;
         }
     }
 }
