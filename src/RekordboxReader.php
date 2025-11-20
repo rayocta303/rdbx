@@ -58,7 +58,9 @@ class RekordboxReader {
 
         try {
             $result = $this->parseDatabase();
-            $this->parseAnlzFiles();
+            
+            // Parse and integrate ANLZ data into tracks
+            $result['tracks'] = $this->integrateAnlzData($result['tracks']);
 
             $this->stats['processing_time'] = round(microtime(true) - $startTime, 2);
 
@@ -123,33 +125,71 @@ class RekordboxReader {
         return $result;
     }
 
-    private function parseAnlzFiles() {
+    private function integrateAnlzData($tracks) {
         $pioneerPath = $this->exportPath . '/PIONEER';
 
         if (!is_dir($pioneerPath)) {
-            return;
+            return $tracks;
         }
 
         $anlzFiles = AnlzParser::findAnlzFiles($pioneerPath);
 
         if (empty($anlzFiles)) {
-            return;
+            return $tracks;
         }
 
-        $limit = min(5, count($anlzFiles));
-        for ($i = 0; $i < $limit; $i++) {
-            try {
-                $parser = new AnlzParser($anlzFiles[$i], $this->logger);
-                $anlzData = $parser->parse();
-
-                if (!empty($anlzData)) {
-                    $this->stats['anlz_files_processed']++;
+        // Create mapping of ANLZ files by track ID
+        $anlzByTrackId = [];
+        foreach ($anlzFiles as $anlzFile) {
+            // Extract track ID from path (e.g., USBANLZ/P03F/000272DD/ANLZ0000.DAT)
+            if (preg_match('/([0-9A-F]{8})\/ANLZ0000\.(DAT|EXT|2EX)$/i', $anlzFile, $matches)) {
+                $trackIdHex = $matches[1];
+                $trackId = hexdec($trackIdHex);
+                $ext = strtoupper($matches[2]);
+                
+                if (!isset($anlzByTrackId[$trackId])) {
+                    $anlzByTrackId[$trackId] = [];
                 }
-
-            } catch (\Exception $e) {
-                $this->logger->debug("Error parsing " . basename($anlzFiles[$i]) . ": " . $e->getMessage());
+                $anlzByTrackId[$trackId][$ext] = $anlzFile;
             }
         }
+
+        // Parse ANLZ data for each track
+        foreach ($tracks as &$track) {
+            $track['cue_points'] = [];
+            $track['waveform'] = null;
+            
+            if (isset($anlzByTrackId[$track['id']])) {
+                $trackAnlz = $anlzByTrackId[$track['id']];
+                
+                // Try to parse extended file first (2EX), then EXT, then DAT
+                $filesToTry = ['2EX', 'EXT', 'DAT'];
+                foreach ($filesToTry as $ext) {
+                    if (isset($trackAnlz[$ext])) {
+                        try {
+                            $parser = new AnlzParser($trackAnlz[$ext], $this->logger);
+                            $anlzData = $parser->parse();
+
+                            if (!empty($anlzData['cue_points'])) {
+                                $track['cue_points'] = $anlzData['cue_points'];
+                            }
+                            
+                            if (!empty($anlzData['waveform'])) {
+                                $track['waveform'] = $anlzData['waveform'];
+                            }
+
+                            $this->stats['anlz_files_processed']++;
+                            break; // Stop after first successful parse
+
+                        } catch (\Exception $e) {
+                            $this->logger->debug("Error parsing ANLZ for track {$track['id']}: " . $e->getMessage());
+                        }
+                    }
+                }
+            }
+        }
+
+        return $tracks;
     }
 
     private function printSummary() {

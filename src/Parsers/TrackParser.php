@@ -211,14 +211,13 @@ class TrackParser {
                 'valbum_id/' .     // 0x42
                 'vartist_id/' .    // 0x44
                 'vu18/' .          // 0x46
-                'vid/' .           // 0x48 - Track ID
-                'vplay_count/' .   // 0x4A
-                'vyear/' .         // 0x4C
-                'vsample_depth/' . // 0x4E
-                'vu19/' .          // 0x50
-                'vu20/' .          // 0x52
-                'vduration/' .     // 0x54 - Duration in seconds
-                'vu21/' .          // 0x56
+                'Vid/' .           // 0x48 - Track ID (32-bit)
+                'vplay_count/' .   // 0x4C
+                'vyear/' .         // 0x4E
+                'vsample_depth/' . // 0x50
+                'vu19/' .          // 0x52
+                'vu20/' .          // 0x54
+                'vduration/' .     // 0x56 - Duration in seconds
                 'Ccolor_id/' .     // 0x58
                 'Crating/' .       // 0x59
                 'vkey_id/' .       // 0x5A - Musical Key ID
@@ -246,9 +245,19 @@ class TrackParser {
                             $str = substr($str, 0, $nullPos);
                         }
                         
-                        if (strpos($str, ';') !== false) {
-                            $parts = explode(';', $str);
-                            $str = $parts[0];
+                        // Don't split on semicolon for title - keep full title
+                        // Only clean up trailing parts after extension
+                        if ($idx == 17) { // Title string
+                            // Remove duplicate title after semicolon (e.g., "Title;Title.mp3")
+                            if (strpos($str, ';') !== false) {
+                                $parts = explode(';', $str);
+                                $str = $parts[0];
+                            }
+                        } else {
+                            if (strpos($str, ';') !== false) {
+                                $parts = explode(';', $str);
+                                $str = $parts[0];
+                            }
                         }
                         
                         $strings[$idx] = trim($str);

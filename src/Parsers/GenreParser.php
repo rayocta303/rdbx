@@ -29,6 +29,33 @@ class GenreParser {
             $this->genres[$genre['id']] = $genre['name'];
             $index++;
         }
+        
+        // Direct extraction fallback if extractRows fails
+        if (empty($this->genres)) {
+            $firstPage = $genresTable['first_page'];
+            $lastPage = $genresTable['last_page'];
+            
+            for ($pageIdx = $firstPage; $pageIdx <= $lastPage; $pageIdx++) {
+                $pageData = $this->pdbParser->readPage($pageIdx);
+                if (!$pageData) continue;
+                
+                // Check if this is a data page
+                if (strlen($pageData) >= 28) {
+                    $flags = ord($pageData[27]);
+                    if (($flags & 0x40) == 0) {
+                        // Try direct extraction at known offsets
+                        $offset = 40;
+                        if ($offset + 10 < strlen($pageData)) {
+                            $id = unpack('v', substr($pageData, $offset, 2))[1];
+                            list($str, $newOff) = $this->pdbParser->extractString($pageData, $offset + 4);
+                            if ($str && $id > 0) {
+                                $this->genres[$id] = trim($str);
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         return $this->genres;
     }
@@ -132,25 +159,41 @@ class GenreParser {
             
             $name = '';
             
-            for ($scan = $offset + 2; $scan < $offset + 150; $scan++) {
-                if ($scan >= strlen($pageData)) break;
+            // Use PdbParser's extractString method for reliable string extraction
+            // Typically the string offset for genre is at offset+4
+            list($str, $newOffset) = $this->pdbParser->extractString($pageData, $offset + 4);
+            
+            if ($str) {
+                $nullPos = strpos($str, "\x00");
+                if ($nullPos !== false) {
+                    $str = substr($str, 0, $nullPos);
+                }
                 
-                $flags = ord($pageData[$scan]);
-                if (($flags & 0x40) == 0) {
-                    $len = $flags & 0x7F;
-                    if ($len >= 3 && $len < 100 && ($scan + $len + 1) <= strlen($pageData)) {
-                        $str = substr($pageData, $scan + 1, $len);
-                        
-                        $nullPos = strpos($str, "\x00");
-                        if ($nullPos !== false) {
-                            $str = substr($str, 0, $nullPos);
-                        }
-                        
-                        $str = trim($str);
-                        
-                        if (strlen($str) >= 3 && preg_match('/[A-Za-z]/', $str)) {
-                            $name = $str;
-                            break;
+                $name = trim($str);
+            }
+            
+            // If that didn't work, scan for the string
+            if (empty($name)) {
+                for ($scan = $offset + 2; $scan < $offset + 150; $scan++) {
+                    if ($scan >= strlen($pageData)) break;
+                    
+                    $flags = ord($pageData[$scan]);
+                    if (($flags & 0x40) == 0) {
+                        $len = $flags & 0x7F;
+                        if ($len >= 3 && $len < 100 && ($scan + $len + 1) <= strlen($pageData)) {
+                            $str = substr($pageData, $scan + 1, $len);
+                            
+                            $nullPos = strpos($str, "\x00");
+                            if ($nullPos !== false) {
+                                $str = substr($str, 0, $nullPos);
+                            }
+                            
+                            $str = trim($str);
+                            
+                            if (strlen($str) >= 3 && preg_match('/[A-Za-z]/', $str)) {
+                                $name = $str;
+                                break;
+                            }
                         }
                     }
                 }

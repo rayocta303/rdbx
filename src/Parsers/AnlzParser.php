@@ -126,16 +126,23 @@ class AnlzParser {
         $waveform = [
             'preview' => null,
             'detail' => null,
-            'color' => null
+            'color' => null,
+            'preview_data' => null,
+            'color_data' => null
         ];
 
+        // Parse preview waveform (PWAV)
         if (isset($this->sections['PWAV'])) {
+            $waveData = $this->parseWaveformData($this->sections['PWAV'][0], false);
             $waveform['preview'] = [
                 'type' => 'monochrome',
-                'data_length' => strlen($this->sections['PWAV'][0])
+                'data_length' => strlen($this->sections['PWAV'][0]),
+                'samples' => count($waveData)
             ];
+            $waveform['preview_data'] = $waveData;
         }
 
+        // Parse detailed waveform (PWV3)
         if (isset($this->sections['PWV3'])) {
             $waveform['detail'] = [
                 'type' => 'monochrome',
@@ -143,26 +150,185 @@ class AnlzParser {
             ];
         }
 
+        // Parse color waveform (PWV5)
         if (isset($this->sections['PWV5'])) {
+            $waveData = $this->parseWaveformData($this->sections['PWV5'][0], true);
             $waveform['color'] = [
                 'type' => 'color',
-                'data_length' => strlen($this->sections['PWV5'][0])
+                'data_length' => strlen($this->sections['PWV5'][0]),
+                'samples' => count($waveData)
             ];
+            $waveform['color_data'] = $waveData;
         }
 
         return $waveform;
+    }
+    
+    private function parseWaveformData($sectionData, $isColor) {
+        $waveData = [];
+        
+        if (strlen($sectionData) < 20) {
+            return $waveData;
+        }
+        
+        // Skip section header (20 bytes)
+        $offset = 20;
+        
+        // Each waveform sample is 1 byte for mono, or 3-6 bytes for color
+        $sampleSize = $isColor ? 6 : 1;
+        
+        while ($offset + $sampleSize <= strlen($sectionData)) {
+            if ($isColor) {
+                // Color waveform: RGB values for different frequency bands
+                $sample = unpack('Cred/Cgreen/Cblue/Cred2/Cgreen2/Cblue2', substr($sectionData, $offset, 6));
+                $waveData[] = [
+                    'height' => max($sample['red'], $sample['green'], $sample['blue']),
+                    'r' => $sample['red'],
+                    'g' => $sample['green'],
+                    'b' => $sample['blue']
+                ];
+            } else {
+                // Monochrome waveform: single height value
+                $height = ord($sectionData[$offset]);
+                $waveData[] = ['height' => $height];
+            }
+            
+            $offset += $sampleSize;
+        }
+        
+        return $waveData;
     }
 
     private function extractCuePoints() {
         $cuePoints = [];
 
-        if (isset($this->sections['PCOB'])) {
-            if ($this->logger) {
-                $this->logger->debug("Cue points section found");
-            }
+        // Try extended (nxs2) cue list first (PCO2)
+        if (isset($this->sections['PCO2'])) {
+            $cuePoints = $this->parsePCO2Section($this->sections['PCO2'][0]);
+        }
+        // Fall back to standard cue list (PCOB)
+        elseif (isset($this->sections['PCOB'])) {
+            $cuePoints = $this->parsePCOBSection($this->sections['PCOB'][0]);
         }
 
         return $cuePoints;
+    }
+    
+    private function parsePCOBSection($sectionData) {
+        $cues = [];
+        
+        if (strlen($sectionData) < 24) {
+            return $cues;
+        }
+        
+        $header = unpack(
+            'Nlen_header/' .
+            'Nlen_tag/' .
+            'Vtype/' .
+            'vunk/' .
+            'vlencues/' .
+            'Vmemory_count',
+            substr($sectionData, 4, 20)
+        );
+        
+        $numCues = $header['lencues'] ?? 0;
+        $offset = 24;
+        
+        for ($i = 0; $i < $numCues && $offset + 56 <= strlen($sectionData); $i++) {
+            $cueData = unpack(
+                'Nhot_cue/' .
+                'Vstatus/' .
+                'Vunknown1/' .
+                'vorder_first/' .
+                'vorder_last/' .
+                'Ctype/' .
+                'Cu1/' .
+                'vu2/' .
+                'Vtime/' .
+                'Vloop_time',
+                substr($sectionData, $offset + 12, 28)
+            );
+            
+            $cues[] = [
+                'hot_cue' => $cueData['hot_cue'],
+                'type' => $cueData['type'] == 2 ? 'loop' : 'cue',
+                'time' => $cueData['time'],
+                'loop_time' => $cueData['type'] == 2 ? $cueData['loop_time'] : null,
+                'comment' => ''
+            ];
+            
+            $offset += 56;
+        }
+        
+        return $cues;
+    }
+    
+    private function parsePCO2Section($sectionData) {
+        $cues = [];
+        
+        if (strlen($sectionData) < 20) {
+            return $cues;
+        }
+        
+        $header = unpack(
+            'Nlen_header/' .
+            'Nlen_tag/' .
+            'Vtype/' .
+            'vlencues',
+            substr($sectionData, 4, 14)
+        );
+        
+        $numCues = $header['lencues'] ?? 0;
+        $offset = 20;
+        
+        for ($i = 0; $i < $numCues && $offset < strlen($sectionData); $i++) {
+            if ($offset + 16 > strlen($sectionData)) break;
+            
+            $entryHeader = unpack(
+                'Nlen_header/' .
+                'Nlen_entry/' .
+                'Vhot_cue',
+                substr($sectionData, $offset + 4, 12)
+            );
+            
+            $entryLen = $entryHeader['len_entry'] ?? 0;
+            if ($entryLen == 0 || $offset + $entryLen > strlen($sectionData)) break;
+            
+            $cueData = unpack(
+                'Ctype/' .
+                'Cu1/' .
+                'vu2/' .
+                'Vtime/' .
+                'Vloop_time/' .
+                'Ccolor_id',
+                substr($sectionData, $offset + 16, 14)
+            );
+            
+            // Extract comment if present
+            $comment = '';
+            if ($offset + 40 < strlen($sectionData)) {
+                $commentLen = unpack('V', substr($sectionData, $offset + 40, 4))[1];
+                if ($commentLen > 0 && $offset + 44 + $commentLen <= strlen($sectionData)) {
+                    $commentBytes = substr($sectionData, $offset + 44, $commentLen);
+                    $comment = mb_convert_encoding($commentBytes, 'UTF-8', 'UTF-16BE');
+                    // Remove trailing null
+                    $comment = rtrim($comment, "\x00");
+                }
+            }
+            
+            $cues[] = [
+                'hot_cue' => $entryHeader['hot_cue'],
+                'type' => $cueData['type'] == 2 ? 'loop' : 'cue',
+                'time' => $cueData['time'],
+                'loop_time' => $cueData['type'] == 2 ? $cueData['loop_time'] : null,
+                'color_id' => $cueData['color_id'] ?? 0,
+                'comment' => $comment
+            ];
+            
+            $offset += $entryLen;
+        }
+        
+        return $cues;
     }
 
     public static function findAnlzFiles($pioneerPath) {

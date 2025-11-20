@@ -183,6 +183,7 @@ try {
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">BPM</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Key</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Genre</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Cues</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Duration</th>
                                 </tr>
                             </thead>
@@ -290,8 +291,12 @@ try {
             
             tracks.forEach((track, index) => {
                 const row = document.createElement('tr');
-                row.className = 'track-row hover:bg-gray-50';
+                row.className = 'track-row hover:bg-gray-50 cursor-pointer';
                 row.setAttribute('data-search', (track.title + ' ' + track.artist + ' ' + track.genre + ' ' + track.key).toLowerCase());
+                row.onclick = () => showTrackDetail(track);
+                
+                const cueCount = track.cue_points ? track.cue_points.length : 0;
+                const cueInfo = cueCount > 0 ? `${cueCount} cue${cueCount > 1 ? 's' : ''}` : '-';
                 
                 row.innerHTML = `
                     <td class="px-4 py-3 text-sm text-gray-500">${index + 1}</td>
@@ -300,10 +305,141 @@ try {
                     <td class="px-4 py-3 text-sm text-gray-600">${track.bpm.toFixed(2)}</td>
                     <td class="px-4 py-3 text-sm text-gray-600 font-semibold ${getKeyColor(track.key)}">${escapeHtml(track.key)}</td>
                     <td class="px-4 py-3 text-sm text-gray-600">${escapeHtml(track.genre)}</td>
+                    <td class="px-4 py-3 text-sm text-blue-600">${cueInfo}</td>
                     <td class="px-4 py-3 text-sm text-gray-600">${formatDuration(track.duration)}</td>
                 `;
                 
                 tbody.appendChild(row);
+            });
+        }
+        
+        function showTrackDetail(track) {
+            let detailHTML = `
+                <div class="bg-white p-6 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                    <div class="flex justify-between items-start mb-4">
+                        <h2 class="text-2xl font-bold text-gray-800">${escapeHtml(track.title)}</h2>
+                        <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div><span class="font-semibold">Artist:</span> ${escapeHtml(track.artist)}</div>
+                        <div><span class="font-semibold">Genre:</span> ${escapeHtml(track.genre) || '-'}</div>
+                        <div><span class="font-semibold">BPM:</span> ${track.bpm.toFixed(2)}</div>
+                        <div><span class="font-semibold">Key:</span> <span class="${getKeyColor(track.key)}">${escapeHtml(track.key)}</span></div>
+                        <div><span class="font-semibold">Duration:</span> ${formatDuration(track.duration)}</div>
+                        <div><span class="font-semibold">Rating:</span> ${'⭐'.repeat(track.rating || 0)}</div>
+                    </div>
+            `;
+            
+            // Cue Points
+            if (track.cue_points && track.cue_points.length > 0) {
+                detailHTML += `
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-3">🎯 Cue Points (${track.cue_points.length})</h3>
+                        <div class="bg-gray-50 rounded p-4">
+                            ${track.cue_points.map((cue, idx) => `
+                                <div class="flex items-center justify-between py-2 border-b border-gray-200">
+                                    <div>
+                                        <span class="font-semibold">${cue.hot_cue > 0 ? 'Hot Cue ' + String.fromCharCode(64 + cue.hot_cue) : 'Memory Cue ' + (idx + 1)}</span>
+                                        <span class="text-sm text-gray-600 ml-2">(${cue.type})</span>
+                                    </div>
+                                    <div class="text-sm">
+                                        <span>${formatTime(cue.time)}</span>
+                                        ${cue.loop_time ? ` → ${formatTime(cue.loop_time)}` : ''}
+                                        ${cue.comment ? `<span class="ml-2 italic text-gray-600">"${escapeHtml(cue.comment)}"</span>` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Waveform
+            if (track.waveform) {
+                detailHTML += `
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-3">🌊 Waveform</h3>
+                        <div class="bg-gray-900 rounded p-4">
+                            <canvas id="waveformCanvas" width="800" height="100" class="w-full"></canvas>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            detailHTML += `</div>`;
+            
+            const modal = document.createElement('div');
+            modal.id = 'trackModal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = detailHTML;
+            modal.onclick = (e) => {
+                if (e.target === modal) closeModal();
+            };
+            
+            document.body.appendChild(modal);
+            
+            // Draw waveform if available
+            if (track.waveform && track.waveform.preview_data) {
+                setTimeout(() => drawWaveform(track.waveform.preview_data), 10);
+            } else if (track.waveform && track.waveform.color_data) {
+                setTimeout(() => drawColorWaveform(track.waveform.color_data), 10);
+            }
+        }
+        
+        function closeModal() {
+            const modal = document.getElementById('trackModal');
+            if (modal) modal.remove();
+        }
+        
+        function formatTime(ms) {
+            const totalSecs = Math.floor(ms / 1000);
+            const mins = Math.floor(totalSecs / 60);
+            const secs = totalSecs % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        function drawWaveform(waveData) {
+            const canvas = document.getElementById('waveformCanvas');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, width, height);
+            
+            const step = width / waveData.length;
+            
+            ctx.fillStyle = '#00D9FF';
+            waveData.forEach((sample, i) => {
+                const x = i * step;
+                const barHeight = (sample.height / 255) * height;
+                const y = (height - barHeight) / 2;
+                ctx.fillRect(x, y, Math.max(1, step), barHeight);
+            });
+        }
+        
+        function drawColorWaveform(waveData) {
+            const canvas = document.getElementById('waveformCanvas');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, width, height);
+            
+            const step = width / waveData.length;
+            
+            waveData.forEach((sample, i) => {
+                const x = i * step;
+                const barHeight = (sample.height / 255) * height;
+                const y = (height - barHeight) / 2;
+                ctx.fillStyle = `rgb(${sample.r}, ${sample.g}, ${sample.b})`;
+                ctx.fillRect(x, y, Math.max(1, step), barHeight);
             });
         }
         
