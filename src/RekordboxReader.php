@@ -36,7 +36,7 @@ class RekordboxReader {
             mkdir($this->outputDir, 0755, true);
         }
 
-        $this->logger = new Logger($this->outputDir, $verbose);
+        $this->logger = new Logger($this->outputDir, false);
 
         $this->pdbPath = $exportPath . '/PIONEER/rekordbox/export.pdb';
         $this->pdbExtPath = $exportPath . '/PIONEER/rekordbox/exportExt.pdb';
