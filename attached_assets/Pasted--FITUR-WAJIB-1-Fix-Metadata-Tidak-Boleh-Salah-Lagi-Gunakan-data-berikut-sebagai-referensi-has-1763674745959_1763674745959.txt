@@ -1,0 +1,173 @@
+📌 FITUR WAJIB
+1️⃣ Fix Metadata — Tidak Boleh Salah Lagi
+
+Gunakan data berikut sebagai referensi hasil yang benar:
+
+Playlist: "TEST"
+Tracks dalam database: 2 lagu
+
+Track 1
+
+Title: Booty Sweat (hbrp Remix)
+
+Artist: hbrp
+
+Key: 9A
+
+BPM: 130
+
+Genre: Indonesian Bounce
+
+Track 2
+
+Title: Hardwell - Spaceman (Reyputra & Jayjax Edit) TRIM
+
+Artist: (Blank / Unknown)
+
+Key: 2A
+
+BPM: 128
+
+Genre: (Blank / Unknown)
+
+State that parsing harus:
+
+membaca export.db sesuai struktur SQL Rekordbox
+
+melakukan normalisasi data (BPM float → integer, trim whitespace, handle null artist/genre)
+
+mencegah salah field seperti sebelumnya
+
+2️⃣ Preview Audio Dengan Waveform Rekordbox-Style
+
+Buat tampilan preview menyerupai browser Rekordbox:
+
+Fitur wajib:
+
+Tombol Play/Pause
+
+Garis playhead berjalan di waveform
+
+Waveform aktif-berjalan (scrollable)
+
+Struktur:
+
+Waveform Overview (WFOV)
+
+Waveform Detailed (WFD)
+
+Warna waveform mengikuti ANLZ (RB energy colors)
+
+Teknis:
+
+Waveform rendered via <canvas>
+
+Data dibaca dari file ANLZ → parser PHP → JSON → canvas JS
+
+Playhead position sinkron dengan audio currentTime
+
+Waveform detailed harus auto-scroll mengikuti playhead (mirip Rekordbox browser)
+
+3️⃣ Cue System Dengan Markers di Waveform
+
+Harus mendukung:
+
+Hot Cues
+
+Memory Cues
+
+Grid markers
+
+Warna sesuai ANLZ metadata
+
+Tampil di:
+
+List cue
+
+Marker garis kecil pada waveform overview
+
+Marker kotak warna pada waveform detailed
+
+Teknis:
+
+Parse cue block dari ANLZ, konversikan:
+
+sample → detik
+
+position → pixel offset
+
+Cue muncul dengan:
+
+Label
+
+Warna
+
+Timecode mm:ss
+
+Click-to-jump (klik marker → audio.seek)
+
+4️⃣ Referensi Reverse Engineering (WAJIB DIPAKAI)
+
+Gunakan dokumentasi resmi:
+
+Export DB Structure:
+https://djl-analysis.deepsymmetry.org/rekordbox-export-analysis/exports.html
+
+ANLZ Structure:
+https://djl-analysis.deepsymmetry.org/rekordbox-export-analysis/anlz.html
+
+Gunakan informasi tersebut untuk decoding:
+
+WAVEFORM_OVERVIEW
+
+WAVEFORM_DETAILED
+
+CUE_BLOCK
+
+GRID_BLOCK
+
+TEMPO
+
+Parser PHP harus:
+
+membaca file biner
+
+memproses endian
+
+membuang block corrupted
+
+skip playlist rusak secara otomatis (skip corrupted playlist)
+
+5️⃣ Ketentuan Teknis
+
+PHP murni (tanpa composer)
+
+Tailwind CDN
+
+Modular (pisahkan komponen seperti parser, UI, player, waveform, cue, track list)
+
+No JS framework (vanilla JS saja)
+
+No build tools
+
+Result harus berjalan lokal dengan php -S.
+
+6️⃣ UI Wajib: Rekordbox Browser Style
+
+Untuk setiap track tampilkan:
+
+Title / Artist / BPM / Key / Genre
+
+Preview audio player
+
+Waveform Overview
+
+Waveform Detailed (scrollable, dinamis)
+
+Cue markers
+
+Grid markers
+
+Daftar Cue (hot cue + memory cue)
+
+Tampilan minimalis, modern, menggunakan Tailwind CDN.
