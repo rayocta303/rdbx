@@ -115,6 +115,63 @@ class AnlzParser {
     private function extractBeatgrid() {
         $beatgrid = [];
 
+        // PQTZ section contains beat grid data
+        if (!isset($this->sections['PQTZ']) || empty($this->sections['PQTZ'])) {
+            if ($this->logger) {
+                $this->logger->debug("No PQTZ section found - beatgrid not available");
+            }
+            return $beatgrid;
+        }
+
+        $sectionData = $this->sections['PQTZ'][0];
+        
+        // PQTZ section structure (all big-endian):
+        // 0-3: fourcc 'PQTZ'
+        // 4-7: len_header (u4)
+        // 8-11: len_tag (u4)
+        // 12-15: type (u4)
+        // 16-19: unknown (u4, always 0x80000)
+        // 20-23: num_beats (u4)
+        // 24+: beat entries (8 bytes each)
+        
+        if (strlen($sectionData) < 24) {
+            if ($this->logger) {
+                $this->logger->warning("PQTZ section too short: " . strlen($sectionData) . " bytes");
+            }
+            return $beatgrid;
+        }
+
+        // Parse header (skip fourcc, len_header, len_tag, type, unknown)
+        $header = unpack('Nnum_beats', substr($sectionData, 20, 4));
+        $numBeats = $header['num_beats'];
+
+        if ($this->logger) {
+            $this->logger->debug("PQTZ section found with {$numBeats} beats");
+        }
+
+        // Parse beat entries
+        $offset = 24; // Start of beat data
+        for ($i = 0; $i < $numBeats && $offset + 8 <= strlen($sectionData); $i++) {
+            // Each beat entry is 8 bytes:
+            // 0-1: beat_number (u2) - position within bar (1 = downbeat)
+            // 2-3: tempo (u2) - BPM * 100
+            // 4-7: time (u4) - time in milliseconds
+            $beatData = unpack(
+                'nbeat_number/' .
+                'ntempo/' .
+                'Ntime',
+                substr($sectionData, $offset, 8)
+            );
+
+            $beatgrid[] = [
+                'beat' => $beatData['beat_number'],
+                'bpm' => $beatData['tempo'] / 100.0,
+                'time' => $beatData['time'] / 1000.0  // Convert to seconds
+            ];
+
+            $offset += 8;
+        }
+
         if ($this->logger) {
             $this->logger->debug("Beatgrid extracted: " . count($beatgrid) . " beats");
         }

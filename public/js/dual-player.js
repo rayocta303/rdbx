@@ -500,7 +500,7 @@ class DualPlayer {
                 deck.isPlaying = false;
                 playIcon.className = 'fas fa-play';
                 
-                alert(`Failed to play audio: ${error.message}\nCheck browser console for details.`);
+                this.showNotification(`Failed to play audio: ${error.message}`, 'error', 5000);
             }
         }
     }
@@ -896,7 +896,7 @@ class DualPlayer {
     syncToMaster(deckId, mode = 'bpm') {
         if (!this.masterDeck) {
             console.warn('[Sync] No master deck selected. Please select a master deck first.');
-            alert('Please select a master deck first by clicking the MASTER button on either deck.');
+            this.showNotification('Please select a master deck first by clicking the MASTER button on either deck.', 'warning', 3000);
             return;
         }
         
@@ -908,7 +908,7 @@ class DualPlayer {
             
             if (!this.decks[targetDeckId].track) {
                 console.warn(`[Sync] Cannot push sync - Deck ${targetDeckId.toUpperCase()} has no track loaded.`);
-                alert(`Cannot sync: Deck ${targetDeckId.toUpperCase()} has no track loaded. Load a track first.`);
+                this.showNotification(`Cannot sync: Deck ${targetDeckId.toUpperCase()} has no track loaded. Load a track first.`, 'warning', 3000);
                 return;
             }
             
@@ -961,13 +961,13 @@ class DualPlayer {
         
         if (!sourceDeck.beatgridData || !sourceDeck.beatgridData.beats || sourceDeck.beatgridData.beats.length === 0) {
             console.warn(`[Beat Sync] No beat grid data available for source deck ${sourceDeckId.toUpperCase()}. Beat sync requires analyzed beat grids.`);
-            alert(`Beat grid not available for ${sourceDeckId.toUpperCase()}. Beat sync requires tracks analyzed in Rekordbox.`);
+            this.showNotification(`Beat grid not available for ${sourceDeckId.toUpperCase()}. Beat sync requires tracks analyzed in Rekordbox.`, 'error', 4000);
             return;
         }
         
         if (!targetDeck.beatgridData || !targetDeck.beatgridData.beats || targetDeck.beatgridData.beats.length === 0) {
             console.warn(`[Beat Sync] No beat grid data available for target deck ${targetDeckId.toUpperCase()}. Beat sync requires analyzed beat grids.`);
-            alert(`Beat grid not available for ${targetDeckId.toUpperCase()}. Beat sync requires tracks analyzed in Rekordbox.`);
+            this.showNotification(`Beat grid not available for ${targetDeckId.toUpperCase()}. Beat sync requires tracks analyzed in Rekordbox.`, 'error', 4000);
             return;
         }
         
