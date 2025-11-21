@@ -144,7 +144,7 @@ class DualPlayer {
             }
             
             const pixelsPerSecond = canvas.width / (deck.duration / this.sharedZoomLevel);
-            const totalDeltaTime = -deltaX / pixelsPerSecond;
+            const totalDeltaTime = deltaX / pixelsPerSecond;
             const visibleDuration = deck.duration / this.sharedZoomLevel;
             const minOffset = -visibleDuration / 2;
             
@@ -163,7 +163,7 @@ class DualPlayer {
                     const frameDeltaTime = (now - lastTime) / 1000;
                     
                     if (frameDeltaTime > 0) {
-                        const frameDeltaSeconds = -frameDeltaX / pixelsPerSecond;
+                        const frameDeltaSeconds = frameDeltaX / pixelsPerSecond;
                         const scratchSpeed = frameDeltaSeconds / frameDeltaTime;
                         const clampedRate = Math.max(-2, Math.min(2, scratchSpeed));
                         deck.audio.playbackRate = clampedRate;
