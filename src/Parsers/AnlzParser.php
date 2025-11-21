@@ -332,7 +332,7 @@ class AnlzParser {
                 'Nmagic/' .        // offset 0-3 (4 bytes)
                 'Nlen_header/' .   // offset 4-7 (4 bytes)
                 'Nlen_entry/' .    // offset 8-11 (4 bytes)
-                'Nhot_cue/' .      // offset 12-15 (4 bytes) - CORRECT POSITION
+                'Nhot_cue/' .      // offset 12-15 (4 bytes) - HOT CUE INDEX
                 'Nstatus/' .       // offset 16-19 (4 bytes)
                 'Nunknown1/' .     // offset 20-23 (4 bytes)
                 'norder_first/' .  // offset 24-25 (2 bytes)
@@ -345,15 +345,16 @@ class AnlzParser {
                 substr($sectionData, $offset, 40)
             );
             
-            // hot_cue is zero-based: 0=A, 1=B, 2=C, etc. 0xFF (255) = memory cue
+            // hot_cue is ONE-BASED in PCOB: 1=A, 2=B, 3=C, etc. 0 = memory cue
+            // Convert to zero-based for consistent indexing
             $rawHotCue = $cueData['hot_cue'];
             $hotCueIndex = null;
             $hotCueLabel = null;
             
-            if ($rawHotCue != 0xFF && $rawHotCue < 8) {
-                // Valid hot cue (0-7)
-                $hotCueIndex = $rawHotCue;
-                $hotCueLabel = chr(ord('A') + $rawHotCue);
+            if ($rawHotCue > 0 && $rawHotCue <= 8) {
+                // Valid hot cue (1-8), convert to zero-based (0-7)
+                $hotCueIndex = $rawHotCue - 1;
+                $hotCueLabel = chr(ord('A') + $hotCueIndex);
             }
             
             $cues[] = [
@@ -438,15 +439,16 @@ class AnlzParser {
                 }
             }
             
-            // hot_cue is zero-based: 0=A, 1=B, 2=C, etc. 0xFF (255) = memory cue
+            // hot_cue is ONE-BASED in PCO2: 1=A, 2=B, 3=C, etc. 0 = memory cue
+            // Convert to zero-based for consistent indexing
             $rawHotCue = $entryHeader['hot_cue'];
             $hotCueIndex = null;
             $hotCueLabel = null;
             
-            if ($rawHotCue != 0xFF && $rawHotCue < 8) {
-                // Valid hot cue (0-7)
-                $hotCueIndex = $rawHotCue;
-                $hotCueLabel = chr(ord('A') + $rawHotCue);
+            if ($rawHotCue > 0 && $rawHotCue <= 8) {
+                // Valid hot cue (1-8), convert to zero-based (0-7)
+                $hotCueIndex = $rawHotCue - 1;
+                $hotCueLabel = chr(ord('A') + $hotCueIndex);
             }
             
             $cues[] = [
