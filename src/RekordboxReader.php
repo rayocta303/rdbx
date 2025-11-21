@@ -155,22 +155,25 @@ class RekordboxReader {
                 $normalizedPath = '/' . $normalizedPath;
             }
             
-            // Try to find and parse ANLZ files (.EXT, .DAT, .2EX)
-            // Priority: EXT files have the most complete data
+            // Parse multiple ANLZ files and merge data
+            // Different file types contain different sections:
+            // .DAT = beat_grid (PQTZ), basic waveform, cues
+            // .EXT = detailed waveform (PWV5), cues
+            // .2EX = extended data
+            // Strategy: Parse ALL files and merge to get complete data
             $filesToTry = [
-                ['ext' => 'EXT', 'suffix' => '.EXT'],
-                ['ext' => 'DAT', 'suffix' => '.DAT'],
+                ['ext' => 'DAT', 'suffix' => '.DAT'],  // DAT first for beat grid
+                ['ext' => 'EXT', 'suffix' => '.EXT'],  // EXT for better waveform
                 ['ext' => '2EX', 'suffix' => '.2EX']
             ];
             
-            $hasData = false;
             foreach ($filesToTry as $fileInfo) {
                 // Replace .DAT extension with current extension being tried
                 $anlzPath = preg_replace('/\.DAT$/i', $fileInfo['suffix'], $normalizedPath);
                 $fullPath = $this->exportPath . $anlzPath;
                 
                 if ($this->logger && !empty($track['id']) && $track['id'] <= 2) {
-                    $this->logger->info("Track #{$track['id']}: Trying ANLZ: {$fullPath} - " . (file_exists($fullPath) ? 'EXISTS' : 'NOT FOUND'));
+                    $this->logger->info("Track #{$track['id']}: Parsing {$fileInfo['ext']}: {$fullPath} - " . (file_exists($fullPath) ? 'EXISTS' : 'NOT FOUND'));
                 }
                 
                 if (file_exists($fullPath)) {
@@ -178,29 +181,32 @@ class RekordboxReader {
                         $parser = new AnlzParser($fullPath, $this->logger);
                         $anlzData = $parser->parse();
 
-                        if (!empty($anlzData['cue_points'])) {
+                        // Merge cue points (don't overwrite if already exists)
+                        if (!empty($anlzData['cue_points']) && empty($track['cue_points'])) {
                             $track['cue_points'] = $anlzData['cue_points'];
-                            $hasData = true;
                         }
                         
+                        // Prefer EXT waveform (better quality), but accept DAT if no EXT
                         if (!empty($anlzData['waveform'])) {
-                            $track['waveform'] = $anlzData['waveform'];
-                            $hasData = true;
+                            if (empty($track['waveform']) || $fileInfo['ext'] === 'EXT') {
+                                $track['waveform'] = $anlzData['waveform'];
+                            }
                         }
                         
-                        if (!empty($anlzData['beat_grid'])) {
+                        // Beat grid only exists in DAT files
+                        if (!empty($anlzData['beat_grid']) && empty($track['beat_grid'])) {
                             $track['beat_grid'] = $anlzData['beat_grid'];
-                            $hasData = true;
+                            if ($this->logger && $track['id'] <= 2) {
+                                $this->logger->info("Track #{$track['id']}: Beat grid loaded from {$fileInfo['ext']} - " . count($anlzData['beat_grid']) . " beats");
+                            }
                         }
 
-                        // Only break if we got actual data
-                        if ($hasData) {
-                            $this->stats['anlz_files_processed']++;
-                            break;
-                        }
+                        $this->stats['anlz_files_processed']++;
 
                     } catch (\Exception $e) {
-                        // Try next file type
+                        if ($this->logger && $track['id'] <= 2) {
+                            $this->logger->warning("Track #{$track['id']}: Failed to parse {$fileInfo['ext']}: " . $e->getMessage());
+                        }
                         continue;
                     }
                 }

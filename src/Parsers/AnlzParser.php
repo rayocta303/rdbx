@@ -118,12 +118,16 @@ class AnlzParser {
         // PQTZ section contains beat grid data
         if (!isset($this->sections['PQTZ']) || empty($this->sections['PQTZ'])) {
             if ($this->logger) {
-                $this->logger->debug("No PQTZ section found - beatgrid not available");
+                $this->logger->info("No PQTZ section found - beatgrid not available");
             }
             return $beatgrid;
         }
 
         $sectionData = $this->sections['PQTZ'][0];
+        
+        if ($this->logger) {
+            $this->logger->info("PQTZ section found, size: " . strlen($sectionData) . " bytes");
+        }
         
         // PQTZ section structure (all big-endian):
         // 0-3: fourcc 'PQTZ'
@@ -146,7 +150,7 @@ class AnlzParser {
         $numBeats = $header['num_beats'];
 
         if ($this->logger) {
-            $this->logger->debug("PQTZ section found with {$numBeats} beats");
+            $this->logger->info("PQTZ num_beats: {$numBeats}");
         }
 
         // Parse beat entries
@@ -173,7 +177,8 @@ class AnlzParser {
         }
 
         if ($this->logger) {
-            $this->logger->debug("Beatgrid extracted: " . count($beatgrid) . " beats");
+            $this->logger->info("Beatgrid extracted: " . count($beatgrid) . " beats, first beat: " . 
+                (count($beatgrid) > 0 ? json_encode($beatgrid[0]) : 'none'));
         }
 
         return $beatgrid;

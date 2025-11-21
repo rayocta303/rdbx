@@ -159,7 +159,9 @@ class DualPlayer {
         
         container.addEventListener('mousedown', (e) => {
             const deck = this.decks[deckId];
-            const visibleDuration = deck.duration / this.sharedZoomLevel;
+            const pitchMultiplier = 1 + (deck.pitchValue / 100);
+            const effectiveZoom = this.sharedZoomLevel * pitchMultiplier;
+            const visibleDuration = deck.duration / effectiveZoom;
             isDragging = true;
             hasDragged = false;
             startX = e.clientX;
@@ -184,9 +186,11 @@ class DualPlayer {
             }
             
             const displayWidth = container.clientWidth;
-            const pixelsPerSecond = displayWidth / (deck.duration / this.sharedZoomLevel);
+            const pitchMultiplier = 1 + (deck.pitchValue / 100);
+            const effectiveZoom = this.sharedZoomLevel * pitchMultiplier;
+            const pixelsPerSecond = displayWidth / (deck.duration / effectiveZoom);
             const deltaTime = deltaX / pixelsPerSecond;
-            const visibleDuration = deck.duration / this.sharedZoomLevel;
+            const visibleDuration = deck.duration / effectiveZoom;
             const minOffset = -visibleDuration / 2;
             
             const newCenter = startCenter - deltaTime;
@@ -599,7 +603,9 @@ class DualPlayer {
         if (!deck.duration || deck.duration <= 0) return;
         
         const currentTime = deck.audio.currentTime;
-        const visibleDuration = deck.duration / this.sharedZoomLevel;
+        const pitchMultiplier = 1 + (deck.pitchValue / 100);
+        const effectiveZoom = this.sharedZoomLevel * pitchMultiplier;
+        const visibleDuration = deck.duration / effectiveZoom;
         const minOffset = -visibleDuration / 2;
         
         deck.waveformOffset = currentTime - (visibleDuration / 2);
@@ -655,8 +661,11 @@ class DualPlayer {
             return;
         }
         
+        const pitchMultiplier = 1 + (deck.pitchValue / 100);
+        const effectiveZoom = this.sharedZoomLevel * pitchMultiplier;
+        
         const viewStart = deck.waveformOffset;
-        const viewDuration = deck.duration / this.sharedZoomLevel;
+        const viewDuration = deck.duration / effectiveZoom;
         const viewEnd = viewStart + viewDuration;
         const leadingBlankDuration = Math.max(0, -viewStart);
         const leadingBlankWidth = (leadingBlankDuration / viewDuration) * displayWidth;
@@ -727,22 +736,46 @@ class DualPlayer {
         
         if (!deck.track || !deck.track.bpm || deck.track.bpm <= 0) return;
         
-        const beatInterval = 60 / deck.track.bpm;
+        const pitchMultiplier = 1 + (deck.pitchValue / 100);
         const viewEnd = viewStart + viewDuration;
-        
-        const firstBeat = Math.ceil(viewStart / beatInterval) * beatInterval;
         
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
         ctx.lineWidth = 4;
         
-        for (let beatTime = firstBeat; beatTime < viewEnd; beatTime += beatInterval) {
-            const relativePosition = (beatTime - viewStart) / viewDuration;
-            const x = relativePosition * width;
+        // Use PQTZ beat grid data if available, otherwise fallback to BPM calculation
+        if (deck.beatgridData && Array.isArray(deck.beatgridData) && deck.beatgridData.length > 0) {
+            // Iterate over actual PQTZ beat timestamps
+            // No need to scale beat.time - viewDuration already handles pitch stretching
+            deck.beatgridData.forEach(beat => {
+                // Use raw beat time from PQTZ
+                const beatTime = beat.time;
+                
+                // Only render beats within visible view
+                if (beatTime >= viewStart && beatTime < viewEnd) {
+                    const relativePosition = (beatTime - viewStart) / viewDuration;
+                    const x = relativePosition * width;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, height);
+                    ctx.stroke();
+                }
+            });
+        } else {
+            // Fallback: Use simple BPM calculation when no beat grid data available
+            const effectiveBPM = deck.track.bpm * pitchMultiplier;
+            const beatInterval = 60 / effectiveBPM;
+            const firstBeat = Math.ceil(viewStart / beatInterval) * beatInterval;
             
-            ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, height);
-            ctx.stroke();
+            for (let beatTime = firstBeat; beatTime < viewEnd; beatTime += beatInterval) {
+                const relativePosition = (beatTime - viewStart) / viewDuration;
+                const x = relativePosition * width;
+                
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+            }
         }
     }
     
@@ -755,8 +788,10 @@ class DualPlayer {
         
         container.innerHTML = '';
         
+        const pitchMultiplier = 1 + (deck.pitchValue / 100);
+        const effectiveZoom = this.sharedZoomLevel * pitchMultiplier;
         const viewStart = deck.waveformOffset;
-        const viewDuration = deck.duration / this.sharedZoomLevel;
+        const viewDuration = deck.duration / effectiveZoom;
         const viewEnd = viewStart + viewDuration;
         
         Object.entries(deck.hotCues).forEach(([cueNum, cue]) => {
@@ -876,6 +911,10 @@ class DualPlayer {
             const currentBPM = deck.originalBPM * playbackRate;
             this.updateBPMDisplay(deckId, currentBPM);
         }
+        
+        // Re-render waveform and beat grid to reflect new pitch/tempo
+        this.renderWaveform(deckId);
+        this.renderCueMarkers(deckId);
         
         // Auto-sync BPM to other deck if BPM sync is enabled
         if (!skipBPMSync && deck.bpmSyncEnabled && this.masterDeck === deckId) {
