@@ -50,7 +50,7 @@
                                 <i class="fas fa-crown"></i>
                                 <span>MASTER</span>
                             </button>
-                            <button class="sync-btn-compact" id="bpmSyncA" onclick="window.dualPlayer.syncToMaster('a', 'bpm')" title="BPM Sync">
+                            <button class="sync-btn-compact" id="bpmSyncA" onclick="window.dualPlayer.toggleBPMSync('a')" title="BPM Sync (Toggle)">
                                 <i class="fas fa-sync-alt"></i>
                                 <span>BPM SYNC</span>
                             </button>
@@ -179,7 +179,7 @@
                                 <i class="fas fa-crown"></i>
                                 <span>MASTER</span>
                             </button>
-                            <button class="sync-btn-compact" id="bpmSyncB" onclick="window.dualPlayer.syncToMaster('b', 'bpm')" title="BPM Sync">
+                            <button class="sync-btn-compact" id="bpmSyncB" onclick="window.dualPlayer.toggleBPMSync('b')" title="BPM Sync (Toggle)">
                                 <i class="fas fa-sync-alt"></i>
                                 <span>BPM SYNC</span>
                             </button>

@@ -818,7 +818,7 @@ class DualPlayer {
         return div.innerHTML;
     }
     
-    setPitch(deckId, pitchPercent) {
+    setPitch(deckId, pitchPercent, skipBPMSync = false) {
         const deck = this.decks[deckId];
         const deckLabel = deckId.toUpperCase();
         
@@ -839,6 +839,24 @@ class DualPlayer {
         if (deck.track && deck.originalBPM) {
             const currentBPM = deck.originalBPM * playbackRate;
             this.updateBPMDisplay(deckId, currentBPM);
+        }
+        
+        // Auto-sync BPM to other deck if BPM sync is enabled
+        if (!skipBPMSync && deck.bpmSyncEnabled && this.masterDeck === deckId) {
+            const otherDeckId = deckId === 'a' ? 'b' : 'a';
+            const otherDeck = this.decks[otherDeckId];
+            
+            if (otherDeck.track && otherDeck.originalBPM && otherDeck.bpmSyncEnabled) {
+                const targetBPM = deck.originalBPM * playbackRate;
+                const requiredPitchPercent = ((targetBPM / otherDeck.originalBPM) - 1) * 100;
+                
+                const otherDeckLabel = otherDeckId.toUpperCase();
+                const otherSlider = document.getElementById(`pitchSlider${otherDeckLabel}`);
+                if (otherSlider) {
+                    otherSlider.value = requiredPitchPercent.toFixed(1);
+                    this.setPitch(otherDeckId, requiredPitchPercent, true); // skipBPMSync to avoid loop
+                }
+            }
         }
     }
     
@@ -1084,6 +1102,45 @@ class DualPlayer {
         if (volumeValueEl) {
             volumeValueEl.textContent = `${Math.round(deck.volume)}%`;
         }
+    }
+    
+    toggleBPMSync(deckId) {
+        const deck = this.decks[deckId];
+        const deckLabel = deckId.toUpperCase();
+        const otherDeckId = deckId === 'a' ? 'b' : 'a';
+        const otherDeck = this.decks[otherDeckId];
+        
+        // Toggle BPM sync state
+        deck.bpmSyncEnabled = !deck.bpmSyncEnabled;
+        
+        // Auto-enable master deck if not set and both decks have tracks
+        if (deck.bpmSyncEnabled && !this.masterDeck) {
+            if (deck.track && otherDeck.track) {
+                // Set current deck as master
+                this.masterDeck = deckId;
+                this.updateMasterUI(deckId, true);
+                this.updateMasterUI(otherDeckId, false);
+                this.showNotification(`Master deck auto-set to ${deckLabel}`, 'info', 2000);
+                console.log(`[BPM Sync] Auto-set master deck to ${deckLabel}`);
+            }
+        }
+        
+        // Update button UI
+        const btn = document.getElementById(`bpmSync${deckLabel}`);
+        if (btn) {
+            if (deck.bpmSyncEnabled) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        }
+        
+        // If enabling sync, sync BPM now
+        if (deck.bpmSyncEnabled && this.masterDeck) {
+            this.syncToMaster(deckId, 'bpm');
+        }
+        
+        console.log(`BPM Sync ${deck.bpmSyncEnabled ? 'ON' : 'OFF'} for Deck ${deckLabel}`);
     }
     
     toggleQuantize(deckId) {
