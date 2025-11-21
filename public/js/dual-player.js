@@ -165,8 +165,9 @@ class DualPlayer {
                     if (frameDeltaTime > 0) {
                         const frameDeltaSeconds = frameDeltaX / pixelsPerSecond;
                         const scratchSpeed = frameDeltaSeconds / frameDeltaTime;
-                        const clampedRate = Math.max(-2, Math.min(2, scratchSpeed));
-                        deck.audio.playbackRate = clampedRate;
+                        const clampedRate = Math.max(0.25, Math.min(4, Math.abs(scratchSpeed)));
+                        const direction = scratchSpeed >= 0 ? 1 : -1;
+                        deck.audio.playbackRate = clampedRate * direction;
                     }
                     
                     lastX = e.clientX;
@@ -192,7 +193,8 @@ class DualPlayer {
             container.style.cursor = 'grab';
             
             if (deck.audio && wasPlaying) {
-                deck.audio.playbackRate = 1.0 + (deck.pitchValue / 100);
+                const normalRate = 1.0 + (deck.pitchValue / 100);
+                deck.audio.playbackRate = Math.max(0.25, Math.min(4, normalRate));
             }
         };
         
@@ -471,6 +473,13 @@ class DualPlayer {
         
         deck.waveformOffset = currentTime - (visibleDuration / 2);
         deck.waveformOffset = Math.max(minOffset, Math.min(deck.waveformOffset, deck.duration - visibleDuration));
+        
+        const centerTime = deck.waveformOffset + (visibleDuration / 2);
+        const targetTime = Math.max(0, Math.min(centerTime, deck.duration));
+        
+        if (deck.audio && Math.abs(deck.audio.currentTime - targetTime) > 0.1) {
+            deck.audio.currentTime = targetTime;
+        }
         
         this.renderWaveform(deckId);
         this.renderCueMarkers(deckId);
