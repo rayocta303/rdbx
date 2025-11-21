@@ -465,8 +465,11 @@ class DualPlayer {
         
         if (!deck.duration || deck.duration <= 0) return;
         
+        const currentTime = deck.audio.currentTime;
         const visibleDuration = deck.duration / this.sharedZoomLevel;
         const minOffset = -visibleDuration / 2;
+        
+        deck.waveformOffset = currentTime - (visibleDuration / 2);
         deck.waveformOffset = Math.max(minOffset, Math.min(deck.waveformOffset, deck.duration - visibleDuration));
         
         this.renderWaveform(deckId);
