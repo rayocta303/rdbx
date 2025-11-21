@@ -26,6 +26,10 @@
                                 <i class="fas fa-wave-square"></i>
                                 <span>⚡B</span>
                             </button>
+                            <button class="quantize-btn" id="quantizeA" onclick="window.dualPlayer.toggleQuantize('a')" title="Quantize (Snap to Beat)">
+                                <i class="fas fa-magnet"></i>
+                                <span>Q</span>
+                            </button>
                         </div>
                         <div class="deck-controls">
                             <button class="control-btn play-btn" onclick="window.dualPlayer.togglePlay('a')" title="Play/Pause">
@@ -108,6 +112,10 @@
                                 <i class="fas fa-wave-square"></i>
                                 <span>⚡A</span>
                             </button>
+                            <button class="quantize-btn" id="quantizeB" onclick="window.dualPlayer.toggleQuantize('b')" title="Quantize (Snap to Beat)">
+                                <i class="fas fa-magnet"></i>
+                                <span>Q</span>
+                            </button>
                         </div>
                         <div class="deck-controls">
                             <button class="control-btn play-btn" onclick="window.dualPlayer.togglePlay('b')" title="Play/Pause">
@@ -181,54 +189,33 @@
                     <i class="fas fa-wave-square"></i>
                     WAVEFORM BEAT MATCHING
                 </h3>
+                <div class="waveform-zoom-controls">
+                    <button class="zoom-btn" onclick="window.dualPlayer.zoomBothDecks(-1);" title="Zoom Out Both Decks">
+                        <i class="fas fa-search-minus"></i>
+                    </button>
+                    <span class="zoom-level" id="sharedZoomLevel">16x</span>
+                    <button class="zoom-btn" onclick="window.dualPlayer.zoomBothDecks(1);" title="Zoom In Both Decks">
+                        <i class="fas fa-search-plus"></i>
+                    </button>
+                </div>
             </div>
-            <div class="waveform-beatmatch-grid">
-                <!-- Waveform A with Controls -->
-                <div class="waveform-deck-wrapper">
-                    <div class="waveform-deck-label">DECK A</div>
-                    <div class="waveform-controls">
-                        <button class="zoom-btn" onclick="window.dualPlayer.zoomWaveform('a', -1)" title="Zoom Out">
-                            <i class="fas fa-search-minus"></i>
-                        </button>
-                        <span class="zoom-level" id="zoomLevelA">16x</span>
-                        <button class="zoom-btn" onclick="window.dualPlayer.zoomWaveform('a', 1)" title="Zoom In">
-                            <i class="fas fa-search-plus"></i>
-                        </button>
-                        <button class="quantize-btn" id="quantizeA" onclick="window.dualPlayer.toggleQuantize('a')" title="Quantize (Snap to Beat)">
-                            <i class="fas fa-magnet"></i>
-                            <span>Q</span>
-                        </button>
-                        <div class="time-display" id="timeDisplayA">00:00 / 00:00</div>
+            <div class="waveform-beatmatch-container">
+                <!-- Waveform A -->
+                <div class="waveform-container-player" id="waveformContainerA">
+                    <canvas id="waveformCanvasA" class="waveform-canvas"></canvas>
+                    <div class="playhead">
+                        <div class="playhead-time" id="timeDisplayA">00:00 / 00:00</div>
                     </div>
-                    <div class="waveform-container-player" id="waveformContainerA">
-                        <canvas id="waveformCanvasA" class="waveform-canvas"></canvas>
-                        <div class="playhead"></div>
-                        <div class="cue-markers" id="cueMarkersA"></div>
-                    </div>
+                    <div class="cue-markers" id="cueMarkersA"></div>
                 </div>
 
-                <!-- Waveform B with Controls -->
-                <div class="waveform-deck-wrapper">
-                    <div class="waveform-deck-label waveform-deck-label-b">DECK B</div>
-                    <div class="waveform-controls">
-                        <button class="zoom-btn" onclick="window.dualPlayer.zoomWaveform('b', -1)" title="Zoom Out">
-                            <i class="fas fa-search-minus"></i>
-                        </button>
-                        <span class="zoom-level" id="zoomLevelB">16x</span>
-                        <button class="zoom-btn" onclick="window.dualPlayer.zoomWaveform('b', 1)" title="Zoom In">
-                            <i class="fas fa-search-plus"></i>
-                        </button>
-                        <button class="quantize-btn" id="quantizeB" onclick="window.dualPlayer.toggleQuantize('b')" title="Quantize (Snap to Beat)">
-                            <i class="fas fa-magnet"></i>
-                            <span>Q</span>
-                        </button>
-                        <div class="time-display" id="timeDisplayB">00:00 / 00:00</div>
+                <!-- Waveform B -->
+                <div class="waveform-container-player" id="waveformContainerB">
+                    <canvas id="waveformCanvasB" class="waveform-canvas"></canvas>
+                    <div class="playhead">
+                        <div class="playhead-time" id="timeDisplayB">00:00 / 00:00</div>
                     </div>
-                    <div class="waveform-container-player" id="waveformContainerB">
-                        <canvas id="waveformCanvasB" class="waveform-canvas"></canvas>
-                        <div class="playhead"></div>
-                        <div class="cue-markers" id="cueMarkersB"></div>
-                    </div>
+                    <div class="cue-markers" id="cueMarkersB"></div>
                 </div>
             </div>
         </div>

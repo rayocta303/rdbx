@@ -235,9 +235,9 @@ class DualPlayer {
             const visibleDuration = deck.duration / deck.zoomLevel;
             deck.waveformOffset = -visibleDuration / 2;
             
-            const zoomLevelEl = document.getElementById(`zoomLevel${deckLabel}`);
-            if (zoomLevelEl) {
-                zoomLevelEl.textContent = `${deck.zoomLevel}x`;
+            const sharedZoomEl = document.getElementById('sharedZoomLevel');
+            if (sharedZoomEl) {
+                sharedZoomEl.textContent = `${deck.zoomLevel}x`;
             }
             
             console.log(`[Deck ${deckLabel}] Rendering waveform...`);
@@ -391,9 +391,18 @@ class DualPlayer {
         this.renderCueMarkers(deckId);
     }
     
+    zoomBothDecks(direction) {
+        this.zoomWaveform('a', direction);
+        this.zoomWaveform('b', direction);
+        
+        const sharedZoomEl = document.getElementById('sharedZoomLevel');
+        if (sharedZoomEl) {
+            sharedZoomEl.textContent = `${this.decks.a.zoomLevel}x`;
+        }
+    }
+    
     zoomWaveform(deckId, direction) {
         const deck = this.decks[deckId];
-        const deckLabel = deckId.toUpperCase();
         
         if (!deck.duration || deck.duration <= 0) return;
         
@@ -411,11 +420,6 @@ class DualPlayer {
         const visibleDuration = deck.duration / deck.zoomLevel;
         const minOffset = -visibleDuration / 2;
         deck.waveformOffset = Math.max(minOffset, Math.min(deck.waveformOffset, deck.duration - visibleDuration));
-        
-        const zoomLevelEl = document.getElementById(`zoomLevel${deckLabel}`);
-        if (zoomLevelEl) {
-            zoomLevelEl.textContent = `${deck.zoomLevel}x`;
-        }
         
         this.renderWaveform(deckId);
         this.renderCueMarkers(deckId);
