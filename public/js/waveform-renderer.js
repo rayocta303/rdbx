@@ -26,8 +26,8 @@ class WaveformRenderer {
 
         this.DPR = window.devicePixelRatio || 1;
 
-        // Konfigurasi default yang dapat disesuaikan
-        const defaultConfig = {
+        // Konfigurasi waveform yang dapat disesuaikan
+        this.config = {
             // Waveform rendering
             HEIGHT_RATIO: 0.48,
             SCALE_LOW: 1.0,
@@ -37,17 +37,14 @@ class WaveformRenderer {
             CORE_BOOST: 1.7,
 
             // Beat-related (jika diperlukan untuk fitur masa depan)
-            DENSITY: 0.01,
-            DECAY: 0.5,
+            DENSITY: 0.4,
+            DECAY: 4.5,
             NOISE: 0,
             FLAT_ZONE: 0,
             TRANSIENT_ZONE: 0.0,
-            CONE_CURVE: 0.8,
-            CONE_BOOST: 0.15,
+            CONE_CURVE: 2.8,
+            CONE_BOOST: 1.15,
         };
-
-        // Merge custom config dengan default config
-        this.config = { ...defaultConfig, ...customConfig };
 
         this.initCanvases();
 
