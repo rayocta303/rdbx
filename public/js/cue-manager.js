@@ -37,9 +37,10 @@ class CueManager {
         let html = '<div class="space-y-2">';
         
         this.cuePoints.forEach((cue, index) => {
-            const isHotCue = cue.hot_cue > 0;
-            const cueName = isHotCue ? `HOT CUE ${String.fromCharCode(64 + cue.hot_cue)}` : `MEMORY ${index + 1}`;
-            const color = isHotCue ? this.hotCueColors[(cue.hot_cue - 1) % this.hotCueColors.length] : '#6B7280';
+            const isHotCue = cue.hot_cue_label !== null && cue.hot_cue_label !== undefined;
+            const cueLabel = isHotCue ? cue.hot_cue_label : 'M';
+            const cueName = isHotCue ? `HOT CUE ${cueLabel}` : `MEMORY ${index + 1}`;
+            const color = isHotCue && cue.hot_cue !== null ? this.hotCueColors[cue.hot_cue % this.hotCueColors.length] : '#6B7280';
             const timeStr = this.formatTime(cue.time / 1000);
             const typeIcon = isHotCue ? 'fa-circle' : 'fa-bookmark';
             
@@ -52,7 +53,7 @@ class CueManager {
                         <div class="text-center">
                             <i class="fas ${typeIcon} text-white text-lg mb-1"></i>
                             <div class="text-white text-xs font-bold">
-                                ${isHotCue ? String.fromCharCode(64 + cue.hot_cue) : 'M'}
+                                ${cueLabel}
                             </div>
                         </div>
                     </div>
@@ -89,8 +90,8 @@ class CueManager {
         
         this.cuePoints.forEach((cue) => {
             const x = (cue.time / 1000 / this.duration) * width;
-            const isHotCue = cue.hot_cue > 0;
-            const color = isHotCue ? this.hotCueColors[(cue.hot_cue - 1) % this.hotCueColors.length] : '#888888';
+            const isHotCue = cue.hot_cue_label !== null && cue.hot_cue_label !== undefined;
+            const color = isHotCue && cue.hot_cue !== null ? this.hotCueColors[cue.hot_cue % this.hotCueColors.length] : '#888888';
             
             if (isHotCue) {
                 ctx.fillStyle = color;
@@ -131,8 +132,8 @@ class CueManager {
             
             if (relativeTime >= 0 && relativeTime <= visibleDuration) {
                 const x = (relativeTime / visibleDuration) * width;
-                const isHotCue = cue.hot_cue > 0;
-                const color = isHotCue ? this.hotCueColors[(cue.hot_cue - 1) % this.hotCueColors.length] : '#888888';
+                const isHotCue = cue.hot_cue_label !== null && cue.hot_cue_label !== undefined;
+                const color = isHotCue && cue.hot_cue !== null ? this.hotCueColors[cue.hot_cue % this.hotCueColors.length] : '#888888';
                 
                 if (isHotCue) {
                     ctx.fillStyle = color;
@@ -146,7 +147,7 @@ class CueManager {
                     ctx.fillStyle = '#FFFFFF';
                     ctx.font = 'bold 12px Arial';
                     ctx.textAlign = 'center';
-                    ctx.fillText(String.fromCharCode(64 + cue.hot_cue), x, 15);
+                    ctx.fillText(cue.hot_cue_label, x, 15);
                 } else {
                     ctx.strokeStyle = color;
                     ctx.lineWidth = 2;

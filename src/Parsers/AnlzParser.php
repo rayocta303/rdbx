@@ -311,8 +311,20 @@ class AnlzParser {
                 substr($sectionData, $offset + 12, 28)
             );
             
+            // hot_cue is zero-based: 0=A, 1=B, 2=C, etc. 0xFF (255) = memory cue
+            $rawHotCue = $cueData['hot_cue'];
+            $hotCueIndex = null;
+            $hotCueLabel = null;
+            
+            if ($rawHotCue != 0xFF && $rawHotCue < 8) {
+                // Valid hot cue (0-7)
+                $hotCueIndex = $rawHotCue;
+                $hotCueLabel = chr(ord('A') + $rawHotCue);
+            }
+            
             $cues[] = [
-                'hot_cue' => $cueData['hot_cue'],
+                'hot_cue' => $hotCueIndex,
+                'hot_cue_label' => $hotCueLabel,
                 'type' => $cueData['type'] == 2 ? 'loop' : 'cue',
                 'time' => $cueData['time'],
                 'loop_time' => $cueData['type'] == 2 ? $cueData['loop_time'] : null,
@@ -378,8 +390,20 @@ class AnlzParser {
                 }
             }
             
+            // hot_cue is zero-based: 0=A, 1=B, 2=C, etc. 0xFF (255) = memory cue
+            $rawHotCue = $entryHeader['hot_cue'];
+            $hotCueIndex = null;
+            $hotCueLabel = null;
+            
+            if ($rawHotCue != 0xFF && $rawHotCue < 8) {
+                // Valid hot cue (0-7)
+                $hotCueIndex = $rawHotCue;
+                $hotCueLabel = chr(ord('A') + $rawHotCue);
+            }
+            
             $cues[] = [
-                'hot_cue' => $entryHeader['hot_cue'],
+                'hot_cue' => $hotCueIndex,
+                'hot_cue_label' => $hotCueLabel,
                 'type' => $cueData['type'] == 2 ? 'loop' : 'cue',
                 'time' => $cueData['time'],
                 'loop_time' => $cueData['type'] == 2 ? $cueData['loop_time'] : null,

@@ -443,7 +443,7 @@ canvas {
 .waveform-container-player {
     position: relative;
     background: #0a0a0a;
-    height: 60px;
+    height: 120px;
     overflow: hidden;
     cursor: grab;
     border-bottom: 1px solid #1a1a1a;
@@ -1156,6 +1156,6 @@ canvas {
     }
     
     .waveform-container-player {
-        height: 50px;
+        height: 100px;
     }
 }

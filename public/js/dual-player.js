@@ -437,13 +437,13 @@ class DualPlayer {
         
         if (track.cue_points && track.cue_points.length > 0) {
             track.cue_points.forEach((cue) => {
-                if (cue.type === 'cue' && cue.hot_cue !== null && cue.hot_cue >= 0 && cue.hot_cue < 8) {
+                if (cue.type === 'cue' && cue.hot_cue !== null && cue.hot_cue !== undefined && cue.hot_cue_label) {
                     const padNumber = cue.hot_cue + 1;
                     const timeInSeconds = cue.time / 1000;
                     
                     deck.hotCues[padNumber] = {
                         time: timeInSeconds,
-                        label: cue.comment || `Cue ${padNumber}`
+                        label: cue.comment || `Cue ${cue.hot_cue_label}`
                     };
                     
                     const cueTimeEl = document.getElementById(`cueTime${deckLabel}${padNumber}`);

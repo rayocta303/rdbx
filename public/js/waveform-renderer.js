@@ -17,7 +17,7 @@ class WaveformRenderer {
             // Wait for DOM to be ready and canvas to have size
             const width = this.overviewCanvas.offsetWidth || this.overviewCanvas.parentElement?.offsetWidth || 800;
             this.overviewCanvas.width = width * 2;
-            this.overviewCanvas.height = 60;
+            this.overviewCanvas.height = 120;
             
             this.overviewCanvas.addEventListener('click', (e) => {
                 this.handleOverviewClick(e);
@@ -27,7 +27,7 @@ class WaveformRenderer {
         if (this.detailedCanvas) {
             const width = this.detailedCanvas.offsetWidth || this.detailedCanvas.parentElement?.offsetWidth || 800;
             this.detailedCanvas.width = width * 2;
-            this.detailedCanvas.height = 120;
+            this.detailedCanvas.height = 240;
             
             this.detailedCanvas.addEventListener('click', (e) => {
                 this.handleDetailedClick(e);
