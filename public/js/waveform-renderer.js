@@ -14,7 +14,7 @@ class WaveformRenderer {
         });
     }
 
-    constructor(overviewCanvasId, detailedCanvasId) {
+    constructor(overviewCanvasId, detailedCanvasId, customConfig = {}) {
         this.overviewCanvas = document.getElementById(overviewCanvasId);
         this.detailedCanvas = document.getElementById(detailedCanvasId);
         this.waveformData = null;
@@ -26,14 +26,28 @@ class WaveformRenderer {
 
         this.DPR = window.devicePixelRatio || 1;
 
-        this.config = {
+        // Konfigurasi default yang dapat disesuaikan
+        const defaultConfig = {
+            // Waveform rendering
             HEIGHT_RATIO: 0.48,
             SCALE_LOW: 1.0,
             SCALE_MID: 0.85,
             SCALE_HIGH: 0.7,
             SCALE_CORE: 0.3,
             CORE_BOOST: 1.7,
+            
+            // Beat-related (jika diperlukan untuk fitur masa depan)
+            DENSITY: 0.4,
+            DECAY: 4.5,
+            NOISE: 0,
+            FLAT_ZONE: 0,
+            TRANSIENT_ZONE: 0.0,
+            CONE_CURVE: 2.8,
+            CONE_BOOST: 1.15,
         };
+
+        // Merge custom config dengan default config
+        this.config = { ...defaultConfig, ...customConfig };
 
         this.initCanvases();
 
@@ -419,6 +433,20 @@ class WaveformRenderer {
             ctx.fillStyle = "#0b0b0b";
             ctx.fillRect(0, 0, W, H);
         }
+    }
+
+    updateConfig(newConfig) {
+        this.config = { ...this.config, ...newConfig };
+        
+        // Re-render jika ada waveform data
+        if (this.waveformData) {
+            this.renderOverview();
+            this.renderDetailed();
+        }
+    }
+
+    getConfig() {
+        return { ...this.config };
     }
 
     destroy() {
