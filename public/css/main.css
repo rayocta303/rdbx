@@ -845,8 +845,8 @@ canvas {
 }
 
 .waveform-beatmatch-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
+    flex-direction: column;
     gap: 16px;
 }
 
@@ -1028,7 +1028,6 @@ canvas {
 /* Responsive Design */
 @media (max-width: 1024px) {
     .waveform-beatmatch-grid {
-        grid-template-columns: 1fr;
         gap: 12px;
     }
     

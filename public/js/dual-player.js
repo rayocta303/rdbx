@@ -5,15 +5,25 @@ class DualPlayer {
             b: this.createDeck('b')
         };
         
-        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            console.log('[DualPlayer] Audio context initialized successfully');
+        } catch (e) {
+            console.error('[DualPlayer] Failed to initialize audio context:', e);
+        }
+        
         this.initializeDecks();
     }
     
     createDeck(deckId) {
+        const audio = new Audio();
+        audio.crossOrigin = 'anonymous';
+        audio.preload = 'auto';
+        
         return {
             id: deckId,
             track: null,
-            audio: new Audio(),
+            audio: audio,
             source: null,
             gainNode: null,
             isPlaying: false,
@@ -44,12 +54,14 @@ class DualPlayer {
             deck.gainNode.connect(this.audioContext.destination);
             
             deck.audio.addEventListener('loadeddata', () => {
+                console.log(`[Deck ${deckId.toUpperCase()}] Audio data loaded successfully`);
                 if (!deck.source) {
                     try {
                         deck.source = this.audioContext.createMediaElementSource(deck.audio);
                         deck.source.connect(deck.gainNode);
+                        console.log(`[Deck ${deckId.toUpperCase()}] Audio source connected to gain node`);
                     } catch (e) {
-                        console.warn('Audio context already connected for deck', deckId);
+                        console.warn(`[Deck ${deckId.toUpperCase()}] Audio context already connected:`, e);
                     }
                 }
             });
@@ -57,6 +69,34 @@ class DualPlayer {
             deck.audio.addEventListener('timeupdate', () => this.updatePlayhead(deckId));
             deck.audio.addEventListener('loadedmetadata', () => this.onTrackLoaded(deckId));
             deck.audio.addEventListener('ended', () => this.onTrackEnded(deckId));
+            
+            deck.audio.addEventListener('error', (e) => {
+                const error = deck.audio.error;
+                console.error(`[Deck ${deckId.toUpperCase()}] Audio error:`, {
+                    code: error?.code,
+                    message: error?.message,
+                    src: deck.audio.src,
+                    readyState: deck.audio.readyState,
+                    networkState: deck.audio.networkState
+                });
+                
+                const errorMessages = {
+                    1: 'MEDIA_ERR_ABORTED - The fetching process was aborted by the user',
+                    2: 'MEDIA_ERR_NETWORK - A network error occurred while fetching',
+                    3: 'MEDIA_ERR_DECODE - Error occurred while decoding the media',
+                    4: 'MEDIA_ERR_SRC_NOT_SUPPORTED - The media format is not supported'
+                };
+                
+                console.error(`[Deck ${deckId.toUpperCase()}] ${errorMessages[error?.code] || 'Unknown error'}`);
+            });
+            
+            deck.audio.addEventListener('canplay', () => {
+                console.log(`[Deck ${deckId.toUpperCase()}] Audio can start playing (canplay event)`);
+            });
+            
+            deck.audio.addEventListener('canplaythrough', () => {
+                console.log(`[Deck ${deckId.toUpperCase()}] Audio can play through without buffering (canplaythrough event)`);
+            });
             
             this.setupWaveformInteraction(deckId);
         });
@@ -125,17 +165,32 @@ class DualPlayer {
     loadTrack(track, deckId) {
         const deck = this.decks[deckId];
         
+        console.log(`[Deck ${deckId.toUpperCase()}] Loading track:`, {
+            title: track.title,
+            artist: track.artist,
+            file_path: track.file_path,
+            bpm: track.bpm,
+            key: track.key,
+            duration: track.duration
+        });
+        
         if (deck.isPlaying) {
             this.togglePlay(deckId);
         }
         
         deck.track = track;
-        deck.audio.src = `/audio.php?path=${encodeURIComponent(track.file_path)}`;
+        const audioSrc = `/audio.php?path=${encodeURIComponent(track.file_path)}`;
+        console.log(`[Deck ${deckId.toUpperCase()}] Audio source URL:`, audioSrc);
+        
+        deck.audio.src = audioSrc;
+        deck.audio.load();
         
         if (track.waveform) {
             deck.waveformData = track.waveform.color_data || track.waveform.preview_data || null;
+            console.log(`[Deck ${deckId.toUpperCase()}] Waveform data available:`, !!deck.waveformData);
         } else {
             deck.waveformData = null;
+            console.log(`[Deck ${deckId.toUpperCase()}] No waveform data available`);
         }
         
         deck.beatgridData = track.beat_grid;
@@ -174,6 +229,8 @@ class DualPlayer {
         const deckLabel = deckId.toUpperCase();
         deck.duration = deck.audio.duration;
         
+        console.log(`[Deck ${deckLabel}] Track metadata loaded - Duration: ${deck.duration.toFixed(2)}s`);
+        
         if (deck.duration > 0) {
             const visibleDuration = deck.duration / deck.zoomLevel;
             deck.waveformOffset = -visibleDuration / 2;
@@ -183,8 +240,11 @@ class DualPlayer {
                 zoomLevelEl.textContent = `${deck.zoomLevel}x`;
             }
             
+            console.log(`[Deck ${deckLabel}] Rendering waveform...`);
             this.renderWaveform(deckId);
             this.renderCueMarkers(deckId);
+        } else {
+            console.warn(`[Deck ${deckLabel}] Invalid duration: ${deck.duration}`);
         }
         
         this.updateTrackInfo(deckId);
@@ -239,9 +299,13 @@ class DualPlayer {
         const deckLabel = deckId.toUpperCase();
         const playIcon = document.getElementById(`playIcon${deckLabel}`);
         
-        if (!deck.track) return;
+        if (!deck.track) {
+            console.warn(`[Deck ${deckLabel}] Cannot play: No track loaded`);
+            return;
+        }
         
         if (deck.isPlaying) {
+            console.log(`[Deck ${deckLabel}] Pausing playback at ${deck.audio.currentTime.toFixed(2)}s`);
             deck.audio.pause();
             deck.isPlaying = false;
             playIcon.className = 'fas fa-play';
@@ -249,10 +313,37 @@ class DualPlayer {
                 cancelAnimationFrame(deck.animationFrame);
             }
         } else {
-            deck.audio.play();
-            deck.isPlaying = true;
-            playIcon.className = 'fas fa-pause';
-            this.startPlayheadAnimation(deckId);
+            console.log(`[Deck ${deckLabel}] Starting playback from ${deck.audio.currentTime.toFixed(2)}s`);
+            
+            const playPromise = deck.audio.play();
+            
+            if (playPromise !== undefined) {
+                playPromise
+                    .then(() => {
+                        console.log(`[Deck ${deckLabel}] Playback started successfully`);
+                        deck.isPlaying = true;
+                        playIcon.className = 'fas fa-pause';
+                        this.startPlayheadAnimation(deckId);
+                    })
+                    .catch(error => {
+                        console.error(`[Deck ${deckLabel}] Playback failed:`, error);
+                        console.error(`[Deck ${deckLabel}] Error details:`, {
+                            name: error.name,
+                            message: error.message,
+                            audioSrc: deck.audio.src,
+                            readyState: deck.audio.readyState,
+                            networkState: deck.audio.networkState
+                        });
+                        deck.isPlaying = false;
+                        playIcon.className = 'fas fa-play';
+                        
+                        alert(`Failed to play audio: ${error.message}\nCheck browser console for details.`);
+                    });
+            } else {
+                deck.isPlaying = true;
+                playIcon.className = 'fas fa-pause';
+                this.startPlayheadAnimation(deckId);
+            }
         }
     }
     
