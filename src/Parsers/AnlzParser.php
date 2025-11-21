@@ -298,65 +298,53 @@ class AnlzParser {
             return $cues;
         }
         
+        // PCOB section header
         $header = unpack(
             'Nlen_header/' .
             'Nlen_tag/' .
-            'Vtype/' .
-            'vunk/' .
-            'vlencues/' .
-            'Vmemory_count',
-            substr($sectionData, 4, 20)
+            'Ntype/' .
+            'nlencues',
+            substr($sectionData, 4, 14)
         );
         
         $numCues = $header['lencues'] ?? 0;
-        $offset = 24;
+        $offset = $header['len_header'] ?? 24;
         
-        for ($i = 0; $i < $numCues && $offset + 56 <= strlen($sectionData); $i++) {
-            // PCOB cue entry structure (56 bytes total per entry):
-            // Based on: https://djl-analysis.deepsymmetry.org/rekordbox-export-analysis/anlz.html#cue-list
+        for ($i = 0; $i < $numCues && $offset + 38 <= strlen($sectionData); $i++) {
+            // PCOB cue entry structure:
+            // Doc: https://djl-analysis.deepsymmetry.org/rekordbox-export-analysis/anlz.html#cue-list
             // 0-3: magic (always 0x00000000)
             // 4-7: len_header (u4 big-endian)
             // 8-11: len_entry (u4 big-endian)
-            // 12-15: hot_cue (u4 big-endian) - HOT CUE INDEX IS HERE
+            // 12-15: hot_cue (u4 big-endian) - 0=memory, 1=A, 2=B, 3=C, etc.
             // 16-19: status (u4 big-endian)
-            // 20-23: unknown1 (u4)
-            // 24-25: order_first (u2)
-            // 26-27: order_last (u2)
-            // 28: type (u1)
-            // 29: u1 (padding)
-            // 30-31: u2 (padding)
-            // 32-35: time (u4 big-endian) - CUE TIME IN MILLISECONDS
+            // 20-27: unknown
+            // 28: type (u1) - 1=cue, 2=loop
+            // 29-31: padding
+            // 32-35: time (u4 big-endian) - milliseconds
             // 36-39: loop_time (u4 big-endian)
-            // 40-55: padding/unknown (16 bytes)
             $cueData = unpack(
-                'Nmagic/' .        // offset 0-3 (4 bytes)
-                'Nlen_header/' .   // offset 4-7 (4 bytes)
-                'Nlen_entry/' .    // offset 8-11 (4 bytes)
-                'Nhot_cue/' .      // offset 12-15 (4 bytes) - HOT CUE INDEX
-                'Nstatus/' .       // offset 16-19 (4 bytes)
-                'Nunknown1/' .     // offset 20-23 (4 bytes)
-                'norder_first/' .  // offset 24-25 (2 bytes)
-                'norder_last/' .   // offset 26-27 (2 bytes)
-                'Ctype/' .         // offset 28 (1 byte)
-                'Cu1/' .           // offset 29 (1 byte)
-                'nu2/' .           // offset 30-31 (2 bytes)
-                'Ntime/' .         // offset 32-35 (4 bytes)
-                'Nloop_time',      // offset 36-39 (4 bytes)
+                'Nmagic/' .        // 0-3
+                'Nlen_header/' .   // 4-7
+                'Nlen_entry/' .    // 8-11
+                'Nhot_cue/' .      // 12-15 *** CORRECT OFFSET ***
+                'Nstatus/' .       // 16-19
+                'Nunknown1/' .     // 20-23
+                'Nunknown2/' .     // 24-27
+                'Ctype/' .         // 28
+                'x3/' .            // 29-31 skip padding
+                'Ntime/' .         // 32-35 *** TIME IN MILLISECONDS ***
+                'Nloop_time',      // 36-39
                 substr($sectionData, $offset, 40)
             );
             
-            // hot_cue is ONE-BASED in PCOB: 1=A, 2=B, 3=C, etc. 0 = memory cue
-            // Convert to zero-based for consistent indexing
             $rawHotCue = $cueData['hot_cue'];
-            $hotCueIndex = null;
-            $hotCueLabel = null;
             
-            if ($rawHotCue > 0 && $rawHotCue <= 8) {
-                // Valid hot cue (1-8), convert to zero-based (0-7)
-                $hotCueIndex = $rawHotCue - 1;
+            // hot_cue: 0=memory, 1=A, 2=B, 3=C, 4=D, 5=E, 6=F, 7=G, 8=H
+            if ($rawHotCue >= 1 && $rawHotCue <= 8) {
+                $hotCueIndex = $rawHotCue - 1; // Convert to 0-based (0=A, 1=B, etc.)
                 $hotCueLabel = chr(ord('A') + $hotCueIndex);
                 
-                // Only add cues with valid hot_cue index
                 $cues[] = [
                     'hot_cue' => $hotCueIndex,
                     'hot_cue_label' => $hotCueLabel,
@@ -367,7 +355,7 @@ class AnlzParser {
                 ];
             }
             
-            $offset += 56;
+            $offset += $cueData['len_entry'] ?? 56;
         }
         
         return $cues;
@@ -380,78 +368,74 @@ class AnlzParser {
             return $cues;
         }
         
+        // PCO2 section header
         $header = unpack(
             'Nlen_header/' .
             'Nlen_tag/' .
-            'Vtype/' .
-            'vlencues',
+            'Ntype/' .
+            'nlencues',
             substr($sectionData, 4, 14)
         );
         
         $numCues = $header['lencues'] ?? 0;
-        $offset = 20;
+        $offset = $header['len_header'] ?? 20;
         
-        for ($i = 0; $i < $numCues && $offset < strlen($sectionData); $i++) {
-            if ($offset + 16 > strlen($sectionData)) break;
-            
+        for ($i = 0; $i < $numCues && $offset + 16 <= strlen($sectionData); $i++) {
             // PCO2 entry header (16 bytes):
-            // Based on: https://djl-analysis.deepsymmetry.org/rekordbox-export-analysis/anlz.html#extended-cue-list
-            // 0-3: fourcc 'PCP2' (4 bytes)
+            // Doc: https://djl-analysis.deepsymmetry.org/rekordbox-export-analysis/anlz.html#extended-cue-list
+            // 0-3: fourcc 'PCP2'
             // 4-7: len_header (u4 big-endian)
             // 8-11: len_entry (u4 big-endian)
-            // 12-15: hot_cue (u4 big-endian) - HOT CUE INDEX
+            // 12-15: hot_cue (u4 big-endian) - 0=memory, 1=A, 2=B, etc.
             $entryHeader = unpack(
-                'a4fourcc/' .      // offset 0-3
-                'Nlen_header/' .   // offset 4-7
-                'Nlen_entry/' .    // offset 8-11
-                'Nhot_cue',        // offset 12-15
+                'a4fourcc/' .      // 0-3
+                'Nlen_header/' .   // 4-7
+                'Nlen_entry/' .    // 8-11
+                'Nhot_cue',        // 12-15 *** CORRECT OFFSET ***
                 substr($sectionData, $offset, 16)
             );
             
             $entryLen = $entryHeader['len_entry'] ?? 0;
             if ($entryLen == 0 || $offset + $entryLen > strlen($sectionData)) break;
             
-            // PCO2 cue data (starts at offset 16):
-            // 0: type (1 byte)
-            // 1: u1 (1 byte)
-            // 2-3: u2 (2 bytes)
-            // 4-7: time (4 bytes)
-            // 8-11: loop_time (4 bytes)
-            // 12: color_id (1 byte)
+            $entryHeaderLen = $entryHeader['len_header'] ?? 16;
+            
+            // PCO2 cue data (starts after entry header):
+            // 0: type (u1) - 1=cue, 2=loop
+            // 1-3: padding
+            // 4-7: time (u4 big-endian) - milliseconds
+            // 8-11: loop_time (u4 big-endian)
+            // 12: color_id (u1)
+            // 13-15: padding
             $cueData = unpack(
-                'Ctype/' .         // offset 16
-                'Cu1/' .           // offset 17
-                'nu2/' .           // offset 18-19
-                'Ntime/' .         // offset 20-23
-                'Nloop_time/' .    // offset 24-27
-                'Ccolor_id',       // offset 28
-                substr($sectionData, $offset + 16, 14)
+                'Ctype/' .         // offset entryHeaderLen + 0
+                'x3/' .            // skip 3 bytes padding
+                'Ntime/' .         // offset entryHeaderLen + 4 *** TIME IN MILLISECONDS ***
+                'Nloop_time/' .    // offset entryHeaderLen + 8
+                'Ccolor_id',       // offset entryHeaderLen + 12
+                substr($sectionData, $offset + $entryHeaderLen, 13)
             );
             
-            // Extract comment if present (starts at offset 40)
+            // Extract comment if present (starts at offset entryHeaderLen + 24)
             $comment = '';
-            if ($offset + 40 < strlen($sectionData)) {
-                $commentLen = unpack('V', substr($sectionData, $offset + 40, 4))[1];
-                if ($commentLen > 0 && $offset + 44 + $commentLen <= strlen($sectionData)) {
-                    $commentBytes = substr($sectionData, $offset + 44, $commentLen);
+            $commentOffset = $offset + $entryHeaderLen + 24;
+            if ($commentOffset + 4 <= strlen($sectionData)) {
+                $commentLenData = unpack('N', substr($sectionData, $commentOffset, 4));
+                $commentLen = $commentLenData[1] ?? 0;
+                if ($commentLen > 0 && $commentOffset + 4 + $commentLen <= strlen($sectionData)) {
+                    $commentBytes = substr($sectionData, $commentOffset + 4, $commentLen);
                     $comment = mb_convert_encoding($commentBytes, 'UTF-8', 'UTF-16BE');
-                    // Remove trailing null
                     $comment = rtrim($comment, "\x00");
                 }
             }
             
-            // hot_cue is ONE-BASED in PCO2: 1=A, 2=B, 3=C, etc. 0 = memory cue
-            // Convert to zero-based for consistent indexing
             $rawHotCue = $entryHeader['hot_cue'];
-            $hotCueIndex = null;
-            $hotCueLabel = null;
             
-            if ($rawHotCue > 0 && $rawHotCue <= 8) {
-                // Valid hot cue (1-8), convert to zero-based (0-7)
-                $hotCueIndex = $rawHotCue - 1;
+            // hot_cue: 0=memory, 1=A, 2=B, 3=C, 4=D, 5=E, 6=F, 7=G, 8=H
+            if ($rawHotCue >= 1 && $rawHotCue <= 8) {
+                $hotCueIndex = $rawHotCue - 1; // Convert to 0-based (0=A, 1=B, etc.)
                 $hotCueLabel = chr(ord('A') + $hotCueIndex);
                 
-                // Only add cues with valid hot_cue index
                 $cues[] = [
                     'hot_cue' => $hotCueIndex,
                     'hot_cue_label' => $hotCueLabel,
