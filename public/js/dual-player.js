@@ -653,27 +653,30 @@ class DualPlayer {
         if (visibleData.length === 0) return;
         
         const dataWidth = displayWidth - leadingBlankWidth;
-        const pixelsPerSample = dataWidth / visibleData.length;
+        const samplesPerPixel = visibleData.length / dataWidth;
         const height = displayHeight;
         const isColorWaveform = visibleData[0] && visibleData[0].r !== undefined;
         
         // MIXXX-inspired max sampling for smooth rendering
-        // For each pixel, find the max amplitude within the sampling window
-        for (let x = 0; x < displayWidth; x++) {
+        // Iterate per display pixel and aggregate samples
+        const barWidth = Math.max(1.0, 1.0 / samplesPerPixel);
+        const barRadius = Math.min(barWidth / 2, 2); // Rounded caps
+        
+        for (let x = Math.floor(leadingBlankWidth); x < displayWidth; x++) {
             // Calculate which samples this pixel represents
-            const sampleStart = Math.floor((x - leadingBlankWidth) / pixelsPerSample);
-            const sampleEnd = Math.ceil((x - leadingBlankWidth + 1) / pixelsPerSample);
+            const pixelOffset = x - leadingBlankWidth;
+            const sampleStart = Math.floor(pixelOffset * samplesPerPixel);
+            const sampleEnd = Math.ceil((pixelOffset + 1) * samplesPerPixel);
             
-            // Skip if we're in the leading blank area or beyond data
-            if (sampleStart < 0 || sampleStart >= visibleData.length) {
-                continue;
-            }
+            // Skip if beyond data
+            if (sampleStart >= visibleData.length) break;
             
-            // Find max values in this pixel's sample range
+            // Find max values in this pixel's sample range (MIXXX max-sampling technique)
             let maxHeight = 0;
             let maxR = 0, maxG = 0, maxB = 0;
             
-            for (let i = Math.max(0, sampleStart); i < Math.min(visibleData.length, sampleEnd + 1); i++) {
+            const endIdx = Math.min(visibleData.length, sampleEnd);
+            for (let i = sampleStart; i < endIdx; i++) {
                 const sample = visibleData[i];
                 if (!sample) continue;
                 
@@ -691,23 +694,18 @@ class DualPlayer {
             const barHeight = normalizedHeight * height * 0.9;
             const y = (height - barHeight) / 2;
             
-            // Dynamic bar width based on zoom - ensures smooth appearance
-            const barWidth = Math.max(1.0, pixelsPerSample * 1.1);
-            
+            // Draw rounded bar capsule for smooth Rekordbox-like appearance
             if (isColorWaveform) {
                 const brightness = Math.max(maxR, maxG, maxB) / 255;
                 
                 const gradient = ctx.createLinearGradient(x, y, x, y + barHeight);
-                
                 gradient.addColorStop(0, `rgba(${maxR}, ${maxG}, ${maxB}, ${0.9 + brightness * 0.1})`);
                 gradient.addColorStop(0.5, `rgba(${maxR}, ${maxG}, ${maxB}, ${0.95})`);
                 gradient.addColorStop(1, `rgba(${maxR}, ${maxG}, ${maxB}, ${0.9 + brightness * 0.1})`);
                 
                 ctx.fillStyle = gradient;
-                
-                // Softer glow effect
-                ctx.shadowBlur = 1.2;
-                ctx.shadowColor = `rgba(${maxR}, ${maxG}, ${maxB}, 0.25)`;
+                ctx.shadowBlur = 1.0;
+                ctx.shadowColor = `rgba(${maxR}, ${maxG}, ${maxB}, 0.2)`;
             } else {
                 const intensity = normalizedHeight;
                 
@@ -717,14 +715,34 @@ class DualPlayer {
                 gradient.addColorStop(1, `rgba(0, 217, 255, ${0.8 + intensity * 0.2})`);
                 
                 ctx.fillStyle = gradient;
-                
-                // Softer glow effect
-                ctx.shadowBlur = 1.2;
-                ctx.shadowColor = `rgba(0, 217, 255, ${0.2 + intensity * 0.15})`;
+                ctx.shadowBlur = 1.0;
+                ctx.shadowColor = `rgba(0, 217, 255, ${0.15 + intensity * 0.1})`;
             }
             
-            // Draw bar with slight overlap for smooth appearance
-            ctx.fillRect(x - barWidth * 0.1, y, barWidth, barHeight);
+            // Draw rounded rectangle bar (Rekordbox-style smooth caps)
+            if (barHeight > barRadius * 2) {
+                // Use roundRect if available (modern browsers), fallback to arcs
+                if (ctx.roundRect) {
+                    ctx.beginPath();
+                    ctx.roundRect(x - barWidth * 0.05, y, barWidth, barHeight, barRadius);
+                    ctx.fill();
+                } else {
+                    // Fallback: rounded caps with arcs
+                    const barX = x - barWidth * 0.05;
+                    ctx.beginPath();
+                    ctx.moveTo(barX + barRadius, y);
+                    ctx.arcTo(barX + barWidth, y, barX + barWidth, y + barHeight, barRadius);
+                    ctx.arcTo(barX + barWidth, y + barHeight, barX, y + barHeight, barRadius);
+                    ctx.arcTo(barX, y + barHeight, barX, y, barRadius);
+                    ctx.arcTo(barX, y, barX + barWidth, y, barRadius);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            } else {
+                // Bar too short for rounded corners, use simple rect
+                ctx.fillRect(x - barWidth * 0.05, y, barWidth, barHeight);
+            }
+            
             ctx.shadowBlur = 0;
         }
         
