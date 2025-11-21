@@ -208,6 +208,29 @@ class WaveformRenderer {
         }
     }
 
+    beatProgress(i, pointsPerBeat) {
+        const idx = i % pointsPerBeat;
+        if (idx === 0) return 0;
+        return idx / pointsPerBeat;
+    }
+
+    shapeAmplitude(amp, p, scale) {
+        // 1. Flat zone
+        if (p <= this.config.FLAT_ZONE) return 0;
+
+        const coneEnd = this.config.FLAT_ZONE + this.config.TRANSIENT_ZONE;
+
+        // 2. Cone/transient zone (smooth attack)
+        if (p <= coneEnd) {
+            const t = (p - this.config.FLAT_ZONE) / this.config.TRANSIENT_ZONE;
+            const curve = Math.pow(t, this.config.CONE_CURVE);
+            return curve * amp * scale * this.config.CONE_BOOST;
+        }
+
+        // 3. Body (sustain)
+        return amp * scale;
+    }
+
     draw3BandWaveform(ctx, data, W, H) {
         const N = Math.min(data.length, Math.floor(W));
         const w = W / N;
@@ -217,6 +240,7 @@ class WaveformRenderer {
         const high = new Float32Array(N);
 
         const samplesPerPixel = data.length / N;
+        const pointsPerBeat = Math.round(90 * this.config.DENSITY);
 
         for (let i = 0; i < N; i++) {
             if (samplesPerPixel > 1) {
@@ -230,17 +254,25 @@ class WaveformRenderer {
                     maxM = 0,
                     maxH = 0;
                 for (let j = start; j < end; j++) {
-                    maxL = Math.max(maxL, (data[j].low || 0) / 255);
-                    maxM = Math.max(maxM, (data[j].mid || 0) / 255);
-                    maxH = Math.max(maxH, (data[j].high || 0) / 255);
+                    const p = this.beatProgress(j, pointsPerBeat);
+                    const bodyEnv = Math.exp(-p * this.config.DECAY);
+                    const waveNoise = (Math.random() - 0.5) * this.config.NOISE;
+                    
+                    maxL = Math.max(maxL, Math.max(0, bodyEnv * 1.0 + waveNoise) * ((data[j].low || 0) / 255));
+                    maxM = Math.max(maxM, Math.max(0, bodyEnv * 0.8 + waveNoise) * ((data[j].mid || 0) / 255));
+                    maxH = Math.max(maxH, Math.max(0, bodyEnv * 0.6 + waveNoise) * ((data[j].high || 0) / 255));
                 }
                 low[i] = maxL;
                 mid[i] = maxM;
                 high[i] = maxH;
             } else {
-                low[i] = (data[i]?.low || 0) / 255;
-                mid[i] = (data[i]?.mid || 0) / 255;
-                high[i] = (data[i]?.high || 0) / 255;
+                const p = this.beatProgress(i, pointsPerBeat);
+                const bodyEnv = Math.exp(-p * this.config.DECAY);
+                const waveNoise = (Math.random() - 0.5) * this.config.NOISE;
+                
+                low[i] = Math.max(0, bodyEnv * 1.0 + waveNoise) * ((data[i]?.low || 0) / 255);
+                mid[i] = Math.max(0, bodyEnv * 0.8 + waveNoise) * ((data[i]?.mid || 0) / 255);
+                high[i] = Math.max(0, bodyEnv * 0.6 + waveNoise) * ((data[i]?.high || 0) / 255);
             }
         }
 
@@ -253,6 +285,7 @@ class WaveformRenderer {
             N,
             w,
             H,
+            pointsPerBeat,
         );
         this.drawBandMirror(
             ctx,
@@ -263,6 +296,7 @@ class WaveformRenderer {
             N,
             w,
             H,
+            pointsPerBeat,
         );
         this.drawBandMirror(
             ctx,
@@ -273,6 +307,7 @@ class WaveformRenderer {
             N,
             w,
             H,
+            pointsPerBeat,
         );
 
         const core = new Float32Array(N);
@@ -288,6 +323,7 @@ class WaveformRenderer {
             N,
             w,
             H,
+            pointsPerBeat,
         );
     }
 
@@ -297,6 +333,7 @@ class WaveformRenderer {
         const wave = new Float32Array(N);
 
         const samplesPerPixel = data.length / N;
+        const pointsPerBeat = Math.round(90 * this.config.DENSITY);
 
         for (let i = 0; i < N; i++) {
             if (samplesPerPixel > 1) {
@@ -316,10 +353,10 @@ class WaveformRenderer {
             }
         }
 
-        this.drawBandMirror(ctx, wave, "#00d4ff", "#00d4ff", 0.85, N, w, H);
+        this.drawBandMirror(ctx, wave, "#00d4ff", "#00d4ff", 0.85, N, w, H, pointsPerBeat);
     }
 
-    drawBandMirror(ctx, data, topColor, bottomColor, scale, N, w, H) {
+    drawBandMirror(ctx, data, topColor, bottomColor, scale, N, w, H, pointsPerBeat) {
         ctx.save();
         ctx.beginPath();
         ctx.imageSmoothingEnabled = false;
@@ -327,8 +364,9 @@ class WaveformRenderer {
         // Draw top half
         for (let i = 0; i < N; i++) {
             const x = Math.floor(i * w) + 0.5;
-            const amp = data[i];
-            const y = H / 2 - amp * (H * this.config.HEIGHT_RATIO * scale);
+            const p = this.beatProgress(i, pointsPerBeat);
+            const amp = this.shapeAmplitude(data[i], p, scale);
+            const y = H / 2 - amp * (H * this.config.HEIGHT_RATIO);
 
             if (i === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
@@ -337,8 +375,9 @@ class WaveformRenderer {
         // Draw bottom half (mirror)
         for (let i = N - 1; i >= 0; i--) {
             const x = Math.floor(i * w) + 0.5;
-            const amp = data[i];
-            const y = H / 2 + amp * (H * this.config.HEIGHT_RATIO * scale);
+            const p = this.beatProgress(i, pointsPerBeat);
+            const amp = this.shapeAmplitude(data[i], p, scale);
+            const y = H / 2 + amp * (H * this.config.HEIGHT_RATIO);
             ctx.lineTo(x, y);
         }
 
