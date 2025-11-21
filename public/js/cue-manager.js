@@ -37,10 +37,11 @@ class CueManager {
         let html = '<div class="space-y-2">';
         
         this.cuePoints.forEach((cue, index) => {
-            const isHotCue = cue.hot_cue_label !== null && cue.hot_cue_label !== undefined;
+            // hot_cue is 0-based: 0=A, 1=B, 2=C, etc. null = memory cue
+            const isHotCue = cue.hot_cue !== null && cue.hot_cue !== undefined;
             const cueLabel = isHotCue ? cue.hot_cue_label : 'M';
             const cueName = isHotCue ? `HOT CUE ${cueLabel}` : `MEMORY ${index + 1}`;
-            const color = isHotCue && cue.hot_cue !== null ? this.hotCueColors[cue.hot_cue % this.hotCueColors.length] : '#6B7280';
+            const color = isHotCue ? this.hotCueColors[cue.hot_cue % this.hotCueColors.length] : '#6B7280';
             const timeStr = this.formatTime(cue.time / 1000);
             const typeIcon = isHotCue ? 'fa-circle' : 'fa-bookmark';
             
@@ -90,8 +91,9 @@ class CueManager {
         
         this.cuePoints.forEach((cue) => {
             const x = (cue.time / 1000 / this.duration) * width;
-            const isHotCue = cue.hot_cue_label !== null && cue.hot_cue_label !== undefined;
-            const color = isHotCue && cue.hot_cue !== null ? this.hotCueColors[cue.hot_cue % this.hotCueColors.length] : '#888888';
+            // hot_cue is 0-based: 0=A, 1=B, 2=C, etc. null = memory cue
+            const isHotCue = cue.hot_cue !== null && cue.hot_cue !== undefined;
+            const color = isHotCue ? this.hotCueColors[cue.hot_cue % this.hotCueColors.length] : '#888888';
             
             if (isHotCue) {
                 ctx.fillStyle = color;
@@ -132,8 +134,9 @@ class CueManager {
             
             if (relativeTime >= 0 && relativeTime <= visibleDuration) {
                 const x = (relativeTime / visibleDuration) * width;
-                const isHotCue = cue.hot_cue_label !== null && cue.hot_cue_label !== undefined;
-                const color = isHotCue && cue.hot_cue !== null ? this.hotCueColors[cue.hot_cue % this.hotCueColors.length] : '#888888';
+                // hot_cue is 0-based: 0=A, 1=B, 2=C, etc. null = memory cue
+                const isHotCue = cue.hot_cue !== null && cue.hot_cue !== undefined;
+                const color = isHotCue ? this.hotCueColors[cue.hot_cue % this.hotCueColors.length] : '#888888';
                 
                 if (isHotCue) {
                     ctx.fillStyle = color;

@@ -428,7 +428,8 @@ class DualPlayer {
         const deckLabel = deckId.toUpperCase();
         deck.hotCues = {};
         
-        for (let i = 1; i <= 8; i++) {
+        // Reset all hot cue pads (0-7 for A-H)
+        for (let i = 0; i < 8; i++) {
             const cueTimeEl = document.getElementById(`cueTime${deckLabel}${i}`);
             if (cueTimeEl) {
                 cueTimeEl.textContent = '--:--';
@@ -442,21 +443,22 @@ class DualPlayer {
         
         if (track.cue_points && track.cue_points.length > 0) {
             track.cue_points.forEach((cue) => {
-                if (cue.type === 'cue' && cue.hot_cue !== null && cue.hot_cue !== undefined && cue.hot_cue_label) {
-                    const padNumber = cue.hot_cue + 1;
+                // hot_cue is 0-based: 0=A, 1=B, 2=C, etc. Only process valid hot cues (0-7)
+                if (cue.type === 'cue' && cue.hot_cue !== null && cue.hot_cue !== undefined && cue.hot_cue >= 0 && cue.hot_cue < 8) {
+                    const hotCueIndex = cue.hot_cue; // Use 0-based index directly
                     const timeInSeconds = cue.time / 1000;
                     
-                    deck.hotCues[padNumber] = {
+                    deck.hotCues[hotCueIndex] = {
                         time: timeInSeconds,
                         label: cue.comment || `Cue ${cue.hot_cue_label}`
                     };
                     
-                    const cueTimeEl = document.getElementById(`cueTime${deckLabel}${padNumber}`);
+                    const cueTimeEl = document.getElementById(`cueTime${deckLabel}${hotCueIndex}`);
                     if (cueTimeEl) {
                         cueTimeEl.textContent = this.formatTime(timeInSeconds);
                     }
                     
-                    const cuePad = document.querySelector(`.hot-cue-pad[data-deck="${deckId}"][data-cue="${padNumber}"]`);
+                    const cuePad = document.querySelector(`.hot-cue-pad[data-deck="${deckId}"][data-cue="${hotCueIndex}"]`);
                     if (cuePad) {
                         cuePad.classList.add('active');
                     }
@@ -882,14 +884,16 @@ class DualPlayer {
         const viewDuration = deck.duration / effectiveZoom;
         const viewEnd = viewStart + viewDuration;
         
-        Object.entries(deck.hotCues).forEach(([cueNum, cue]) => {
+        // hotCues is now 0-based (0=A, 1=B, 2=C, etc.)
+        Object.entries(deck.hotCues).forEach(([cueIndex, cue]) => {
             if (cue.time >= viewStart && cue.time <= viewEnd) {
                 const relativePosition = (cue.time - viewStart) / viewDuration;
                 const marker = document.createElement('div');
                 marker.className = 'cue-marker';
                 marker.style.left = `${relativePosition * 100}%`;
-                marker.title = `Cue ${cueNum}: ${this.formatTime(cue.time)}`;
-                marker.innerHTML = `<div class="cue-marker-label">${cueNum}</div>`;
+                const cueLabel = String.fromCharCode(65 + parseInt(cueIndex)); // 0=A, 1=B, etc.
+                marker.title = `Cue ${cueLabel}: ${this.formatTime(cue.time)}`;
+                marker.innerHTML = `<div class="cue-marker-label">${cueLabel}</div>`;
                 container.appendChild(marker);
             }
         });
