@@ -406,14 +406,15 @@ class DualPlayer {
         
         if (deck.duration > 0) {
             const visibleDuration = deck.duration / this.sharedZoomLevel;
-            deck.waveformOffset = -visibleDuration / 2;
+            const currentTime = deck.audio.currentTime || 0;
+            deck.waveformOffset = currentTime - (visibleDuration / 2);
             
             const sharedZoomEl = document.getElementById('sharedZoomLevel');
             if (sharedZoomEl) {
                 sharedZoomEl.textContent = `${this.sharedZoomLevel}x`;
             }
             
-            console.log(`[Deck ${deckLabel}] Rendering waveform with zoom level: ${this.sharedZoomLevel}x`);
+            console.log(`[Deck ${deckLabel}] Rendering waveform with zoom level: ${this.sharedZoomLevel}x, offset: ${deck.waveformOffset.toFixed(2)}s`);
             this.renderWaveform(deckId);
             this.renderCueMarkers(deckId);
         } else {
@@ -778,6 +779,9 @@ class DualPlayer {
         const viewDuration = deck.duration / effectiveZoom;
         const viewEnd = viewStart + viewDuration;
         
+        const leadingBlankDuration = Math.max(0, -viewStart);
+        const leadingBlankWidth = (leadingBlankDuration / viewDuration) * displayWidth;
+        
         const actualStart = Math.max(0, viewStart);
         const startIndex = Math.floor((actualStart / deck.duration) * waveData.length);
         const endIndex = Math.ceil((viewEnd / deck.duration) * waveData.length);
@@ -785,13 +789,20 @@ class DualPlayer {
         
         if (visibleData.length === 0) return;
         
+        const dataWidth = displayWidth - leadingBlankWidth;
+        
+        ctx.save();
+        ctx.translate(leadingBlankWidth, 0);
+        
         const is3Band = visibleData[0] && visibleData[0].mid !== undefined;
         
         if (is3Band) {
-            this.draw3BandWaveformMirror(ctx, visibleData, displayWidth, displayHeight);
+            this.draw3BandWaveformMirror(ctx, visibleData, dataWidth, displayHeight);
         } else {
-            this.drawSimpleWaveformMirror(ctx, visibleData, displayWidth, displayHeight);
+            this.drawSimpleWaveformMirror(ctx, visibleData, dataWidth, displayHeight);
         }
+        
+        ctx.restore();
         
         this.renderBeatgrid(deckId, ctx, displayWidth, displayHeight, viewStart, viewDuration);
     }
