@@ -352,7 +352,7 @@ class WaveformRenderer {
         ctx.fillStyle = grad;
         ctx.lineJoin = "round";
         ctx.fill();
-        
+
         ctx.restore();
     }
 
