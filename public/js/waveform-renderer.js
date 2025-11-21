@@ -152,7 +152,8 @@ class WaveformRenderer {
     }
     
     renderWaveform3Band(ctx, waveData, W, H) {
-        const N = Math.min(waveData.length, Math.floor(W));
+        const canvas = ctx.canvas;
+        const N = Math.min(waveData.length, canvas.width);
         const samplesPerPixel = waveData.length / N;
         
         const lowData = new Float32Array(N);
@@ -196,7 +197,8 @@ class WaveformRenderer {
     }
     
     renderWaveformSimple(ctx, waveData, W, H) {
-        const N = Math.min(waveData.length, Math.floor(W));
+        const canvas = ctx.canvas;
+        const N = Math.min(waveData.length, canvas.width);
         const samplesPerPixel = waveData.length / N;
         const data = new Float32Array(N);
         
