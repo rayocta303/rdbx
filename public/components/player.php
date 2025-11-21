@@ -43,72 +43,38 @@
                     </div>
                 </div>
 
-                <div class="waveform-section">
-                    <div class="waveform-controls">
-                        <button class="zoom-btn" onclick="window.dualPlayer.zoomWaveform('a', -1)" title="Zoom Out">
-                            <i class="fas fa-search-minus"></i>
+                <div class="pitch-control">
+                    <div class="pitch-header">
+                        <span class="pitch-label">TEMPO</span>
+                        <button class="master-tempo-btn" id="masterTempoA" onclick="window.dualPlayer.toggleMasterTempo('a')" title="Master Tempo (Key Lock)">
+                            <i class="fas fa-lock-open"></i>
                         </button>
-                        <span class="zoom-level" id="zoomLevelA">16x</span>
-                        <button class="zoom-btn" onclick="window.dualPlayer.zoomWaveform('a', 1)" title="Zoom In">
-                            <i class="fas fa-search-plus"></i>
+                        <span class="pitch-value" id="pitchValueA">0.0%</span>
+                    </div>
+                    <input type="range" class="pitch-slider" id="pitchSliderA" 
+                           min="-16" max="16" step="0.1" value="0"
+                           oninput="window.dualPlayer.setPitch('a', this.value)">
+                    <div class="pitch-markers">
+                        <span>-16%</span>
+                        <span>0</span>
+                        <span>+16%</span>
+                    </div>
+                    <div class="nudge-controls">
+                        <button class="nudge-btn" 
+                                onmousedown="window.dualPlayer.startNudge('a', -1)" 
+                                onmouseup="window.dualPlayer.stopNudge('a')" 
+                                onmouseleave="window.dualPlayer.stopNudge('a')"
+                                title="Temporary Slow Down (Beat Match)">
+                            <i class="fas fa-minus"></i>
                         </button>
-                        <button class="quantize-btn" id="quantizeA" onclick="window.dualPlayer.toggleQuantize('a')" title="Quantize (Snap to Beat)">
-                            <i class="fas fa-magnet"></i>
-                            <span>Q</span>
+                        <span class="nudge-label">NUDGE</span>
+                        <button class="nudge-btn" 
+                                onmousedown="window.dualPlayer.startNudge('a', 1)" 
+                                onmouseup="window.dualPlayer.stopNudge('a')" 
+                                onmouseleave="window.dualPlayer.stopNudge('a')"
+                                title="Temporary Speed Up (Beat Match)">
+                            <i class="fas fa-plus"></i>
                         </button>
-                        <div class="time-display" id="timeDisplayA">00:00 / 00:00</div>
-                    </div>
-                    
-                    <div class="pitch-control">
-                        <div class="pitch-header">
-                            <span class="pitch-label">TEMPO</span>
-                            <button class="master-tempo-btn" id="masterTempoA" onclick="window.dualPlayer.toggleMasterTempo('a')" title="Master Tempo (Key Lock)">
-                                <i class="fas fa-lock-open"></i>
-                            </button>
-                            <span class="pitch-value" id="pitchValueA">0.0%</span>
-                        </div>
-                        <input type="range" class="pitch-slider" id="pitchSliderA" 
-                               min="-16" max="16" step="0.1" value="0"
-                               oninput="window.dualPlayer.setPitch('a', this.value)">
-                        <div class="pitch-markers">
-                            <span>-16%</span>
-                            <span>0</span>
-                            <span>+16%</span>
-                        </div>
-                        <div class="nudge-controls">
-                            <button class="nudge-btn" 
-                                    onmousedown="window.dualPlayer.startNudge('a', -1)" 
-                                    onmouseup="window.dualPlayer.stopNudge('a')" 
-                                    onmouseleave="window.dualPlayer.stopNudge('a')"
-                                    title="Temporary Slow Down (Beat Match)">
-                                <i class="fas fa-minus"></i>
-                            </button>
-                            <span class="nudge-label">NUDGE</span>
-                            <button class="nudge-btn" 
-                                    onmousedown="window.dualPlayer.startNudge('a', 1)" 
-                                    onmouseup="window.dualPlayer.stopNudge('a')" 
-                                    onmouseleave="window.dualPlayer.stopNudge('a')"
-                                    title="Temporary Speed Up (Beat Match)">
-                                <i class="fas fa-plus"></i>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="volume-control">
-                        <div class="volume-header">
-                            <i class="fas fa-volume-up"></i>
-                            <span class="volume-label">VOLUME</span>
-                            <span class="volume-value" id="volumeValueA">100%</span>
-                        </div>
-                        <input type="range" class="volume-slider" id="volumeSliderA" 
-                               min="0" max="100" step="1" value="100"
-                               oninput="window.dualPlayer.setVolume('a', this.value)">
-                    </div>
-                    
-                    <div class="waveform-container-player" id="waveformContainerA">
-                        <canvas id="waveformCanvasA" class="waveform-canvas"></canvas>
-                        <div class="playhead"></div>
-                        <div class="cue-markers" id="cueMarkersA"></div>
                     </div>
                 </div>
 
@@ -159,7 +125,91 @@
                     </div>
                 </div>
 
-                <div class="waveform-section">
+                <div class="pitch-control">
+                    <div class="pitch-header">
+                        <span class="pitch-label">TEMPO</span>
+                        <button class="master-tempo-btn" id="masterTempoB" onclick="window.dualPlayer.toggleMasterTempo('b')" title="Master Tempo (Key Lock)">
+                            <i class="fas fa-lock-open"></i>
+                        </button>
+                        <span class="pitch-value" id="pitchValueB">0.0%</span>
+                    </div>
+                    <input type="range" class="pitch-slider" id="pitchSliderB" 
+                           min="-16" max="16" step="0.1" value="0"
+                           oninput="window.dualPlayer.setPitch('b', this.value)">
+                    <div class="pitch-markers">
+                        <span>-16%</span>
+                        <span>0</span>
+                        <span>+16%</span>
+                    </div>
+                    <div class="nudge-controls">
+                        <button class="nudge-btn" 
+                                onmousedown="window.dualPlayer.startNudge('b', -1)" 
+                                onmouseup="window.dualPlayer.stopNudge('b')" 
+                                onmouseleave="window.dualPlayer.stopNudge('b')"
+                                title="Temporary Slow Down (Beat Match)">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <span class="nudge-label">NUDGE</span>
+                        <button class="nudge-btn" 
+                                onmousedown="window.dualPlayer.startNudge('b', 1)" 
+                                onmouseup="window.dualPlayer.stopNudge('b')" 
+                                onmouseleave="window.dualPlayer.stopNudge('b')"
+                                title="Temporary Speed Up (Beat Match)">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="hot-cue-pads">
+                    <div class="hot-cue-label">HOT CUES</div>
+                    <div class="hot-cue-grid">
+                        <?php for ($i = 1; $i <= 8; $i++): ?>
+                        <button class="hot-cue-pad" data-deck="b" data-cue="<?= $i ?>" onclick="window.dualPlayer.triggerHotCue('b', <?= $i ?>)">
+                            <div class="cue-number"><?= $i ?></div>
+                            <div class="cue-time" id="cueTimeB<?= $i ?>">--:--</div>
+                        </button>
+                        <?php endfor; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Waveform Section (Separated for Beat Matching) -->
+        <div class="waveform-beatmatch-section">
+            <div class="waveform-beatmatch-header">
+                <h3 class="waveform-section-title">
+                    <i class="fas fa-wave-square"></i>
+                    WAVEFORM BEAT MATCHING
+                </h3>
+            </div>
+            <div class="waveform-beatmatch-grid">
+                <!-- Waveform A with Controls -->
+                <div class="waveform-deck-wrapper">
+                    <div class="waveform-deck-label">DECK A</div>
+                    <div class="waveform-controls">
+                        <button class="zoom-btn" onclick="window.dualPlayer.zoomWaveform('a', -1)" title="Zoom Out">
+                            <i class="fas fa-search-minus"></i>
+                        </button>
+                        <span class="zoom-level" id="zoomLevelA">16x</span>
+                        <button class="zoom-btn" onclick="window.dualPlayer.zoomWaveform('a', 1)" title="Zoom In">
+                            <i class="fas fa-search-plus"></i>
+                        </button>
+                        <button class="quantize-btn" id="quantizeA" onclick="window.dualPlayer.toggleQuantize('a')" title="Quantize (Snap to Beat)">
+                            <i class="fas fa-magnet"></i>
+                            <span>Q</span>
+                        </button>
+                        <div class="time-display" id="timeDisplayA">00:00 / 00:00</div>
+                    </div>
+                    <div class="waveform-container-player" id="waveformContainerA">
+                        <canvas id="waveformCanvasA" class="waveform-canvas"></canvas>
+                        <div class="playhead"></div>
+                        <div class="cue-markers" id="cueMarkersA"></div>
+                    </div>
+                </div>
+
+                <!-- Waveform B with Controls -->
+                <div class="waveform-deck-wrapper">
+                    <div class="waveform-deck-label waveform-deck-label-b">DECK B</div>
                     <div class="waveform-controls">
                         <button class="zoom-btn" onclick="window.dualPlayer.zoomWaveform('b', -1)" title="Zoom Out">
                             <i class="fas fa-search-minus"></i>
@@ -174,69 +224,61 @@
                         </button>
                         <div class="time-display" id="timeDisplayB">00:00 / 00:00</div>
                     </div>
-                    
-                    <div class="pitch-control">
-                        <div class="pitch-header">
-                            <span class="pitch-label">TEMPO</span>
-                            <button class="master-tempo-btn" id="masterTempoB" onclick="window.dualPlayer.toggleMasterTempo('b')" title="Master Tempo (Key Lock)">
-                                <i class="fas fa-lock-open"></i>
-                            </button>
-                            <span class="pitch-value" id="pitchValueB">0.0%</span>
-                        </div>
-                        <input type="range" class="pitch-slider" id="pitchSliderB" 
-                               min="-16" max="16" step="0.1" value="0"
-                               oninput="window.dualPlayer.setPitch('b', this.value)">
-                        <div class="pitch-markers">
-                            <span>-16%</span>
-                            <span>0</span>
-                            <span>+16%</span>
-                        </div>
-                        <div class="nudge-controls">
-                            <button class="nudge-btn" 
-                                    onmousedown="window.dualPlayer.startNudge('b', -1)" 
-                                    onmouseup="window.dualPlayer.stopNudge('b')" 
-                                    onmouseleave="window.dualPlayer.stopNudge('b')"
-                                    title="Temporary Slow Down (Beat Match)">
-                                <i class="fas fa-minus"></i>
-                            </button>
-                            <span class="nudge-label">NUDGE</span>
-                            <button class="nudge-btn" 
-                                    onmousedown="window.dualPlayer.startNudge('b', 1)" 
-                                    onmouseup="window.dualPlayer.stopNudge('b')" 
-                                    onmouseleave="window.dualPlayer.stopNudge('b')"
-                                    title="Temporary Speed Up (Beat Match)">
-                                <i class="fas fa-plus"></i>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="volume-control">
-                        <div class="volume-header">
-                            <i class="fas fa-volume-up"></i>
-                            <span class="volume-label">VOLUME</span>
-                            <span class="volume-value" id="volumeValueB">100%</span>
-                        </div>
-                        <input type="range" class="volume-slider" id="volumeSliderB" 
-                               min="0" max="100" step="1" value="100"
-                               oninput="window.dualPlayer.setVolume('b', this.value)">
-                    </div>
-                    
                     <div class="waveform-container-player" id="waveformContainerB">
                         <canvas id="waveformCanvasB" class="waveform-canvas"></canvas>
                         <div class="playhead"></div>
                         <div class="cue-markers" id="cueMarkersB"></div>
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <div class="hot-cue-pads">
-                    <div class="hot-cue-label">HOT CUES</div>
-                    <div class="hot-cue-grid">
-                        <?php for ($i = 1; $i <= 8; $i++): ?>
-                        <button class="hot-cue-pad" data-deck="b" data-cue="<?= $i ?>" onclick="window.dualPlayer.triggerHotCue('b', <?= $i ?>)">
-                            <div class="cue-number"><?= $i ?></div>
-                            <div class="cue-time" id="cueTimeB<?= $i ?>">--:--</div>
-                        </button>
-                        <?php endfor; ?>
+        <!-- Mixer Volume Section (DJ Controller Style) -->
+        <div class="mixer-volume-section">
+            <div class="mixer-volume-header">
+                <h3 class="mixer-section-title">
+                    <i class="fas fa-sliders-h"></i>
+                    MIXER
+                </h3>
+            </div>
+            <div class="mixer-faders-container">
+                <!-- Volume Fader A -->
+                <div class="volume-fader-wrapper">
+                    <div class="volume-fader-label">VOL A</div>
+                    <div class="volume-fader-control">
+                        <span class="volume-value-vertical" id="volumeValueA">100%</span>
+                        <input type="range" class="volume-slider-vertical" id="volumeSliderA" 
+                               min="0" max="100" step="1" value="100"
+                               orient="vertical"
+                               oninput="window.dualPlayer.setVolume('a', this.value)">
+                        <div class="volume-fader-markers">
+                            <span>100</span>
+                            <span>50</span>
+                            <span>0</span>
+                        </div>
+                    </div>
+                    <div class="volume-fader-icon">
+                        <i class="fas fa-volume-up"></i>
+                    </div>
+                </div>
+
+                <!-- Volume Fader B -->
+                <div class="volume-fader-wrapper">
+                    <div class="volume-fader-label volume-fader-label-b">VOL B</div>
+                    <div class="volume-fader-control">
+                        <span class="volume-value-vertical" id="volumeValueB">100%</span>
+                        <input type="range" class="volume-slider-vertical" id="volumeSliderB" 
+                               min="0" max="100" step="1" value="100"
+                               orient="vertical"
+                               oninput="window.dualPlayer.setVolume('b', this.value)">
+                        <div class="volume-fader-markers">
+                            <span>100</span>
+                            <span>50</span>
+                            <span>0</span>
+                        </div>
+                    </div>
+                    <div class="volume-fader-icon">
+                        <i class="fas fa-volume-up"></i>
                     </div>
                 </div>
             </div>
