@@ -1,4 +1,17 @@
 class WaveformRenderer {
+    static instances = new Set();
+    static resizeScheduled = false;
+    
+    static onResize() {
+        if (WaveformRenderer.resizeScheduled) return;
+        WaveformRenderer.resizeScheduled = true;
+        
+        requestAnimationFrame(() => {
+            WaveformRenderer.instances.forEach(instance => instance.handleResize());
+            WaveformRenderer.resizeScheduled = false;
+        });
+    }
+    
     constructor(overviewCanvasId, detailedCanvasId) {
         this.overviewCanvas = document.getElementById(overviewCanvasId);
         this.detailedCanvas = document.getElementById(detailedCanvasId);
@@ -20,40 +33,42 @@ class WaveformRenderer {
             CORE_BOOST: 1.7
         };
         
-        this.setupCanvases();
+        this.initCanvases();
         
-        this.boundResize = this.handleResize.bind(this);
-        window.addEventListener('resize', this.boundResize);
+        WaveformRenderer.instances.add(this);
+        if (WaveformRenderer.instances.size === 1) {
+            window.addEventListener('resize', WaveformRenderer.onResize);
+        }
     }
     
-    setupCanvases() {
+    initCanvases() {
         if (this.overviewCanvas) {
-            this.resizeCanvas(this.overviewCanvas, 120);
+            this.setupCanvas(this.overviewCanvas, 120);
             this.overviewCanvas.addEventListener('click', (e) => this.handleOverviewClick(e));
         }
         
         if (this.detailedCanvas) {
-            this.resizeCanvas(this.detailedCanvas, 240);
+            this.setupCanvas(this.detailedCanvas, 240);
             this.detailedCanvas.addEventListener('click', (e) => this.handleDetailedClick(e));
         }
     }
     
-    resizeCanvas(canvas, desiredHeight) {
+    setupCanvas(canvas, height) {
         const W = canvas.clientWidth || canvas.parentElement?.clientWidth || 800;
-        const H = desiredHeight;
+        const H = height;
         
         canvas.width = W * this.DPR;
         canvas.height = H * this.DPR;
         canvas.style.width = W + 'px';
         canvas.style.height = H + 'px';
         
-        const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+        const ctx = canvas.getContext('2d', { alpha: false });
         ctx.setTransform(this.DPR, 0, 0, this.DPR, 0, 0);
     }
     
     handleResize() {
-        if (this.overviewCanvas) this.resizeCanvas(this.overviewCanvas, 120);
-        if (this.detailedCanvas) this.resizeCanvas(this.detailedCanvas, 240);
+        if (this.overviewCanvas) this.setupCanvas(this.overviewCanvas, 120);
+        if (this.detailedCanvas) this.setupCanvas(this.detailedCanvas, 240);
         
         if (this.waveformData) {
             this.renderOverview();
@@ -67,10 +82,6 @@ class WaveformRenderer {
         this.detailedScrollOffset = 0;
         this.playheadPosition = 0;
         
-        if (this.overviewCanvas && this.overviewCanvas.width === 0) {
-            this.setupCanvases();
-        }
-        
         this.renderOverview();
         this.renderDetailed();
     }
@@ -78,7 +89,7 @@ class WaveformRenderer {
     renderOverview() {
         if (!this.overviewCanvas || !this.waveformData) return;
         
-        const ctx = this.overviewCanvas.getContext('2d', { alpha: false, desynchronized: true });
+        const ctx = this.overviewCanvas.getContext('2d');
         const W = this.overviewCanvas.width / this.DPR;
         const H = this.overviewCanvas.height / this.DPR;
         
@@ -97,9 +108,9 @@ class WaveformRenderer {
         const is3Band = waveData[0]?.mid !== undefined;
         
         if (is3Band) {
-            this.renderWaveform3Band(ctx, waveData, W, H);
+            this.draw3BandWaveform(ctx, waveData, W, H);
         } else {
-            this.renderWaveformSimple(ctx, waveData, W, H);
+            this.drawSimpleWaveform(ctx, waveData, W, H);
         }
         
         if (this.duration > 0) {
@@ -110,7 +121,7 @@ class WaveformRenderer {
     renderDetailed() {
         if (!this.detailedCanvas || !this.waveformData) return;
         
-        const ctx = this.detailedCanvas.getContext('2d', { alpha: false, desynchronized: true });
+        const ctx = this.detailedCanvas.getContext('2d');
         const W = this.detailedCanvas.width / this.DPR;
         const H = this.detailedCanvas.height / this.DPR;
         
@@ -138,9 +149,9 @@ class WaveformRenderer {
         const is3Band = visibleData[0]?.mid !== undefined;
         
         if (is3Band) {
-            this.renderWaveform3Band(ctx, visibleData, W, H);
+            this.draw3BandWaveform(ctx, visibleData, W, H);
         } else {
-            this.renderWaveformSimple(ctx, visibleData, W, H);
+            this.drawSimpleWaveform(ctx, visibleData, W, H);
         }
         
         if (this.duration > 0) {
@@ -151,81 +162,74 @@ class WaveformRenderer {
         }
     }
     
-    renderWaveform3Band(ctx, waveData, W, H) {
-        const canvas = ctx.canvas;
-        const N = Math.min(waveData.length, canvas.width);
-        const samplesPerPixel = waveData.length / N;
-        
-        const lowData = new Float32Array(N);
-        const midData = new Float32Array(N);
-        const highData = new Float32Array(N);
-        
-        if (samplesPerPixel > 1) {
-            for (let x = 0; x < N; x++) {
-                const sampleStart = Math.floor(x * samplesPerPixel);
-                const sampleEnd = Math.min(waveData.length, Math.ceil((x + 1) * samplesPerPixel));
-                
-                let maxLow = 0, maxMid = 0, maxHigh = 0;
-                for (let i = sampleStart; i < sampleEnd; i++) {
-                    const sample = waveData[i];
-                    maxLow = Math.max(maxLow, sample.low || 0);
-                    maxMid = Math.max(maxMid, sample.mid || 0);
-                    maxHigh = Math.max(maxHigh, sample.high || 0);
-                }
-                
-                lowData[x] = Math.min(1, Math.max(0, maxLow));
-                midData[x] = Math.min(1, Math.max(0, maxMid));
-                highData[x] = Math.min(1, Math.max(0, maxHigh));
-            }
-        } else {
-            for (let i = 0; i < N; i++) {
-                lowData[i] = Math.min(1, Math.max(0, waveData[i]?.low || 0));
-                midData[i] = Math.min(1, Math.max(0, waveData[i]?.mid || 0));
-                highData[i] = Math.min(1, Math.max(0, waveData[i]?.high || 0));
-            }
-        }
-        
-        this.drawBandMirror(ctx, lowData, '#ffffff', '#ffffff', this.config.SCALE_LOW, W, H);
-        this.drawBandMirror(ctx, midData, '#ffa600', '#ffa600', this.config.SCALE_MID, W, H);
-        this.drawBandMirror(ctx, highData, '#0055e1', '#0055e1', this.config.SCALE_HIGH, W, H);
-        
-        const coreData = new Float32Array(N);
-        for (let i = 0; i < N; i++) {
-            coreData[i] = Math.min(1, midData[i] * this.config.CORE_BOOST);
-        }
-        this.drawBandMirror(ctx, coreData, 'rgba(255,255,255,0.8)', 'rgba(255,255,255,0.0)', this.config.SCALE_CORE, W, H);
-    }
-    
-    renderWaveformSimple(ctx, waveData, W, H) {
-        const canvas = ctx.canvas;
-        const N = Math.min(waveData.length, canvas.width);
-        const samplesPerPixel = waveData.length / N;
-        const data = new Float32Array(N);
-        
-        if (samplesPerPixel > 1) {
-            for (let x = 0; x < N; x++) {
-                const sampleStart = Math.floor(x * samplesPerPixel);
-                const sampleEnd = Math.min(waveData.length, Math.ceil((x + 1) * samplesPerPixel));
-                
-                let maxHeight = 0;
-                for (let i = sampleStart; i < sampleEnd; i++) {
-                    maxHeight = Math.max(maxHeight, waveData[i]?.height || 0);
-                }
-                data[x] = Math.min(1, Math.max(0, maxHeight));
-            }
-        } else {
-            for (let i = 0; i < N; i++) {
-                data[i] = Math.min(1, Math.max(0, waveData[i]?.height || 0));
-            }
-        }
-        
-        this.drawBandMirror(ctx, data, '#00d4ff', '#00d4ff', 0.85, W, H);
-    }
-    
-    drawBandMirror(ctx, data, topColor, bottomColor, scale, W, H) {
-        const N = data.length;
+    draw3BandWaveform(ctx, data, W, H) {
+        const N = Math.min(data.length, Math.floor(W));
         const w = W / N;
         
+        const low = new Float32Array(N);
+        const mid = new Float32Array(N);
+        const high = new Float32Array(N);
+        
+        const samplesPerPixel = data.length / N;
+        
+        for (let i = 0; i < N; i++) {
+            if (samplesPerPixel > 1) {
+                const start = Math.floor(i * samplesPerPixel);
+                const end = Math.min(data.length, Math.ceil((i + 1) * samplesPerPixel));
+                
+                let maxL = 0, maxM = 0, maxH = 0;
+                for (let j = start; j < end; j++) {
+                    maxL = Math.max(maxL, data[j].low || 0);
+                    maxM = Math.max(maxM, data[j].mid || 0);
+                    maxH = Math.max(maxH, data[j].high || 0);
+                }
+                low[i] = maxL;
+                mid[i] = maxM;
+                high[i] = maxH;
+            } else {
+                low[i] = data[i]?.low || 0;
+                mid[i] = data[i]?.mid || 0;
+                high[i] = data[i]?.high || 0;
+            }
+        }
+        
+        this.drawBand(ctx, low, '#ffffff', '#ffffff', this.config.SCALE_LOW, N, w, H);
+        this.drawBand(ctx, mid, '#ffa600', '#ffa600', this.config.SCALE_MID, N, w, H);
+        this.drawBand(ctx, high, '#0055e1', '#0055e1', this.config.SCALE_HIGH, N, w, H);
+        
+        const core = new Float32Array(N);
+        for (let i = 0; i < N; i++) {
+            core[i] = Math.min(1, mid[i] * this.config.CORE_BOOST);
+        }
+        this.drawBand(ctx, core, 'rgba(255,255,255,0.8)', 'rgba(255,255,255,0.0)', this.config.SCALE_CORE, N, w, H);
+    }
+    
+    drawSimpleWaveform(ctx, data, W, H) {
+        const N = Math.min(data.length, Math.floor(W));
+        const w = W / N;
+        const wave = new Float32Array(N);
+        
+        const samplesPerPixel = data.length / N;
+        
+        for (let i = 0; i < N; i++) {
+            if (samplesPerPixel > 1) {
+                const start = Math.floor(i * samplesPerPixel);
+                const end = Math.min(data.length, Math.ceil((i + 1) * samplesPerPixel));
+                
+                let max = 0;
+                for (let j = start; j < end; j++) {
+                    max = Math.max(max, data[j].height || 0);
+                }
+                wave[i] = max;
+            } else {
+                wave[i] = data[i]?.height || 0;
+            }
+        }
+        
+        this.drawBand(ctx, wave, '#00d4ff', '#00d4ff', 0.85, N, w, H);
+    }
+    
+    drawBand(ctx, data, topColor, bottomColor, scale, N, w, H) {
         ctx.beginPath();
         ctx.imageSmoothingEnabled = false;
         
@@ -344,6 +348,9 @@ class WaveformRenderer {
     }
     
     destroy() {
-        window.removeEventListener('resize', this.boundResize);
+        WaveformRenderer.instances.delete(this);
+        if (WaveformRenderer.instances.size === 0) {
+            window.removeEventListener('resize', WaveformRenderer.onResize);
+        }
     }
 }
