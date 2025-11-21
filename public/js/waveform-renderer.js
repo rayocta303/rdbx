@@ -226,65 +226,122 @@ class WaveformRenderer {
     
     // Efficient 3-band waveform rendering with path-based approach
     renderWaveform3Band(ctx, waveData, width, height) {
-        const N = waveData.length;
-        const w = width / N;
+        const samplesPerPixel = waveData.length / width;
+        let N = Math.min(waveData.length, width);
         
-        // Prepare normalized data
-        const lowData = [], midData = [], highData = [];
-        for (let i = 0; i < N; i++) {
-            lowData[i] = (waveData[i].low || 0) / 255;
-            midData[i] = (waveData[i].mid || 0) / 255;
-            highData[i] = (waveData[i].high || 0) / 255;
+        // Pre-allocate typed arrays for better memory efficiency
+        const lowData = new Float32Array(N);
+        const midData = new Float32Array(N);
+        const highData = new Float32Array(N);
+        
+        // Downsample efficiently: aggregate max values per pixel
+        if (samplesPerPixel > 1) {
+            for (let x = 0; x < N; x++) {
+                const sampleStart = Math.floor(x * samplesPerPixel);
+                const sampleEnd = Math.min(waveData.length, Math.ceil((x + 1) * samplesPerPixel));
+                
+                let maxLow = 0, maxMid = 0, maxHigh = 0;
+                for (let i = sampleStart; i < sampleEnd; i++) {
+                    const sample = waveData[i];
+                    // Data is already normalized 0-1 from backend
+                    maxLow = Math.max(maxLow, sample.low || 0);
+                    maxMid = Math.max(maxMid, sample.mid || 0);
+                    maxHigh = Math.max(maxHigh, sample.high || 0);
+                }
+                
+                // Clamp to ensure valid range
+                lowData[x] = Math.min(1, Math.max(0, maxLow));
+                midData[x] = Math.min(1, Math.max(0, maxMid));
+                highData[x] = Math.min(1, Math.max(0, maxHigh));
+            }
+        } else {
+            // Direct copy when we have fewer samples than pixels
+            for (let i = 0; i < N; i++) {
+                // Data is already normalized 0-1 from backend
+                lowData[i] = Math.min(1, Math.max(0, waveData[i].low || 0));
+                midData[i] = Math.min(1, Math.max(0, waveData[i].mid || 0));
+                highData[i] = Math.min(1, Math.max(0, waveData[i].high || 0));
+            }
         }
         
-        // Render each band as a single path (much more efficient!)
-        this.drawBandMirror(ctx, lowData, '#ffffff', '#ffffff', this.config.SCALE_LOW, width, height, N);
-        this.drawBandMirror(ctx, midData, '#ffa600', '#ffa600', this.config.SCALE_MID, width, height, N);
-        this.drawBandMirror(ctx, highData, '#0055e1', '#0055e1', this.config.SCALE_HIGH, width, height, N);
+        // Render each band as a single path (MUCH more efficient than per-bar drawing!)
+        // Draw from bottom to top for proper layering
+        this.drawBandMirror(ctx, lowData, '#ffffff', '#ffffff', this.config.SCALE_LOW, width, height);
+        this.drawBandMirror(ctx, midData, '#ffa600', '#ffa600', this.config.SCALE_MID, width, height);
+        this.drawBandMirror(ctx, highData, '#0055e1', '#0055e1', this.config.SCALE_HIGH, width, height);
         
-        // Core white center boost
-        const coreData = midData.map(v => Math.min(1, v * this.config.CORE_BOOST));
-        this.drawBandMirror(ctx, coreData, 'rgba(255,255,255,0.8)', 'rgba(255,255,255,0.0)', this.config.SCALE_CORE, width, height, N);
+        // Core white center boost for visual pop
+        const coreData = new Float32Array(N);
+        for (let i = 0; i < N; i++) {
+            coreData[i] = Math.min(1, midData[i] * this.config.CORE_BOOST);
+        }
+        this.drawBandMirror(ctx, coreData, 'rgba(255,255,255,0.8)', 'rgba(255,255,255,0.0)', this.config.SCALE_CORE, width, height);
     }
     
     // Simple waveform rendering
     renderWaveformSimple(ctx, waveData, width, height) {
-        const N = waveData.length;
-        const data = waveData.map(s => (s.height || 0) / 255);
-        this.drawBandMirror(ctx, data, '#00d4ff', '#00d4ff', 0.85, width, height, N);
+        const samplesPerPixel = waveData.length / width;
+        let N = Math.min(waveData.length, width);
+        const data = new Float32Array(N);
+        
+        // Downsample efficiently
+        if (samplesPerPixel > 1) {
+            for (let x = 0; x < N; x++) {
+                const sampleStart = Math.floor(x * samplesPerPixel);
+                const sampleEnd = Math.min(waveData.length, Math.ceil((x + 1) * samplesPerPixel));
+                
+                let maxHeight = 0;
+                for (let i = sampleStart; i < sampleEnd; i++) {
+                    // Data is already normalized 0-1 from backend
+                    maxHeight = Math.max(maxHeight, waveData[i].height || 0);
+                }
+                data[x] = Math.min(1, Math.max(0, maxHeight));
+            }
+        } else {
+            for (let i = 0; i < N; i++) {
+                // Data is already normalized 0-1 from backend
+                data[i] = Math.min(1, Math.max(0, waveData[i].height || 0));
+            }
+        }
+        
+        this.drawBandMirror(ctx, data, '#00d4ff', '#00d4ff', 0.85, width, height);
     }
     
     // Draw a band with mirror (top and bottom) in one efficient path
-    drawBandMirror(ctx, data, topColor, bottomColor, scale, width, height, N) {
-        const w = width / N;
-        const centerY = height / 2;
+    // This is THE key optimization: instead of drawing thousands of individual bars,
+    // we draw ONE path that creates the entire waveform shape
+    drawBandMirror(ctx, data, topColor, bottomColor, scale, canvasWidth, canvasHeight) {
+        const N = data.length;
+        const w = canvasWidth / N;
+        const centerY = canvasHeight / 2;
         const heightRatio = this.config.HEIGHT_RATIO;
         
+        // Start a single path for the entire waveform
         ctx.beginPath();
         ctx.imageSmoothingEnabled = false;
         
-        // Draw top half
+        // Draw top contour (left to right)
         for (let i = 0; i < N; i++) {
-            const x = Math.floor(i * w) + 0.5;
+            const x = Math.floor(i * w) + 0.5;  // +0.5 for crisp pixels
             const amp = data[i];
-            const y = centerY - amp * (height * heightRatio * scale);
+            const y = centerY - amp * (canvasHeight * heightRatio * scale);
             
             if (i === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
         }
         
-        // Draw bottom half (mirrored)
+        // Draw bottom contour (right to left, mirrored)
         for (let i = N - 1; i >= 0; i--) {
             const x = Math.floor(i * w) + 0.5;
             const amp = data[i];
-            const y = centerY + amp * (height * heightRatio * scale);
+            const y = centerY + amp * (canvasHeight * heightRatio * scale);
             ctx.lineTo(x, y);
         }
         
         ctx.closePath();
         
-        // Apply gradient
-        const grad = ctx.createLinearGradient(0, 0, 0, height);
+        // Create gradient fill
+        const grad = ctx.createLinearGradient(0, 0, 0, canvasHeight);
         grad.addColorStop(0, topColor);
         grad.addColorStop(1, bottomColor);
         
