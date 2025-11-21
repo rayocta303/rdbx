@@ -312,17 +312,21 @@ class AnlzParser {
         $offset = 24;
         
         for ($i = 0; $i < $numCues && $offset + 56 <= strlen($sectionData); $i++) {
+            // PCOB cue entry structure (56 bytes total):
+            // 0-11: unknown header (12 bytes)
+            // 12-39: cue data (28 bytes) - THIS IS WHERE WE READ
+            // 40-55: padding/unknown (16 bytes)
             $cueData = unpack(
-                'Nhot_cue/' .
-                'Nstatus/' .
-                'Nunknown1/' .
-                'norder_first/' .
-                'norder_last/' .
-                'Ctype/' .
-                'Cu1/' .
-                'nu2/' .
-                'Ntime/' .
-                'Nloop_time',
+                'Nhot_cue/' .      // offset 12-15 (4 bytes)
+                'Nstatus/' .       // offset 16-19 (4 bytes)
+                'Nunknown1/' .     // offset 20-23 (4 bytes)
+                'norder_first/' .  // offset 24-25 (2 bytes)
+                'norder_last/' .   // offset 26-27 (2 bytes)
+                'Ctype/' .         // offset 28 (1 byte)
+                'Cu1/' .           // offset 29 (1 byte)
+                'nu2/' .           // offset 30-31 (2 bytes)
+                'Ntime/' .         // offset 32-35 (4 bytes)
+                'Nloop_time',      // offset 36-39 (4 bytes)
                 substr($sectionData, $offset + 12, 28)
             );
             
@@ -373,27 +377,39 @@ class AnlzParser {
         for ($i = 0; $i < $numCues && $offset < strlen($sectionData); $i++) {
             if ($offset + 16 > strlen($sectionData)) break;
             
+            // PCO2 entry header (16 bytes):
+            // 0-3: fourcc 'PCP2' (4 bytes)
+            // 4-7: len_header (4 bytes)
+            // 8-11: len_entry (4 bytes)
+            // 12-15: hot_cue (4 bytes)
             $entryHeader = unpack(
-                'Nlen_header/' .
-                'Nlen_entry/' .
-                'Nhot_cue',
+                'Nlen_header/' .   // offset 4-7
+                'Nlen_entry/' .    // offset 8-11
+                'Nhot_cue',        // offset 12-15
                 substr($sectionData, $offset + 4, 12)
             );
             
             $entryLen = $entryHeader['len_entry'] ?? 0;
             if ($entryLen == 0 || $offset + $entryLen > strlen($sectionData)) break;
             
+            // PCO2 cue data (starts at offset 16):
+            // 0: type (1 byte)
+            // 1: u1 (1 byte)
+            // 2-3: u2 (2 bytes)
+            // 4-7: time (4 bytes)
+            // 8-11: loop_time (4 bytes)
+            // 12: color_id (1 byte)
             $cueData = unpack(
-                'Ctype/' .
-                'Cu1/' .
-                'nu2/' .
-                'Ntime/' .
-                'Nloop_time/' .
-                'Ccolor_id',
+                'Ctype/' .         // offset 16
+                'Cu1/' .           // offset 17
+                'nu2/' .           // offset 18-19
+                'Ntime/' .         // offset 20-23
+                'Nloop_time/' .    // offset 24-27
+                'Ccolor_id',       // offset 28
                 substr($sectionData, $offset + 16, 14)
             );
             
-            // Extract comment if present
+            // Extract comment if present (starts at offset 40)
             $comment = '';
             if ($offset + 40 < strlen($sectionData)) {
                 $commentLen = unpack('V', substr($sectionData, $offset + 40, 4))[1];
