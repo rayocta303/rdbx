@@ -1,16 +1,43 @@
 <?php if ($data): ?>
 <div class="mixxx-container rounded-lg mb-6">
-    <div class="p-4 border-b-2 border-cyan-600 bg-gradient-to-r from-gray-800 to-gray-900">
-        <h2 class="text-xl font-bold deck-title flex items-center gap-2">
-            <i class="fas fa-play-circle"></i>
-            <span>Dual Deck Player</span>
-        </h2>
-    </div>
-    
-    <div class="p-6 bg-gray-900">
-        <div class="grid grid-cols-2 gap-4">
+
+        <!-- Waveform Section (Separated for Beat Matching) -->
+        <div class="waveform-beatmatch-section">
+            <div class="waveform-beatmatch-header">
+                <div class="waveform-zoom-controls">
+                    <button class="zoom-btn" onclick="window.dualPlayer.zoomBothDecks(-1);" title="Zoom Out Both Decks">
+                        <i class="fas fa-search-minus"></i>
+                    </button>
+                    <span class="zoom-level" id="sharedZoomLevel">16x</span>
+                    <button class="zoom-btn" onclick="window.dualPlayer.zoomBothDecks(1);" title="Zoom In Both Decks">
+                        <i class="fas fa-search-plus"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="waveform-beatmatch-container">
+                <!-- Waveform A -->
+                <div class="waveform-container-player" id="waveformContainerA">
+                    <canvas id="waveformCanvasA" class="waveform-canvas"></canvas>
+                    <div class="playhead">
+                        <div class="playhead-time" id="timeDisplayA">00:00 / 00:00</div>
+                    </div>
+                    <div class="cue-markers" id="cueMarkersA"></div>
+                </div>
+
+                <!-- Waveform B -->
+                <div class="waveform-container-player" id="waveformContainerB">
+                    <canvas id="waveformCanvasB" class="waveform-canvas"></canvas>
+                    <div class="playhead">
+                        <div class="playhead-time" id="timeDisplayB">00:00 / 00:00</div>
+                    </div>
+                    <div class="cue-markers" id="cueMarkersB"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-12">
             <!-- Deck A -->
-            <div class="deck-container deck-a" data-deck="a">
+            <div class="deck-container deck-a col-span-5" data-deck="a">
                 <div class="deck-header">
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center gap-2">
@@ -94,9 +121,48 @@
                     </div>
                 </div>
             </div>
-
+            <div class="flex items-end justify-center col-span-2">   
+                <!-- Volume Fader A -->
+                <div class="volume-fader-wrapper">
+                    <!-- <div class="volume-fader-label">VOL A</div> -->
+                    <div class="volume-fader-control">
+                        <span class="volume-value-vertical" id="volumeValueA">100%</span>
+                        <input type="range" class="volume-slider-vertical" id="volumeSliderA" 
+                               min="0" max="100" step="1" value="100"
+                               orient="vertical"
+                               oninput="window.dualPlayer.setVolume('a', this.value)">
+                        <!-- <div class="volume-fader-markers">
+                            <span>100</span>
+                            <span>50</span>
+                            <span>0</span>
+                        </div> -->
+                    </div>
+                    <!-- <div class="volume-fader-icon">
+                        <i class="fas fa-volume-up"></i>
+                    </div> -->
+                </div>
+                <!-- Volume Fader B -->
+                <div class="volume-fader-wrapper">
+                    <!-- <div class="volume-fader-label volume-fader-label-b">VOL B</div> -->
+                    <div class="volume-fader-control">
+                        <span class="volume-value-vertical" id="volumeValueB">100%</span>
+                        <input type="range" class="volume-slider-vertical" id="volumeSliderB" 
+                               min="0" max="100" step="1" value="100"
+                               orient="vertical"
+                               oninput="window.dualPlayer.setVolume('b', this.value)">
+                        <!-- <div class="volume-fader-markers">
+                            <span>100</span>
+                            <span>50</span>
+                            <span>0</span>
+                        </div> -->
+                    </div>
+                    <!-- <div class="volume-fader-icon">
+                        <i class="fas fa-volume-up"></i>
+                    </div> -->
+                </div>
+            </div>
             <!-- Deck B -->
-            <div class="deck-container deck-b" data-deck="b">
+            <div class="deck-container deck-b col-span-5" data-deck="b">
                 <div class="deck-header">
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center gap-2">
@@ -182,94 +248,6 @@
             </div>
         </div>
 
-        <!-- Waveform Section (Separated for Beat Matching) -->
-        <div class="waveform-beatmatch-section">
-            <div class="waveform-beatmatch-header">
-                <h3 class="waveform-section-title">
-                    <i class="fas fa-wave-square"></i>
-                    WAVEFORM BEAT MATCHING
-                </h3>
-                <div class="waveform-zoom-controls">
-                    <button class="zoom-btn" onclick="window.dualPlayer.zoomBothDecks(-1);" title="Zoom Out Both Decks">
-                        <i class="fas fa-search-minus"></i>
-                    </button>
-                    <span class="zoom-level" id="sharedZoomLevel">16x</span>
-                    <button class="zoom-btn" onclick="window.dualPlayer.zoomBothDecks(1);" title="Zoom In Both Decks">
-                        <i class="fas fa-search-plus"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="waveform-beatmatch-container">
-                <!-- Waveform A -->
-                <div class="waveform-container-player" id="waveformContainerA">
-                    <canvas id="waveformCanvasA" class="waveform-canvas"></canvas>
-                    <div class="playhead">
-                        <div class="playhead-time" id="timeDisplayA">00:00 / 00:00</div>
-                    </div>
-                    <div class="cue-markers" id="cueMarkersA"></div>
-                </div>
-
-                <!-- Waveform B -->
-                <div class="waveform-container-player" id="waveformContainerB">
-                    <canvas id="waveformCanvasB" class="waveform-canvas"></canvas>
-                    <div class="playhead">
-                        <div class="playhead-time" id="timeDisplayB">00:00 / 00:00</div>
-                    </div>
-                    <div class="cue-markers" id="cueMarkersB"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Mixer Volume Section (DJ Controller Style) -->
-        <div class="mixer-volume-section">
-            <div class="mixer-volume-header">
-                <h3 class="mixer-section-title">
-                    <i class="fas fa-sliders-h"></i>
-                    MIXER
-                </h3>
-            </div>
-            <div class="mixer-faders-container">
-                <!-- Volume Fader A -->
-                <div class="volume-fader-wrapper">
-                    <div class="volume-fader-label">VOL A</div>
-                    <div class="volume-fader-control">
-                        <span class="volume-value-vertical" id="volumeValueA">100%</span>
-                        <input type="range" class="volume-slider-vertical" id="volumeSliderA" 
-                               min="0" max="100" step="1" value="100"
-                               orient="vertical"
-                               oninput="window.dualPlayer.setVolume('a', this.value)">
-                        <div class="volume-fader-markers">
-                            <span>100</span>
-                            <span>50</span>
-                            <span>0</span>
-                        </div>
-                    </div>
-                    <div class="volume-fader-icon">
-                        <i class="fas fa-volume-up"></i>
-                    </div>
-                </div>
-
-                <!-- Volume Fader B -->
-                <div class="volume-fader-wrapper">
-                    <div class="volume-fader-label volume-fader-label-b">VOL B</div>
-                    <div class="volume-fader-control">
-                        <span class="volume-value-vertical" id="volumeValueB">100%</span>
-                        <input type="range" class="volume-slider-vertical" id="volumeSliderB" 
-                               min="0" max="100" step="1" value="100"
-                               orient="vertical"
-                               oninput="window.dualPlayer.setVolume('b', this.value)">
-                        <div class="volume-fader-markers">
-                            <span>100</span>
-                            <span>50</span>
-                            <span>0</span>
-                        </div>
-                    </div>
-                    <div class="volume-fader-icon">
-                        <i class="fas fa-volume-up"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    
 </div>
 <?php endif; ?>

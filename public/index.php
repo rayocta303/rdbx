@@ -28,7 +28,12 @@ try {
 require_once 'partials/head.php';
 ?>
 
-<div class="container mx-auto px-4 py-6 max-w-full">
+<div class="container mx-auto px-2 max-w-full">
+
+    <?php require_once 'components/player.php'; ?>
+
+    <?php require_once 'components/browser.php'; ?>
+
     <div class="mixxx-container rounded-lg mb-6">
         <div class="mixxx-header">
             <div class="flex items-center justify-between">
@@ -50,11 +55,6 @@ require_once 'partials/head.php';
 
         <?php require_once 'components/stats.php'; ?>
     </div>
-
-    <?php require_once 'components/player.php'; ?>
-
-    <?php require_once 'components/browser.php'; ?>
-
     <?php require_once 'components/debug.php'; ?>
 </div>
 

@@ -12,9 +12,9 @@ body {
 }
 
 .mixxx-container {
-    background: #1e1e1e;
-    border: 1px solid #333;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    /* background: #1e1e1e; */
+    /* border: 1px solid #333; */
+    /* box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5); */
 }
 
 .mixxx-header {
@@ -182,16 +182,16 @@ canvas {
 .deck-container {
     background: #1a1a1a;
     border: 2px solid #2a2a2a;
-    border-radius: 8px;
+    /* border-radius: 8px; */
     padding: 1rem;
 }
 
 .deck-a {
-    border-color: #00d4ff;
+    /* border-color: #00d4ff; */
 }
 
 .deck-b {
-    border-color: #ff6b00;
+    /* border-color: #ff6b00; */
 }
 
 .deck-label {
@@ -562,14 +562,14 @@ canvas {
 }
 
 .load-deck-a:hover {
-    background: #00d4ff;
-    border-color: #00d4ff;
+    /* background: #00d4ff;
+    border-color: #00d4ff; */
     color: #000;
 }
 
 .load-deck-b:hover {
-    background: #ff6b00;
-    border-color: #ff6b00;
+    /* background: #ff6b00; */
+    /* border-color: #ff6b00; */
     color: #000;
 }
 
@@ -836,9 +836,9 @@ canvas {
 .waveform-beatmatch-section {
     margin-top: 20px;
     background: #0d0d0d;
-    border: 2px solid #00d4ff;
-    border-radius: 8px;
-    padding: 16px;
+    /* border: 2px solid #00d4ff; */
+    /* border-radius: 8px; */
+    /* padding: 16px; */
 }
 
 .waveform-beatmatch-header {
@@ -871,7 +871,7 @@ canvas {
     gap: 0;
     background: #0a0a0a;
     border: 2px solid #2a2a2a;
-    border-radius: 4px;
+    /* border-radius: 4px; */
     overflow: hidden;
 }
 
@@ -954,7 +954,7 @@ canvas {
     gap: 8px;
     background: #252525;
     padding: 20px 30px;
-    border-radius: 8px;
+    /* border-radius: 8px; */
     border: 2px solid #3a3a3a;
 }
 
