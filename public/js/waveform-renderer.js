@@ -9,7 +9,8 @@ class WaveformRenderer {
         this.detailedScrollOffset = 0;
         this.onClickCallback = null;
         
-        // Configuration for efficient rendering
+        this.DPR = window.devicePixelRatio || 1;
+        
         this.config = {
             HEIGHT_RATIO: 0.48,
             SCALE_LOW: 1.0,
@@ -20,28 +21,43 @@ class WaveformRenderer {
         };
         
         this.setupCanvases();
+        
+        this.boundResize = this.handleResize.bind(this);
+        window.addEventListener('resize', this.boundResize);
     }
     
     setupCanvases() {
         if (this.overviewCanvas) {
-            // Wait for DOM to be ready and canvas to have size
-            const width = this.overviewCanvas.offsetWidth || this.overviewCanvas.parentElement?.offsetWidth || 800;
-            this.overviewCanvas.width = width * 2;
-            this.overviewCanvas.height = 120;
-            
-            this.overviewCanvas.addEventListener('click', (e) => {
-                this.handleOverviewClick(e);
-            });
+            this.resizeCanvas(this.overviewCanvas, 120);
+            this.overviewCanvas.addEventListener('click', (e) => this.handleOverviewClick(e));
         }
         
         if (this.detailedCanvas) {
-            const width = this.detailedCanvas.offsetWidth || this.detailedCanvas.parentElement?.offsetWidth || 800;
-            this.detailedCanvas.width = width * 2;
-            this.detailedCanvas.height = 240;
-            
-            this.detailedCanvas.addEventListener('click', (e) => {
-                this.handleDetailedClick(e);
-            });
+            this.resizeCanvas(this.detailedCanvas, 240);
+            this.detailedCanvas.addEventListener('click', (e) => this.handleDetailedClick(e));
+        }
+    }
+    
+    resizeCanvas(canvas, desiredHeight) {
+        const W = canvas.clientWidth || canvas.parentElement?.clientWidth || 800;
+        const H = desiredHeight;
+        
+        canvas.width = W * this.DPR;
+        canvas.height = H * this.DPR;
+        canvas.style.width = W + 'px';
+        canvas.style.height = H + 'px';
+        
+        const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+        ctx.setTransform(this.DPR, 0, 0, this.DPR, 0, 0);
+    }
+    
+    handleResize() {
+        if (this.overviewCanvas) this.resizeCanvas(this.overviewCanvas, 120);
+        if (this.detailedCanvas) this.resizeCanvas(this.detailedCanvas, 240);
+        
+        if (this.waveformData) {
+            this.renderOverview();
+            this.renderDetailed();
         }
     }
     
@@ -60,65 +76,53 @@ class WaveformRenderer {
     }
     
     renderOverview() {
-        if (!this.overviewCanvas || !this.waveformData) {
-            return;
-        }
+        if (!this.overviewCanvas || !this.waveformData) return;
         
-        const ctx = this.overviewCanvas.getContext('2d', { 
-            alpha: false,
-            desynchronized: true
-        });
-        const width = this.overviewCanvas.width;
-        const height = this.overviewCanvas.height;
+        const ctx = this.overviewCanvas.getContext('2d', { alpha: false, desynchronized: true });
+        const W = this.overviewCanvas.width / this.DPR;
+        const H = this.overviewCanvas.height / this.DPR;
         
         ctx.fillStyle = '#0a0a0a';
-        ctx.fillRect(0, 0, width, height);
+        ctx.fillRect(0, 0, W, H);
         
         const waveData = this.waveformData.three_band_preview || this.waveformData.color_data || this.waveformData.preview_data;
         if (!waveData || waveData.length === 0) {
             ctx.fillStyle = '#333';
             ctx.font = '14px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText('No waveform data available', width / 2, height / 2);
+            ctx.fillText('No waveform data', W / 2, H / 2);
             return;
         }
         
-        const is3Band = waveData[0].mid !== undefined;
+        const is3Band = waveData[0]?.mid !== undefined;
         
         if (is3Band) {
-            // Efficient path-based rendering for 3-band
-            this.renderWaveform3Band(ctx, waveData, width, height);
+            this.renderWaveform3Band(ctx, waveData, W, H);
         } else {
-            // Simple waveform rendering
-            this.renderWaveformSimple(ctx, waveData, width, height);
+            this.renderWaveformSimple(ctx, waveData, W, H);
         }
         
-        ctx.strokeStyle = '#00d4ff30';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(0, 0, width, height);
-        
-        this.drawOverviewPlayhead();
+        if (this.duration > 0) {
+            this.drawPlayhead(ctx, W, H, this.playheadPosition / this.duration);
+        }
     }
     
     renderDetailed() {
         if (!this.detailedCanvas || !this.waveformData) return;
         
-        const ctx = this.detailedCanvas.getContext('2d', { 
-            alpha: false,
-            desynchronized: true
-        });
-        const width = this.detailedCanvas.width;
-        const height = this.detailedCanvas.height;
+        const ctx = this.detailedCanvas.getContext('2d', { alpha: false, desynchronized: true });
+        const W = this.detailedCanvas.width / this.DPR;
+        const H = this.detailedCanvas.height / this.DPR;
         
         ctx.fillStyle = '#0a0a0a';
-        ctx.fillRect(0, 0, width, height);
+        ctx.fillRect(0, 0, W, H);
         
         const waveData = this.waveformData.three_band_detail || this.waveformData.color_data || this.waveformData.preview_data;
         if (!waveData || waveData.length === 0) {
             ctx.fillStyle = '#333';
             ctx.font = '16px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText('No waveform data available', width / 2, height / 2);
+            ctx.fillText('No waveform data', W / 2, H / 2);
             return;
         }
         
@@ -131,82 +135,146 @@ class WaveformRenderer {
         
         if (visibleData.length === 0) return;
         
-        const is3Band = visibleData[0] && visibleData[0].mid !== undefined;
+        const is3Band = visibleData[0]?.mid !== undefined;
         
         if (is3Band) {
-            // Efficient path-based rendering for 3-band
-            this.renderWaveform3Band(ctx, visibleData, width, height);
+            this.renderWaveform3Band(ctx, visibleData, W, H);
         } else {
-            // Simple waveform rendering
-            this.renderWaveformSimple(ctx, visibleData, width, height);
+            this.renderWaveformSimple(ctx, visibleData, W, H);
         }
         
-        ctx.strokeStyle = '#00d4ff30';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(0, 0, width, height);
-        
-        this.drawDetailedPlayhead();
+        if (this.duration > 0) {
+            const relativePosition = this.playheadPosition - this.detailedScrollOffset;
+            if (relativePosition >= 0 && relativePosition <= visibleDuration) {
+                this.drawPlayhead(ctx, W, H, relativePosition / visibleDuration);
+            }
+        }
     }
     
-    drawOverviewPlayhead() {
-        if (!this.overviewCanvas || !this.duration) return;
+    renderWaveform3Band(ctx, waveData, W, H) {
+        const N = Math.min(waveData.length, Math.floor(W));
+        const samplesPerPixel = waveData.length / N;
         
-        const ctx = this.overviewCanvas.getContext('2d');
-        const width = this.overviewCanvas.width;
-        const height = this.overviewCanvas.height;
+        const lowData = new Float32Array(N);
+        const midData = new Float32Array(N);
+        const highData = new Float32Array(N);
         
-        const x = (this.playheadPosition / this.duration) * width;
+        if (samplesPerPixel > 1) {
+            for (let x = 0; x < N; x++) {
+                const sampleStart = Math.floor(x * samplesPerPixel);
+                const sampleEnd = Math.min(waveData.length, Math.ceil((x + 1) * samplesPerPixel));
+                
+                let maxLow = 0, maxMid = 0, maxHigh = 0;
+                for (let i = sampleStart; i < sampleEnd; i++) {
+                    const sample = waveData[i];
+                    maxLow = Math.max(maxLow, sample.low || 0);
+                    maxMid = Math.max(maxMid, sample.mid || 0);
+                    maxHigh = Math.max(maxHigh, sample.high || 0);
+                }
+                
+                lowData[x] = Math.min(1, Math.max(0, maxLow));
+                midData[x] = Math.min(1, Math.max(0, maxMid));
+                highData[x] = Math.min(1, Math.max(0, maxHigh));
+            }
+        } else {
+            for (let i = 0; i < N; i++) {
+                lowData[i] = Math.min(1, Math.max(0, waveData[i]?.low || 0));
+                midData[i] = Math.min(1, Math.max(0, waveData[i]?.mid || 0));
+                highData[i] = Math.min(1, Math.max(0, waveData[i]?.high || 0));
+            }
+        }
         
+        this.drawBandMirror(ctx, lowData, '#ffffff', '#ffffff', this.config.SCALE_LOW, W, H);
+        this.drawBandMirror(ctx, midData, '#ffa600', '#ffa600', this.config.SCALE_MID, W, H);
+        this.drawBandMirror(ctx, highData, '#0055e1', '#0055e1', this.config.SCALE_HIGH, W, H);
+        
+        const coreData = new Float32Array(N);
+        for (let i = 0; i < N; i++) {
+            coreData[i] = Math.min(1, midData[i] * this.config.CORE_BOOST);
+        }
+        this.drawBandMirror(ctx, coreData, 'rgba(255,255,255,0.8)', 'rgba(255,255,255,0.0)', this.config.SCALE_CORE, W, H);
+    }
+    
+    renderWaveformSimple(ctx, waveData, W, H) {
+        const N = Math.min(waveData.length, Math.floor(W));
+        const samplesPerPixel = waveData.length / N;
+        const data = new Float32Array(N);
+        
+        if (samplesPerPixel > 1) {
+            for (let x = 0; x < N; x++) {
+                const sampleStart = Math.floor(x * samplesPerPixel);
+                const sampleEnd = Math.min(waveData.length, Math.ceil((x + 1) * samplesPerPixel));
+                
+                let maxHeight = 0;
+                for (let i = sampleStart; i < sampleEnd; i++) {
+                    maxHeight = Math.max(maxHeight, waveData[i]?.height || 0);
+                }
+                data[x] = Math.min(1, Math.max(0, maxHeight));
+            }
+        } else {
+            for (let i = 0; i < N; i++) {
+                data[i] = Math.min(1, Math.max(0, waveData[i]?.height || 0));
+            }
+        }
+        
+        this.drawBandMirror(ctx, data, '#00d4ff', '#00d4ff', 0.85, W, H);
+    }
+    
+    drawBandMirror(ctx, data, topColor, bottomColor, scale, W, H) {
+        const N = data.length;
+        const w = W / N;
+        
+        ctx.beginPath();
+        ctx.imageSmoothingEnabled = false;
+        
+        for (let i = 0; i < N; i++) {
+            const x = Math.floor(i * w) + 0.5;
+            const amp = data[i];
+            const y = H / 2 - amp * (H * this.config.HEIGHT_RATIO * scale);
+            
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        
+        for (let i = N - 1; i >= 0; i--) {
+            const x = Math.floor(i * w) + 0.5;
+            const amp = data[i];
+            const y = H / 2 + amp * (H * this.config.HEIGHT_RATIO * scale);
+            ctx.lineTo(x, y);
+        }
+        
+        ctx.closePath();
+        
+        const grad = ctx.createLinearGradient(0, 0, 0, H);
+        grad.addColorStop(0, topColor);
+        grad.addColorStop(1, bottomColor);
+        
+        ctx.fillStyle = grad;
+        ctx.lineJoin = 'round';
+        ctx.fill();
+    }
+    
+    drawPlayhead(ctx, W, H, position) {
+        const x = position * W;
+        
+        ctx.save();
         ctx.shadowBlur = 8;
         ctx.shadowColor = '#FF4444';
         ctx.strokeStyle = '#FF4444';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(x, 0);
-        ctx.lineTo(x, height);
+        ctx.lineTo(x, H);
         ctx.stroke();
-        ctx.shadowBlur = 0;
+        ctx.restore();
         
         ctx.fillStyle = '#FF4444';
         ctx.beginPath();
         ctx.moveTo(x, 0);
-        ctx.lineTo(x - 6, 10);
-        ctx.lineTo(x + 6, 10);
+        ctx.lineTo(x - 5, 8);
+        ctx.lineTo(x + 5, 8);
         ctx.closePath();
         ctx.fill();
-    }
-    
-    drawDetailedPlayhead() {
-        if (!this.detailedCanvas || !this.duration) return;
-        
-        const ctx = this.detailedCanvas.getContext('2d');
-        const width = this.detailedCanvas.width;
-        const height = this.detailedCanvas.height;
-        
-        const visibleDuration = this.duration / this.detailedZoom;
-        const relativePosition = this.playheadPosition - this.detailedScrollOffset;
-        
-        if (relativePosition >= 0 && relativePosition <= visibleDuration) {
-            const x = (relativePosition / visibleDuration) * width;
-            
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = '#FF4444';
-            ctx.strokeStyle = '#FF4444';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, height);
-            ctx.stroke();
-            ctx.shadowBlur = 0;
-            
-            ctx.fillStyle = '#FF4444';
-            ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x - 6, 10);
-            ctx.lineTo(x + 6, 10);
-            ctx.closePath();
-            ctx.fill();
-        }
     }
     
     updatePlayhead(currentTime) {
@@ -224,138 +292,12 @@ class WaveformRenderer {
         this.renderDetailed();
     }
     
-    // Efficient 3-band waveform rendering with path-based approach
-    renderWaveform3Band(ctx, waveData, width, height) {
-        const samplesPerPixel = waveData.length / width;
-        let N = Math.min(waveData.length, width);
-        
-        // Pre-allocate typed arrays for better memory efficiency
-        const lowData = new Float32Array(N);
-        const midData = new Float32Array(N);
-        const highData = new Float32Array(N);
-        
-        // Downsample efficiently: aggregate max values per pixel
-        if (samplesPerPixel > 1) {
-            for (let x = 0; x < N; x++) {
-                const sampleStart = Math.floor(x * samplesPerPixel);
-                const sampleEnd = Math.min(waveData.length, Math.ceil((x + 1) * samplesPerPixel));
-                
-                let maxLow = 0, maxMid = 0, maxHigh = 0;
-                for (let i = sampleStart; i < sampleEnd; i++) {
-                    const sample = waveData[i];
-                    // Data is already normalized 0-1 from backend
-                    maxLow = Math.max(maxLow, sample.low || 0);
-                    maxMid = Math.max(maxMid, sample.mid || 0);
-                    maxHigh = Math.max(maxHigh, sample.high || 0);
-                }
-                
-                // Clamp to ensure valid range
-                lowData[x] = Math.min(1, Math.max(0, maxLow));
-                midData[x] = Math.min(1, Math.max(0, maxMid));
-                highData[x] = Math.min(1, Math.max(0, maxHigh));
-            }
-        } else {
-            // Direct copy when we have fewer samples than pixels
-            for (let i = 0; i < N; i++) {
-                // Data is already normalized 0-1 from backend
-                lowData[i] = Math.min(1, Math.max(0, waveData[i].low || 0));
-                midData[i] = Math.min(1, Math.max(0, waveData[i].mid || 0));
-                highData[i] = Math.min(1, Math.max(0, waveData[i].high || 0));
-            }
-        }
-        
-        // Render each band as a single path (MUCH more efficient than per-bar drawing!)
-        // Draw from bottom to top for proper layering
-        this.drawBandMirror(ctx, lowData, '#ffffff', '#ffffff', this.config.SCALE_LOW, width, height);
-        this.drawBandMirror(ctx, midData, '#ffa600', '#ffa600', this.config.SCALE_MID, width, height);
-        this.drawBandMirror(ctx, highData, '#0055e1', '#0055e1', this.config.SCALE_HIGH, width, height);
-        
-        // Core white center boost for visual pop
-        const coreData = new Float32Array(N);
-        for (let i = 0; i < N; i++) {
-            coreData[i] = Math.min(1, midData[i] * this.config.CORE_BOOST);
-        }
-        this.drawBandMirror(ctx, coreData, 'rgba(255,255,255,0.8)', 'rgba(255,255,255,0.0)', this.config.SCALE_CORE, width, height);
-    }
-    
-    // Simple waveform rendering
-    renderWaveformSimple(ctx, waveData, width, height) {
-        const samplesPerPixel = waveData.length / width;
-        let N = Math.min(waveData.length, width);
-        const data = new Float32Array(N);
-        
-        // Downsample efficiently
-        if (samplesPerPixel > 1) {
-            for (let x = 0; x < N; x++) {
-                const sampleStart = Math.floor(x * samplesPerPixel);
-                const sampleEnd = Math.min(waveData.length, Math.ceil((x + 1) * samplesPerPixel));
-                
-                let maxHeight = 0;
-                for (let i = sampleStart; i < sampleEnd; i++) {
-                    // Data is already normalized 0-1 from backend
-                    maxHeight = Math.max(maxHeight, waveData[i].height || 0);
-                }
-                data[x] = Math.min(1, Math.max(0, maxHeight));
-            }
-        } else {
-            for (let i = 0; i < N; i++) {
-                // Data is already normalized 0-1 from backend
-                data[i] = Math.min(1, Math.max(0, waveData[i].height || 0));
-            }
-        }
-        
-        this.drawBandMirror(ctx, data, '#00d4ff', '#00d4ff', 0.85, width, height);
-    }
-    
-    // Draw a band with mirror (top and bottom) in one efficient path
-    // This is THE key optimization: instead of drawing thousands of individual bars,
-    // we draw ONE path that creates the entire waveform shape
-    drawBandMirror(ctx, data, topColor, bottomColor, scale, canvasWidth, canvasHeight) {
-        const N = data.length;
-        const w = canvasWidth / N;
-        const centerY = canvasHeight / 2;
-        const heightRatio = this.config.HEIGHT_RATIO;
-        
-        // Start a single path for the entire waveform
-        ctx.beginPath();
-        ctx.imageSmoothingEnabled = false;
-        
-        // Draw top contour (left to right)
-        for (let i = 0; i < N; i++) {
-            const x = Math.floor(i * w) + 0.5;  // +0.5 for crisp pixels
-            const amp = data[i];
-            const y = centerY - amp * (canvasHeight * heightRatio * scale);
-            
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-        }
-        
-        // Draw bottom contour (right to left, mirrored)
-        for (let i = N - 1; i >= 0; i--) {
-            const x = Math.floor(i * w) + 0.5;
-            const amp = data[i];
-            const y = centerY + amp * (canvasHeight * heightRatio * scale);
-            ctx.lineTo(x, y);
-        }
-        
-        ctx.closePath();
-        
-        // Create gradient fill
-        const grad = ctx.createLinearGradient(0, 0, 0, canvasHeight);
-        grad.addColorStop(0, topColor);
-        grad.addColorStop(1, bottomColor);
-        
-        ctx.fillStyle = grad;
-        ctx.lineJoin = 'round';
-        ctx.fill();
-    }
-    
     handleOverviewClick(event) {
         if (!this.duration) return;
         
         const rect = this.overviewCanvas.getBoundingClientRect();
-        const x = (event.clientX - rect.left) * 2;
-        const percent = x / this.overviewCanvas.width;
+        const x = event.clientX - rect.left;
+        const percent = x / rect.width;
         const time = percent * this.duration;
         
         if (this.onClickCallback) {
@@ -367,9 +309,9 @@ class WaveformRenderer {
         if (!this.duration) return;
         
         const rect = this.detailedCanvas.getBoundingClientRect();
-        const x = (event.clientX - rect.left) * 2;
+        const x = event.clientX - rect.left;
         const visibleDuration = this.duration / this.detailedZoom;
-        const percent = x / this.detailedCanvas.width;
+        const percent = x / rect.width;
         const time = this.detailedScrollOffset + (percent * visibleDuration);
         
         if (this.onClickCallback) {
@@ -384,14 +326,22 @@ class WaveformRenderer {
     clear() {
         if (this.overviewCanvas) {
             const ctx = this.overviewCanvas.getContext('2d');
-            ctx.fillStyle = '#1a1a1a';
-            ctx.fillRect(0, 0, this.overviewCanvas.width, this.overviewCanvas.height);
+            const W = this.overviewCanvas.width / this.DPR;
+            const H = this.overviewCanvas.height / this.DPR;
+            ctx.fillStyle = '#0a0a0a';
+            ctx.fillRect(0, 0, W, H);
         }
         
         if (this.detailedCanvas) {
             const ctx = this.detailedCanvas.getContext('2d');
-            ctx.fillStyle = '#1a1a1a';
-            ctx.fillRect(0, 0, this.detailedCanvas.width, this.detailedCanvas.height);
+            const W = this.detailedCanvas.width / this.DPR;
+            const H = this.detailedCanvas.height / this.DPR;
+            ctx.fillStyle = '#0a0a0a';
+            ctx.fillRect(0, 0, W, H);
         }
+    }
+    
+    destroy() {
+        window.removeEventListener('resize', this.boundResize);
     }
 }
