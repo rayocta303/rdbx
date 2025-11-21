@@ -653,37 +653,61 @@ class DualPlayer {
         if (visibleData.length === 0) return;
         
         const dataWidth = displayWidth - leadingBlankWidth;
-        const step = dataWidth / visibleData.length;
+        const pixelsPerSample = dataWidth / visibleData.length;
         const height = displayHeight;
         const isColorWaveform = visibleData[0] && visibleData[0].r !== undefined;
         
-        // Use sub-pixel rendering for smoother waveforms
-        visibleData.forEach((sample, i) => {
-            const x = leadingBlankWidth + (i * step);
-            const normalizedHeight = sample.height / 255;
+        // MIXXX-inspired max sampling for smooth rendering
+        // For each pixel, find the max amplitude within the sampling window
+        for (let x = 0; x < displayWidth; x++) {
+            // Calculate which samples this pixel represents
+            const sampleStart = Math.floor((x - leadingBlankWidth) / pixelsPerSample);
+            const sampleEnd = Math.ceil((x - leadingBlankWidth + 1) / pixelsPerSample);
+            
+            // Skip if we're in the leading blank area or beyond data
+            if (sampleStart < 0 || sampleStart >= visibleData.length) {
+                continue;
+            }
+            
+            // Find max values in this pixel's sample range
+            let maxHeight = 0;
+            let maxR = 0, maxG = 0, maxB = 0;
+            
+            for (let i = Math.max(0, sampleStart); i < Math.min(visibleData.length, sampleEnd + 1); i++) {
+                const sample = visibleData[i];
+                if (!sample) continue;
+                
+                maxHeight = Math.max(maxHeight, sample.height || 0);
+                if (isColorWaveform) {
+                    maxR = Math.max(maxR, sample.r || 0);
+                    maxG = Math.max(maxG, sample.g || 0);
+                    maxB = Math.max(maxB, sample.b || 0);
+                }
+            }
+            
+            if (maxHeight === 0) continue;
+            
+            const normalizedHeight = maxHeight / 255;
             const barHeight = normalizedHeight * height * 0.9;
             const y = (height - barHeight) / 2;
             
-            // Smooth bar width with sub-pixel precision
-            const barWidth = Math.max(1.2, step * 1.05);
+            // Dynamic bar width based on zoom - ensures smooth appearance
+            const barWidth = Math.max(1.0, pixelsPerSample * 1.1);
             
             if (isColorWaveform) {
-                const brightness = Math.max(sample.r, sample.g, sample.b) / 255;
+                const brightness = Math.max(maxR, maxG, maxB) / 255;
                 
                 const gradient = ctx.createLinearGradient(x, y, x, y + barHeight);
-                const r = sample.r;
-                const g = sample.g;
-                const b = sample.b;
                 
-                gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${0.9 + brightness * 0.1})`);
-                gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${0.95})`);
-                gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, ${0.9 + brightness * 0.1})`);
+                gradient.addColorStop(0, `rgba(${maxR}, ${maxG}, ${maxB}, ${0.9 + brightness * 0.1})`);
+                gradient.addColorStop(0.5, `rgba(${maxR}, ${maxG}, ${maxB}, ${0.95})`);
+                gradient.addColorStop(1, `rgba(${maxR}, ${maxG}, ${maxB}, ${0.9 + brightness * 0.1})`);
                 
                 ctx.fillStyle = gradient;
                 
                 // Softer glow effect
-                ctx.shadowBlur = 1.5;
-                ctx.shadowColor = `rgba(${r}, ${g}, ${b}, 0.3)`;
+                ctx.shadowBlur = 1.2;
+                ctx.shadowColor = `rgba(${maxR}, ${maxG}, ${maxB}, 0.25)`;
             } else {
                 const intensity = normalizedHeight;
                 
@@ -695,14 +719,14 @@ class DualPlayer {
                 ctx.fillStyle = gradient;
                 
                 // Softer glow effect
-                ctx.shadowBlur = 1.5;
-                ctx.shadowColor = `rgba(0, 217, 255, ${0.25 + intensity * 0.15})`;
+                ctx.shadowBlur = 1.2;
+                ctx.shadowColor = `rgba(0, 217, 255, ${0.2 + intensity * 0.15})`;
             }
             
-            // Use sub-pixel positioning for smoother rendering
-            ctx.fillRect(x - barWidth/4, y, barWidth, barHeight);
+            // Draw bar with slight overlap for smooth appearance
+            ctx.fillRect(x - barWidth * 0.1, y, barWidth, barHeight);
             ctx.shadowBlur = 0;
-        });
+        }
         
         this.renderBeatgrid(deckId, ctx, displayWidth, displayHeight, viewStart, viewDuration);
     }

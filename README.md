@@ -10,10 +10,15 @@ Professional DJ Library Manager dengan Dual Deck Player untuk membaca dan memain
 - **Master Tempo (Key Lock)**: Maintain pitch asli saat adjust tempo
 - **Tempo Nudge**: Temporary speed adjustment (±4%) untuk beat matching
 - **Volume Control**: Independent volume slider per deck (0-100%)
-- **BPM Sync**: Match tempo antar deck
+- **BPM Sync (Latching Toggle)**:
+  - Toggle on/off mode (seperti Quantize, bukan momentary button)
+  - Saat aktif, pitch slider master deck otomatis sync ke slave deck
+  - Auto-enable master deck jika belum di-set (saat kedua deck memiliki track)
+  - Active state indication dengan highlight button
 - **Beat Sync**: Sync tempo + snap beat grid phase untuk perfect alignment
-  - Uses actual Rekordbox beat grid offsets
+  - Uses actual Rekordbox beat grid offsets (PQTZ section dari ANLZ files)
   - Calculates phase difference dan adjust playback position
+  - Momentary button untuk one-time sync
 - **Quantize**: Snap to nearest beat functionality
   - Toggle per deck
   - Applies to hot cue triggers
@@ -24,10 +29,15 @@ Professional DJ Library Manager dengan Dual Deck Player untuk membaca dan memain
 - **FontAwesome Icons**: Modern icon system menggantikan emoji
 - **Dual Deck Layout**: Library browser, dual waveform display, dan hot cue pads
 - **Color-Coded Waveforms**: Visualisasi waveform dengan analisis frekuensi RGB
+- **Smooth Waveform Rendering**: 
+  - High DPI canvas dengan devicePixelRatio support untuk retina displays
+  - Anti-aliasing dan sub-pixel rendering untuk smooth edges seperti Rekordbox
+  - Optimized glow effects dan gradients
 - **Hot Cue Pads**: 8 pads per deck dengan color coding dan gradient effects
-- **Real-time Waveform Rendering**: Canvas-based waveform dengan beatgrid overlay dan glow effects
+- **Real-time Waveform Rendering**: Canvas-based waveform dengan beatgrid overlay
 - **Center Playhead**: Fixed playhead dengan auto-scrolling waveform
 - **Zoom Controls**: 1x to 64x zoom (default 16x) dengan drag-to-seek
+- **In-UI Notifications**: Toast notifications untuk feedback (menggantikan JavaScript alerts)
 
 ### 📀 Parsing Database Lengkap
 - Membaca file `export.pdb` dan `exportExt.pdb` (DeviceSQL format)
@@ -135,11 +145,15 @@ Professional DJ Library Manager dengan Dual Deck Player untuk membaca dan memain
 - **Volume**: Adjust slider (0-100%)
 
 #### Tempo & Beat Matching
-1. **Pitch Slider**: Move slider untuk permanent tempo change (±16%)
-2. **Master Tempo**: Toggle untuk lock musical key
-3. **Nudge**: Hold +/- buttons untuk temporary speed adjustment
-4. **Sync (→)**: Match tempo saja
-5. **Beat Sync (⚡)**: Match tempo + align beat grid phase
+1. **Set Master Deck**: Klik **MASTER** button untuk set deck sebagai master (auto-set jika BPM Sync ditekan)
+2. **Pitch Slider**: Move slider untuk permanent tempo change (±16%)
+   - Saat BPM Sync aktif, pitch master deck otomatis sync ke slave deck
+3. **Master Tempo**: Toggle untuk lock musical key
+4. **Nudge**: Hold +/- buttons untuk temporary speed adjustment
+5. **BPM Sync**: Toggle on/off untuk latching sync mode
+   - Saat ON (highlighted), pitch changes master deck otomatis sync ke slave deck
+   - Auto-enable master deck jika belum di-set
+6. **Beat Sync**: One-time sync tempo + align beat grid phase (momentary button)
 
 #### Hot Cues
 1. Klik hot cue pad (1-8) untuk jump ke cue point
@@ -177,10 +191,12 @@ Database Rekordbox menggunakan format binary proprietary dengan struktur page-ba
 ### ANLZ (Analysis Files)
 Files dengan tag-based structure untuk data analysis:
 
-- **PQTZ**: Beatgrid data (beat position, tempo, time)
+- **PQTZ**: Beatgrid data (beat position, tempo, time) - big-endian format
+  - Digunakan untuk BPM Sync dan Beat Sync functionality
+  - Menyimpan timing beats, tempo, dan phase information
 - **PCOB/PCO2**: Cue points dan loops (big-endian time values)
 - **PWAV/PWV3/PWV5**: Waveform data (monochrome & RGB colored)
-- **Big-endian**: Berbeda dengan PDB format (critical untuk parsing cue times)
+- **Big-endian**: Berbeda dengan PDB format (critical untuk parsing cue times dan beat grids)
 
 #### ANLZ File Priority
 Parser menggunakan prioritas file:
@@ -218,11 +234,13 @@ Menggunakan **FontAwesome 6.5.1** (CDN):
 ## 🔍 Fitur Teknis
 
 ### Canvas Waveform Rendering
-- Dynamic canvas sizing dengan device pixel ratio support
-- Fallback sizing untuk DOM load timing issues
-- RGB color data dari ANLZ files
-- Glow effects dengan shadow rendering
-- Click-to-seek pada overview dan detailed waveforms
+- High DPI rendering dengan devicePixelRatio untuk retina/4K displays
+- Anti-aliasing dan imageSmoothingQuality = 'high' untuk smooth edges
+- Sub-pixel rendering untuk smooth waveform seperti Rekordbox
+- Dynamic canvas sizing dengan fallback untuk DOM load timing issues
+- RGB color data dari ANLZ files dengan gradient effects
+- Softer glow effects dengan optimized shadow rendering
+- Click-to-seek pada waveforms
 
 ### Cue Point Management
 - Parse semua cue types (hot cue, memory cue, loops)
@@ -311,7 +329,29 @@ Special thanks kepada seluruh komunitas yang berkontribusi dalam reverse-enginee
 
 ---
 
-**v2.0 - MIXXX Edition with Professional DJ Player** | Powered by PHP 8.2 | UI inspired by MIXXX DJ Software
+**v2.1 - Enhanced BPM Sync & Smooth Waveforms** | Powered by PHP 8.2 | UI inspired by MIXXX DJ Software
+
+### 📋 Recent Updates (v2.1)
+
+#### BPM Sync Enhancements
+- ✅ **Latching BPM Sync**: Toggle on/off mode seperti Quantize button
+- ✅ **Auto-Sync Pitch Slider**: Saat BPM Sync ON, pitch master deck otomatis sync ke slave deck
+- ✅ **Auto Master Enable**: Master deck otomatis di-set saat sync ditekan jika belum ada master
+- ✅ **Active State Indication**: Visual feedback dengan button highlight
+
+#### Waveform Rendering Improvements
+- ✅ **High DPI Support**: devicePixelRatio untuk retina/4K displays
+- ✅ **Anti-Aliasing**: imageSmoothingQuality = 'high' untuk smooth edges
+- ✅ **Sub-Pixel Rendering**: Smooth waveform rendering seperti Rekordbox
+- ✅ **Optimized Glow Effects**: Softer shadows untuk better visual quality
+
+#### Beat Grid Parsing
+- ✅ **PQTZ Section Parsing**: Extract beat grid data dari ANLZ files (big-endian)
+- ✅ **Accurate Tempo Data**: Beat positions, tempo, dan timing information
+
+#### User Experience
+- ✅ **In-UI Notifications**: Toast notifications menggantikan JavaScript alerts
+- ✅ **Better Error Messages**: Contextual feedback untuk user actions
 
 ## 🎛️ DJ Player Features Summary
 
@@ -322,8 +362,8 @@ Special thanks kepada seluruh komunitas yang berkontribusi dalam reverse-enginee
 | **Master Tempo** | Key lock saat adjust tempo |
 | **Tempo Nudge** | Temporary ±4% speed adjustment |
 | **Volume** | Independent 0-100% control per deck |
-| **BPM Sync** | Match tempo between decks |
-| **Beat Sync** | Tempo + beat grid phase alignment |
+| **BPM Sync** | Latching toggle - auto-sync pitch slider saat ON |
+| **Beat Sync** | Momentary - tempo + beat grid phase alignment |
 | **Quantize** | Snap to beat untuk hot cues |
 | **Hot Cues** | 8 pads per deck dengan instant jump |
 | **Waveform** | Color RGB dengan beatgrid overlay |
