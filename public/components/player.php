@@ -45,13 +45,17 @@
                             <button class="eject-btn" onclick="window.dualPlayer.ejectDeck('a')" title="Eject Track">
                                 <i class="fas fa-eject"></i>
                             </button>
-                            <button class="sync-btn-compact" onclick="window.dualPlayer.syncBPM('a', 'b', false)" title="Sync Tempo Only">
-                                <i class="fas fa-sync-alt"></i>
-                                <span>→ B</span>
+                            <button class="master-btn" id="masterBtnA" onclick="window.dualPlayer.setMasterDeck('a')" title="Set as Master Deck">
+                                <i class="fas fa-crown"></i>
+                                <span>MASTER</span>
                             </button>
-                            <button class="beatsync-btn-compact" onclick="window.dualPlayer.syncBPM('a', 'b', true)" title="Beat Sync (Tempo + Beat Grid)">
+                            <button class="sync-btn-compact" id="bpmSyncA" onclick="window.dualPlayer.syncToMaster('a', 'bpm')" title="BPM Sync">
+                                <i class="fas fa-sync-alt"></i>
+                                <span>BPM SYNC</span>
+                            </button>
+                            <button class="beatsync-btn-compact" id="beatSyncA" onclick="window.dualPlayer.syncToMaster('a', 'beat')" title="Beat Sync (Snap to Beat Grid)">
                                 <i class="fas fa-wave-square"></i>
-                                <span>⚡B</span>
+                                <span>BEAT SYNC</span>
                             </button>
                             <button class="quantize-btn" id="quantizeA" onclick="window.dualPlayer.toggleQuantize('a')" title="Quantize (Snap to Beat)">
                                 <i class="fas fa-magnet"></i>
@@ -170,13 +174,17 @@
                             <button class="eject-btn" onclick="window.dualPlayer.ejectDeck('b')" title="Eject Track">
                                 <i class="fas fa-eject"></i>
                             </button>
-                            <button class="sync-btn-compact" onclick="window.dualPlayer.syncBPM('b', 'a', false)" title="Sync Tempo Only">
-                                <i class="fas fa-sync-alt"></i>
-                                <span>→ A</span>
+                            <button class="master-btn" id="masterBtnB" onclick="window.dualPlayer.setMasterDeck('b')" title="Set as Master Deck">
+                                <i class="fas fa-crown"></i>
+                                <span>MASTER</span>
                             </button>
-                            <button class="beatsync-btn-compact" onclick="window.dualPlayer.syncBPM('b', 'a', true)" title="Beat Sync (Tempo + Beat Grid)">
+                            <button class="sync-btn-compact" id="bpmSyncB" onclick="window.dualPlayer.syncToMaster('b', 'bpm')" title="BPM Sync">
+                                <i class="fas fa-sync-alt"></i>
+                                <span>BPM SYNC</span>
+                            </button>
+                            <button class="beatsync-btn-compact" id="beatSyncB" onclick="window.dualPlayer.syncToMaster('b', 'beat')" title="Beat Sync (Snap to Beat Grid)">
                                 <i class="fas fa-wave-square"></i>
-                                <span>⚡A</span>
+                                <span>BEAT SYNC</span>
                             </button>
                             <button class="quantize-btn" id="quantizeB" onclick="window.dualPlayer.toggleQuantize('b')" title="Quantize (Snap to Beat)">
                                 <i class="fas fa-magnet"></i>

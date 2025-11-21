@@ -1,6 +1,7 @@
 class DualPlayer {
     constructor() {
         this.sharedZoomLevel = 16;
+        this.masterDeck = null;
         
         this.decks = {
             a: this.createDeck('a'),
@@ -417,7 +418,7 @@ class DualPlayer {
         this.renderCueMarkers(deckId);
     }
     
-    togglePlay(deckId) {
+    async togglePlay(deckId) {
         const deck = this.decks[deckId];
         const deckLabel = deckId.toUpperCase();
         const playIcon = document.getElementById(`playIcon${deckLabel}`);
@@ -438,34 +439,36 @@ class DualPlayer {
         } else {
             console.log(`[Deck ${deckLabel}] Starting playback from ${deck.audio.currentTime.toFixed(2)}s`);
             
-            const playPromise = deck.audio.play();
+            if (this.audioContext && this.audioContext.state === 'suspended') {
+                console.log(`[Deck ${deckLabel}] Resuming AudioContext...`);
+                try {
+                    await this.audioContext.resume();
+                    console.log(`[Deck ${deckLabel}] AudioContext resumed, state: ${this.audioContext.state}`);
+                } catch (err) {
+                    console.error(`[Deck ${deckLabel}] Failed to resume AudioContext:`, err);
+                }
+            }
             
-            if (playPromise !== undefined) {
-                playPromise
-                    .then(() => {
-                        console.log(`[Deck ${deckLabel}] Playback started successfully`);
-                        deck.isPlaying = true;
-                        playIcon.className = 'fas fa-pause';
-                        this.startPlayheadAnimation(deckId);
-                    })
-                    .catch(error => {
-                        console.error(`[Deck ${deckLabel}] Playback failed:`, error);
-                        console.error(`[Deck ${deckLabel}] Error details:`, {
-                            name: error.name,
-                            message: error.message,
-                            audioSrc: deck.audio.src,
-                            readyState: deck.audio.readyState,
-                            networkState: deck.audio.networkState
-                        });
-                        deck.isPlaying = false;
-                        playIcon.className = 'fas fa-play';
-                        
-                        alert(`Failed to play audio: ${error.message}\nCheck browser console for details.`);
-                    });
-            } else {
+            try {
+                await deck.audio.play();
+                console.log(`[Deck ${deckLabel}] Playback started successfully`);
                 deck.isPlaying = true;
                 playIcon.className = 'fas fa-pause';
                 this.startPlayheadAnimation(deckId);
+            } catch (error) {
+                console.error(`[Deck ${deckLabel}] Playback failed:`, error);
+                console.error(`[Deck ${deckLabel}] Error details:`, {
+                    name: error.name,
+                    message: error.message,
+                    audioSrc: deck.audio.src,
+                    readyState: deck.audio.readyState,
+                    networkState: deck.audio.networkState,
+                    audioContextState: this.audioContext?.state
+                });
+                deck.isPlaying = false;
+                playIcon.className = 'fas fa-play';
+                
+                alert(`Failed to play audio: ${error.message}\nCheck browser console for details.`);
             }
         }
     }
@@ -571,7 +574,11 @@ class DualPlayer {
         canvas.style.width = container.clientWidth + 'px';
         canvas.style.height = '120px';
         
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { alpha: true });
+        
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
         ctx.fillStyle = '#0a0a0a';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
@@ -604,18 +611,44 @@ class DualPlayer {
         
         visibleData.forEach((sample, i) => {
             const x = leadingBlankWidth + (i * step);
-            const barHeight = (sample.height / 255) * height * 0.85;
+            const normalizedHeight = sample.height / 255;
+            const barHeight = normalizedHeight * height * 0.9;
             const y = (height - barHeight) / 2;
+            
+            const barWidth = Math.max(1.5, step * 1.1);
             
             if (isColorWaveform) {
                 const brightness = Math.max(sample.r, sample.g, sample.b) / 255;
-                ctx.fillStyle = `rgba(${sample.r}, ${sample.g}, ${sample.b}, ${0.8 + brightness * 0.2})`;
+                
+                const gradient = ctx.createLinearGradient(x, y, x, y + barHeight);
+                const r = sample.r;
+                const g = sample.g;
+                const b = sample.b;
+                
+                gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${0.9 + brightness * 0.1})`);
+                gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${0.95})`);
+                gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, ${0.9 + brightness * 0.1})`);
+                
+                ctx.fillStyle = gradient;
+                
+                ctx.shadowBlur = 2;
+                ctx.shadowColor = `rgba(${r}, ${g}, ${b}, 0.4)`;
             } else {
-                const intensity = sample.height / 255;
-                ctx.fillStyle = `rgba(0, 217, 255, ${0.7 + intensity * 0.3})`;
+                const intensity = normalizedHeight;
+                
+                const gradient = ctx.createLinearGradient(x, y, x, y + barHeight);
+                gradient.addColorStop(0, `rgba(0, 217, 255, ${0.8 + intensity * 0.2})`);
+                gradient.addColorStop(0.5, `rgba(0, 255, 200, ${0.85 + intensity * 0.15})`);
+                gradient.addColorStop(1, `rgba(0, 217, 255, ${0.8 + intensity * 0.2})`);
+                
+                ctx.fillStyle = gradient;
+                
+                ctx.shadowBlur = 2;
+                ctx.shadowColor = `rgba(0, 217, 255, ${0.3 + intensity * 0.2})`;
             }
             
-            ctx.fillRect(x, y, Math.max(1, step), barHeight);
+            ctx.fillRect(x - barWidth/4, y, barWidth, barHeight);
+            ctx.shadowBlur = 0;
         });
         
         this.renderBeatgrid(deckId, ctx, canvas.width, canvas.height, viewStart, viewDuration);
@@ -798,6 +831,67 @@ class DualPlayer {
         }
     }
     
+    setMasterDeck(deckId) {
+        const otherDeckId = deckId === 'a' ? 'b' : 'a';
+        
+        if (this.masterDeck === deckId) {
+            this.masterDeck = null;
+            this.updateMasterUI(deckId, false);
+            console.log(`[Master] No master deck selected`);
+        } else {
+            this.masterDeck = deckId;
+            this.updateMasterUI(deckId, true);
+            this.updateMasterUI(otherDeckId, false);
+            console.log(`[Master] Deck ${deckId.toUpperCase()} set as master`);
+        }
+    }
+    
+    updateMasterUI(deckId, isMaster) {
+        const deckLabel = deckId.toUpperCase();
+        const btn = document.getElementById(`masterBtn${deckLabel}`);
+        
+        if (btn) {
+            if (isMaster) {
+                btn.classList.add('active');
+                btn.title = 'Master Deck (Sync Source)';
+            } else {
+                btn.classList.remove('active');
+                btn.title = 'Set as Master Deck';
+            }
+        }
+    }
+    
+    syncToMaster(deckId, mode = 'bpm') {
+        if (!this.masterDeck) {
+            console.warn('[Sync] No master deck selected. Please select a master deck first.');
+            alert('Please select a master deck first by clicking the MASTER button on either deck.');
+            return;
+        }
+        
+        let sourceDeckId, targetDeckId;
+        
+        if (deckId === this.masterDeck) {
+            sourceDeckId = this.masterDeck;
+            targetDeckId = deckId === 'a' ? 'b' : 'a';
+            
+            if (!this.decks[targetDeckId].track) {
+                console.warn(`[Sync] Cannot push sync - Deck ${targetDeckId.toUpperCase()} has no track loaded.`);
+                alert(`Cannot sync: Deck ${targetDeckId.toUpperCase()} has no track loaded. Load a track first.`);
+                return;
+            }
+            
+            console.log(`[Sync] Pushing master ${sourceDeckId.toUpperCase()} settings to Deck ${targetDeckId.toUpperCase()}`);
+        } else {
+            sourceDeckId = this.masterDeck;
+            targetDeckId = deckId;
+            
+            console.log(`[Sync] Syncing Deck ${targetDeckId.toUpperCase()} TO master ${sourceDeckId.toUpperCase()}`);
+        }
+        
+        const snapBeats = (mode === 'beat');
+        this.syncBPM(sourceDeckId, targetDeckId, snapBeats);
+    }
+    
     syncBPM(sourceDeckId, targetDeckId, snapBeats = false) {
         const sourceDeck = this.decks[sourceDeckId];
         const targetDeck = this.decks[targetDeckId];
@@ -833,6 +927,18 @@ class DualPlayer {
         const sourceDeck = this.decks[sourceDeckId];
         const targetDeck = this.decks[targetDeckId];
         
+        if (!sourceDeck.beatgridData || !sourceDeck.beatgridData.beats || sourceDeck.beatgridData.beats.length === 0) {
+            console.warn(`[Beat Sync] No beat grid data available for source deck ${sourceDeckId.toUpperCase()}. Beat sync requires analyzed beat grids.`);
+            alert(`Beat grid not available for ${sourceDeckId.toUpperCase()}. Beat sync requires tracks analyzed in Rekordbox.`);
+            return;
+        }
+        
+        if (!targetDeck.beatgridData || !targetDeck.beatgridData.beats || targetDeck.beatgridData.beats.length === 0) {
+            console.warn(`[Beat Sync] No beat grid data available for target deck ${targetDeckId.toUpperCase()}. Beat sync requires analyzed beat grids.`);
+            alert(`Beat grid not available for ${targetDeckId.toUpperCase()}. Beat sync requires tracks analyzed in Rekordbox.`);
+            return;
+        }
+        
         const sourceBPM = sourceDeck.originalBPM * (1 + sourceDeck.pitchValue / 100);
         const sourceCurrentTime = sourceDeck.audio.currentTime;
         const targetCurrentTime = targetDeck.audio.currentTime;
@@ -843,13 +949,11 @@ class DualPlayer {
         let sourceFirstBeatOffset = 0;
         let targetFirstBeatOffset = 0;
         
-        if (sourceDeck.beatgridData && sourceDeck.beatgridData.beats && sourceDeck.beatgridData.beats.length > 0) {
-            sourceFirstBeatOffset = sourceDeck.beatgridData.beats[0].time;
-        }
+        const firstBeat = sourceDeck.beatgridData.beats[0];
+        sourceFirstBeatOffset = firstBeat.time || 0;
         
-        if (targetDeck.beatgridData && targetDeck.beatgridData.beats && targetDeck.beatgridData.beats.length > 0) {
-            targetFirstBeatOffset = targetDeck.beatgridData.beats[0].time;
-        }
+        const targetFirstBeat = targetDeck.beatgridData.beats[0];
+        targetFirstBeatOffset = targetFirstBeat.time || 0;
         
         const sourceTimeFromFirstBeat = sourceCurrentTime - sourceFirstBeatOffset;
         const targetTimeFromFirstBeat = targetCurrentTime - targetFirstBeatOffset;
@@ -857,21 +961,30 @@ class DualPlayer {
         const sourceBeatPhase = (sourceTimeFromFirstBeat / sourceBeatLength) % 1;
         const targetBeatPhase = (targetTimeFromFirstBeat / targetBeatLength) % 1;
         
-        const phaseDifference = sourceBeatPhase - targetBeatPhase;
+        let phaseDifference = sourceBeatPhase - targetBeatPhase;
+        
+        if (phaseDifference > 0.5) {
+            phaseDifference -= 1;
+        } else if (phaseDifference < -0.5) {
+            phaseDifference += 1;
+        }
+        
         const timeAdjustment = phaseDifference * targetBeatLength;
         
         let newTargetTime = targetCurrentTime + timeAdjustment;
         
-        if (newTargetTime < 0) {
-            newTargetTime += targetBeatLength;
-        } else if (newTargetTime >= targetDeck.duration) {
-            newTargetTime -= targetBeatLength;
+        newTargetTime = Math.max(0, Math.min(newTargetTime, targetDeck.duration - 0.1));
+        
+        if (Math.abs(timeAdjustment) > 0.001) {
+            targetDeck.audio.currentTime = newTargetTime;
+            this.updatePlayhead(targetDeckId);
         }
         
-        targetDeck.audio.currentTime = newTargetTime;
-        this.updatePlayhead(targetDeckId);
+        const adjustmentMs = Math.round(timeAdjustment * 1000);
+        const sourcePhasePercent = Math.round(sourceBeatPhase * 100);
+        const targetPhasePercent = Math.round(targetBeatPhase * 100);
         
-        console.log(`Beat Grid Snapped: Source offset=${sourceFirstBeatOffset.toFixed(3)}s, Target offset=${targetFirstBeatOffset.toFixed(3)}s, Phase diff=${(phaseDifference * 100).toFixed(1)}%, Adjustment=${(timeAdjustment * 1000).toFixed(0)}ms`);
+        console.log(`[Beat Sync] Master: ${sourceDeckId.toUpperCase()} (phase: ${sourcePhasePercent}%) → Target: ${targetDeckId.toUpperCase()} (phase: ${targetPhasePercent}%) | Adjustment: ${adjustmentMs}ms | First beats: Source=${sourceFirstBeatOffset.toFixed(3)}s, Target=${targetFirstBeatOffset.toFixed(3)}s`);
     }
     
     updateBPMDisplay(deckId, currentBPM) {
