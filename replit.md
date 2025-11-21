@@ -4,7 +4,34 @@
 Tool PHP untuk membaca dan menampilkan database Rekordbox USB/SD export dengan web GUI modern. Project ini mengkonversi implementasi Python menjadi PHP murni dengan struktur modular.
 
 ## Recent Changes
-- **2025-11-21 (Latest)**: Critical Bug Fixes - High-DPI Interaction & Beat Sync
+- **2025-11-21 (Latest)**: Beat Grid Pitch Scaling & Multi-File ANLZ Parsing
+  - **Beat Grid Pitch Scaling Fix** (Critical):
+    - Fixed beat grid tidak stretch/compress saat pitch slider berubah
+    - Removed incorrect `beat.time / pitchMultiplier` calculation dari renderBeatgrid()
+    - Beat timestamps (PQTZ) adalah absolute time, tidak perlu di-scale
+    - viewDuration (via effectiveZoom) already handles stretching otomatis
+    - Beat grid sekarang stretch/compress in lockstep dengan waveform saat tempo changes
+  - **Multi-File ANLZ Parsing Enhancement**:
+    - Implemented parsing untuk ALL ANLZ file types (.DAT, .EXT, .2EX)
+    - .DAT files: PQTZ beat grid data + basic waveform
+    - .EXT files: PWV5 detailed color waveform (preferred quality)
+    - Data merging strategy: beat grid dari DAT, waveform prefer EXT over DAT
+    - Results: 216 beats loaded untuk Track #2, 398 beats untuk Track #1
+  - **Path Normalization Fix**:
+    - Convert Windows backslashes ke forward slashes sebelum concatenate dengan exportPath
+    - Linux compatibility untuk ANLZ file discovery
+    - Fixed "ANLZ files not found" error pada Linux systems
+  - **Waveform Time-Stretching**:
+    - Added pitchMultiplier ke effectiveZoom calculation
+    - Waveform visual stretch/compress saat pitch slider berubah
+    - Re-render waveform + cue markers di setPitch()
+    - Consistent visual feedback untuk tempo adjustments
+  - **Drag Interaction Fix**:
+    - mousedown handler sekarang calculate effectiveZoom dengan pitchMultiplier
+    - visibleDuration consistent dengan renderWaveform()
+    - Fixes cursor jump/desync saat pitch adjusted
+
+- **2025-11-21 (sebelumnya)**: Critical Bug Fixes - High-DPI Interaction & Beat Sync
   - **High-DPI Waveform Interaction Fix** (Critical):
     - Fixed waveform scrubbing accuracy pada high-DPI displays (Retina, 4K)
     - Changed pixelsPerSecond calculation dari `canvas.width` (physical pixels) ke `container.clientWidth` (CSS pixels)
