@@ -4,6 +4,24 @@
 Tool PHP untuk membaca dan menampilkan database Rekordbox USB/SD export dengan web GUI modern. Project ini mengkonversi implementasi Python menjadi PHP murni dengan struktur modular.
 
 ## Recent Changes
+- **2025-11-21**: Perbaikan Waveform Synchronization & Enhancements
+  - **Fixed Waveform Pointer Sync**: Mengatasi bug sinkronisasi pointer saat zoom in/out
+    - Semua referensi deck.zoomLevel diganti dengan this.sharedZoomLevel
+    - Konsisten di renderWaveform(), renderCueMarkers(), dan semua fungsi terkait
+  - **Updated Zoom Range**: Zoom levels sekarang [16x, 32x, 64x, 128x] (min 16x, max 128x)
+  - **Enhanced Beat Grid**: Meningkatkan visibilitas beat grid
+    - Opacity ditingkatkan dari 0.3 ke 0.8 untuk kontras putih yang lebih jelas
+    - Line width ditingkatkan dari 2 ke 4 untuk tampilan lebih tebal/bold
+  - **Reverse Audio Scratching**: Implementasi fitur scratching mundur
+    - Audio playback terbalik saat swipe/drag ke belakang
+    - Menggunakan manual reverse loop dengan requestAnimationFrame
+    - Konsisten speed limits 0.25-4x untuk forward dan reverse
+    - Sinkronisasi waveform dengan audio via updatePlayhead()
+  - **Fixed Drag Direction**: Center-based calculation untuk drag behavior intuitif
+    - Drag kanan = scroll mundur, drag kiri = scroll maju
+    - Audio transport selalu sinkron dengan waveform pointer
+    - Scratch direction derived dari centerDelta untuk konsistensi
+
 - **2025-11-20**: Implementasi Complete DJ Player Features
   - **Tempo Nudge**: Temporary speed adjustment (±4%) untuk beat matching
   - **Volume Control**: Independent volume slider per deck (0-100%)
@@ -18,12 +36,12 @@ Tool PHP untuk membaca dan menampilkan database Rekordbox USB/SD export dengan w
   - Fixed browser cache dengan timestamp parameter
   - Integrated sync buttons dalam deck headers
 
-- **2025-11-20 (sebelumnya)**: Implementasi Dual DJ Player dengan BPM Sync
+- **2025-11-20**: Implementasi Dual DJ Player dengan BPM Sync
   - Dual deck player dengan full DJ controls:
     - Play/Pause functionality per deck
     - Hot cue pads (8 pads per deck) dengan trigger functionality
     - Waveform visualization dengan beatgrid overlay
-    - Zoom controls (1x-64x, default 16x) dengan drag support
+    - Zoom controls (16x-128x, default 16x) dengan drag support dan scratching
     - Center playhead dengan scrolling waveform
     - BPM Pitch control (-16% to +16%) dengan Master Tempo toggle
     - BPM Sync buttons integrated dalam deck headers
