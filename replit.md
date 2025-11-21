@@ -4,7 +4,29 @@
 Tool PHP untuk membaca dan menampilkan database Rekordbox USB/SD export dengan web GUI modern. Project ini mengkonversi implementasi Python menjadi PHP murni dengan struktur modular.
 
 ## Recent Changes
-- **2025-11-21**: Perbaikan Waveform Synchronization & Enhancements
+- **2025-11-21 (Latest)**: Master Deck Selection & Cross-Browser Playback Fix
+  - **Chrome Playback Fix**: Resolved AudioContext autoplay policy issue
+    - Added async user interaction handler untuk resume AudioContext
+    - Implemented di togglePlay() dengan proper error handling
+    - Works reliably di Chrome, Firefox, Safari, Edge
+  - **Master Deck Selection Feature** (Rekordbox-style):
+    - MASTER button pada setiap deck dengan gold styling ketika active
+    - Push/Pull sync logic:
+      - Clicking sync on master deck → pushes settings to other deck
+      - Clicking sync on non-master deck → syncs this deck to master
+    - Track validation: alerts jika target deck tidak ada track loaded
+    - Prevents self-sync dengan clear user feedback
+  - **Enhanced Waveform Rendering**:
+    - Anti-aliasing untuk smooth waveform curves (imageSmoothingEnabled)
+    - Gradient-based waveform fills untuk depth dan visual appeal
+    - Enhanced shadows dan visual effects
+    - Professional appearance seperti Mixxx/Rekordbox/Serato
+  - **Beat Sync Improvements**:
+    - Validation untuk beat grid data sebelum snap
+    - Clear error messages jika beat grid tidak tersedia
+    - Early return dengan user alerts untuk better UX
+
+- **2025-11-21 (sebelumnya)**: Perbaikan Waveform Synchronization & Enhancements
   - **Fixed Waveform Pointer Sync**: Mengatasi bug sinkronisasi pointer saat zoom in/out
     - Semua referensi deck.zoomLevel diganti dengan this.sharedZoomLevel
     - Konsisten di renderWaveform(), renderCueMarkers(), dan semua fungsi terkait

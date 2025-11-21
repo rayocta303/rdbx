@@ -13,6 +13,7 @@
                         <i class="fas fa-search-plus"></i>
                     </button>
                 </div>
+                <div class="notification-area" id="syncNotification"></div>
             </div>
             <div class="waveform-beatmatch-container">
                 <!-- Waveform A -->

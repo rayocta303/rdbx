@@ -886,6 +886,66 @@ canvas {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    position: relative;
+}
+
+.notification-area {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 20px;
+}
+
+.sync-notification {
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.15), rgba(0, 150, 255, 0.1));
+    border: 1px solid rgba(0, 212, 255, 0.4);
+    border-radius: 6px;
+    padding: 8px 16px;
+    color: #00d4ff;
+    font-size: 13px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    animation: slideIn 0.3s ease-out;
+    box-shadow: 0 2px 10px rgba(0, 212, 255, 0.2);
+}
+
+.sync-notification.warning {
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.15), rgba(255, 160, 0, 0.1));
+    border-color: rgba(255, 193, 7, 0.5);
+    color: #ffc107;
+    box-shadow: 0 2px 10px rgba(255, 193, 7, 0.2);
+}
+
+.sync-notification.error {
+    background: linear-gradient(135deg, rgba(244, 67, 54, 0.15), rgba(220, 50, 40, 0.1));
+    border-color: rgba(244, 67, 54, 0.5);
+    color: #f44336;
+    box-shadow: 0 2px 10px rgba(244, 67, 54, 0.2);
+}
+
+.sync-notification.success {
+    background: linear-gradient(135deg, rgba(76, 175, 80, 0.15), rgba(60, 150, 70, 0.1));
+    border-color: rgba(76, 175, 80, 0.5);
+    color: #4caf50;
+    box-shadow: 0 2px 10px rgba(76, 175, 80, 0.2);
+}
+
+.sync-notification i {
+    font-size: 14px;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .waveform-section-title {

@@ -2,6 +2,7 @@ class DualPlayer {
     constructor() {
         this.sharedZoomLevel = 16;
         this.masterDeck = null;
+        this.notificationTimeout = null;
         
         this.decks = {
             a: this.createDeck('a'),
@@ -48,7 +49,9 @@ class DualPlayer {
             isScratching: false,
             scratchDirection: 1,
             scratchSpeed: 0,
-            scratchAnimationFrame: null
+            scratchAnimationFrame: null,
+            bpmSyncEnabled: false,
+            beatSyncEnabled: false
         };
     }
     
@@ -106,6 +109,35 @@ class DualPlayer {
             
             this.setupWaveformInteraction(deckId);
         });
+    }
+    
+    showNotification(message, type = 'info', duration = 3000) {
+        const notificationArea = document.getElementById('syncNotification');
+        if (!notificationArea) return;
+        
+        if (this.notificationTimeout) {
+            clearTimeout(this.notificationTimeout);
+        }
+        
+        const icons = {
+            info: 'fa-info-circle',
+            success: 'fa-check-circle',
+            warning: 'fa-exclamation-triangle',
+            error: 'fa-exclamation-circle'
+        };
+        
+        const icon = icons[type] || icons.info;
+        
+        notificationArea.innerHTML = `
+            <div class="sync-notification ${type}">
+                <i class="fas ${icon}"></i>
+                <span>${message}</span>
+            </div>
+        `;
+        
+        this.notificationTimeout = setTimeout(() => {
+            notificationArea.innerHTML = '';
+        }, duration);
     }
     
     setupWaveformInteraction(deckId) {
