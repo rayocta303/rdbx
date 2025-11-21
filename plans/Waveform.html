@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>3-Band Waveform — 1 Bar (4 Beat)</title>
+
+    <style>
+      :root {
+        --bg: #050507;
+        --track: #0b0b0b;
+
+        --low-top: #ffffff;
+        --low-bot: #ffffff;
+        --mid-top: #ffa600;
+        --mid-bot: #ffa600;
+        --high-top: #0055e1;
+        --high-bot: #0055e1;
+      }
+
+      html,
+      body {
+        margin: 0;
+        background: linear-gradient(180deg, #000014 0%, var(--bg) 100%);
+        font-family: Inter, Arial;
+        color: white;
+      }
+
+      canvas {
+        width: 100%;
+        height: 180px;
+        border-radius: 8px;
+        background: var(--track);
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="wave"></canvas>
+
+    <script>
+      const canvas = document.getElementById("wave");
+      const ctx = canvas.getContext("2d");
+
+      /* ===================== CONFIG ===================== */
+      const CFG = {
+        TOTAL_BEATS: 4,
+        BEATS_RENDERED: 4,
+        DENSITY: 0.4,
+        HEIGHT_RATIO: 0.48,
+
+        CONE_CURVE: 2.8, // makin besar = makin runcing
+        CONE_BOOST: 1.15, // boost di ujung cone
+
+        DECAY: 4.5,
+        NOISE: 0,
+        FLAT_ZONE: 0,
+        TRANSIENT_ZONE: 0.0,
+
+        SCALE_LOW: 1.0,
+        SCALE_MID: 0.85,
+        SCALE_HIGH: 0.7,
+        SCALE_CORE: 0.3,
+
+        CORE_BOOST: 1.7,
+      };
+
+      /* ===================== CANVAS ===================== */
+      let DPR = window.devicePixelRatio || 1;
+      let W, H;
+
+      function resize() {
+        W = canvas.clientWidth;
+        H = canvas.clientHeight;
+        canvas.width = W * DPR;
+        canvas.height = H * DPR;
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        draw();
+      }
+      window.addEventListener("resize", resize);
+
+      /* ===================== BEAT PROGRESS ===================== */
+      function beatProgress(i, pointsPerBeat) {
+        const idx = i % pointsPerBeat;
+        if (idx === 0) return 0;
+        return idx / pointsPerBeat;
+      }
+
+      /* ===================== GENERATE WAVE ===================== */
+      function generate(seed = 1) {
+        let rnd = seed;
+
+        function rand() {
+          rnd = (rnd * 16807) % 2147483647;
+          return rnd / 2147483647;
+        }
+
+        const pointsPerBeat = Math.round(90 * CFG.DENSITY);
+        const N = pointsPerBeat * CFG.BEATS_RENDERED;
+
+        const low = [],
+          mid = [],
+          high = [];
+
+        for (let i = 0; i < N; i++) {
+          const p = beatProgress(i, pointsPerBeat);
+
+          const bodyEnv = Math.exp(-p * CFG.DECAY);
+          const waveNoise = (rand() - 0.5) * CFG.NOISE;
+
+          low[i] = Math.max(0, bodyEnv * 1.0 + waveNoise);
+          mid[i] = Math.max(0, bodyEnv * 0.8 + waveNoise);
+          high[i] = Math.max(0, bodyEnv * 0.6 + waveNoise);
+        }
+
+        function normalize(arr) {
+          const m = Math.max(...arr);
+          return arr.map((v) => Math.max(0, v / m));
+        }
+
+        return {
+          low: normalize(low),
+          mid: normalize(mid),
+          high: normalize(high),
+          N,
+          pointsPerBeat,
+        };
+      }
+
+      /* ===================== SHAPE ENVELOPE ===================== */
+      function shapeAmplitude(amp, p, scale) {
+        // 1. BENAR-BENAR FLAT
+        if (p <= CFG.FLAT_ZONE) return 0;
+
+        const coneEnd = CFG.FLAT_ZONE + CFG.TRANSIENT_ZONE;
+
+        // 2. ZONA CONE (MERUNCING DARI FLAT)
+        if (p <= coneEnd) {
+          const t = (p - CFG.FLAT_ZONE) / CFG.TRANSIENT_ZONE;
+
+          const curve = Math.pow(t, CFG.CONE_CURVE);
+
+          return curve * amp * scale * CFG.CONE_BOOST;
+        }
+
+        // 3. BODY NORMAL
+        return amp * scale;
+      }
+
+      /* ===================== DRAW BAND ===================== */
+      function drawBandMirror(data, topColor, bottomColor, scale, state) {
+        const { N, pointsPerBeat } = state;
+        const w = W / N;
+
+        ctx.beginPath();
+        ctx.imageSmoothingEnabled = false;
+
+        // TOP
+        for (let i = 0; i < N; i++) {
+          const x = Math.floor(i * w) + 0.5;
+          const p = beatProgress(i, pointsPerBeat);
+
+          const amp = shapeAmplitude(data[i], p, scale);
+          const y = H / 2 - amp * (H * CFG.HEIGHT_RATIO);
+
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+
+        // BOTTOM MIRROR
+        for (let i = N - 1; i >= 0; i--) {
+          const x = Math.floor(i * w) + 0.5;
+          const p = beatProgress(i, pointsPerBeat);
+
+          const amp = shapeAmplitude(data[i], p, scale);
+          const y = H / 2 + amp * (H * CFG.HEIGHT_RATIO);
+
+          ctx.lineTo(x, y);
+        }
+
+        ctx.closePath();
+
+        const grad = ctx.createLinearGradient(0, 0, 0, H);
+        grad.addColorStop(0, topColor);
+        grad.addColorStop(1, bottomColor);
+
+        ctx.fillStyle = grad;
+        ctx.lineJoin = "round";
+        ctx.fill();
+      }
+
+      /* ===================== GRID ===================== */
+      function drawGrid() {
+        ctx.strokeStyle = "rgba(255,255,255,0.12)";
+        ctx.lineWidth = 1;
+
+        for (let i = 0; i <= CFG.TOTAL_BEATS; i++) {
+          const x = (i / CFG.TOTAL_BEATS) * W;
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, H);
+          ctx.stroke();
+        }
+      }
+
+      /* ===================== MAIN ===================== */
+      let state = generate();
+
+      function draw() {
+        ctx.clearRect(0, 0, W, H);
+
+        drawGrid();
+
+        drawBandMirror(state.low, "#ffffff", "#ffffff", CFG.SCALE_LOW, state);
+        drawBandMirror(state.mid, "#ffa600", "#ffa600", CFG.SCALE_MID, state);
+        drawBandMirror(state.high, "#0055e1", "#0055e1", CFG.SCALE_HIGH, state);
+
+        // Core putih tengah
+        drawBandMirror(
+          state.mid.map((v) => Math.min(1, v * CFG.CORE_BOOST)),
+          "rgba(255,255,255,0.8)",
+          "rgba(255,255,255,0.0)",
+          CFG.SCALE_CORE,
+          state
+        );
+      }
+
+      resize();
+    </script>
+  </body>
+</html>
