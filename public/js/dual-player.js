@@ -829,26 +829,25 @@ class DualPlayer {
         const pitchMultiplier = 1 + (deck.pitchValue / 100);
         const viewEnd = viewStart + viewDuration;
         
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.lineWidth = 4;
+        // OPTIMIZATION: Use path-based rendering instead of per-beat drawing
+        // This draws ALL beat lines in a single path, then strokes ONCE
+        // Much more efficient for low-end devices (1 stroke vs N strokes)
+        ctx.beginPath();
         
         // Use PQTZ beat grid data if available, otherwise fallback to BPM calculation
         if (deck.beatgridData && Array.isArray(deck.beatgridData) && deck.beatgridData.length > 0) {
-            // Iterate over actual PQTZ beat timestamps
-            // No need to scale beat.time - viewDuration already handles pitch stretching
+            // Collect all beat lines in one path
             deck.beatgridData.forEach(beat => {
-                // Use raw beat time from PQTZ
                 const beatTime = beat.time;
                 
                 // Only render beats within visible view
                 if (beatTime >= viewStart && beatTime < viewEnd) {
                     const relativePosition = (beatTime - viewStart) / viewDuration;
-                    const x = relativePosition * width;
+                    const x = Math.floor(relativePosition * width) + 0.5; // +0.5 for crisp pixels
                     
-                    ctx.beginPath();
+                    // Add line to path (no stroke yet!)
                     ctx.moveTo(x, 0);
                     ctx.lineTo(x, height);
-                    ctx.stroke();
                 }
             });
         } else {
@@ -859,14 +858,18 @@ class DualPlayer {
             
             for (let beatTime = firstBeat; beatTime < viewEnd; beatTime += beatInterval) {
                 const relativePosition = (beatTime - viewStart) / viewDuration;
-                const x = relativePosition * width;
+                const x = Math.floor(relativePosition * width) + 0.5; // +0.5 for crisp pixels
                 
-                ctx.beginPath();
+                // Add line to path (no stroke yet!)
                 ctx.moveTo(x, 0);
                 ctx.lineTo(x, height);
-                ctx.stroke();
             }
         }
+        
+        // Stroke ALL beat lines at once (single operation!)
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
     }
     
     renderCueMarkers(deckId) {
