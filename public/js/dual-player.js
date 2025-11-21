@@ -568,75 +568,111 @@ class DualPlayer {
         this.renderCueMarkers(deckId);
     }
     
-    drawRoundedBar(ctx, x, y, width, height, radius) {
-        ctx.beginPath();
-        ctx.moveTo(x + radius, y);
-        ctx.lineTo(x + width - radius, y);
-        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-        ctx.lineTo(x + width, y + height - radius);
-        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-        ctx.lineTo(x + radius, y + height);
-        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-        ctx.lineTo(x, y + radius);
-        ctx.quadraticCurveTo(x, y, x + radius, y);
-        ctx.closePath();
-        ctx.fill();
+    draw3BandWaveformMirror(ctx, data, W, H) {
+        const N = Math.min(data.length, Math.floor(W));
+        const w = W / N;
+        
+        const low = new Float32Array(N);
+        const mid = new Float32Array(N);
+        const high = new Float32Array(N);
+        
+        const samplesPerPixel = data.length / N;
+        
+        for (let i = 0; i < N; i++) {
+            if (samplesPerPixel > 1) {
+                const start = Math.floor(i * samplesPerPixel);
+                const end = Math.min(data.length, Math.ceil((i + 1) * samplesPerPixel));
+                
+                let maxL = 0, maxM = 0, maxH = 0;
+                for (let j = start; j < end; j++) {
+                    maxL = Math.max(maxL, (data[j].low || 0) / 255);
+                    maxM = Math.max(maxM, (data[j].mid || 0) / 255);
+                    maxH = Math.max(maxH, (data[j].high || 0) / 255);
+                }
+                low[i] = maxL;
+                mid[i] = maxM;
+                high[i] = maxH;
+            } else {
+                low[i] = (data[i]?.low || 0) / 255;
+                mid[i] = (data[i]?.mid || 0) / 255;
+                high[i] = (data[i]?.high || 0) / 255;
+            }
+        }
+        
+        const config = {
+            HEIGHT_RATIO: 0.48,
+            SCALE_LOW: 1.0,
+            SCALE_MID: 0.85,
+            SCALE_HIGH: 0.7,
+            SCALE_CORE: 0.3,
+            CORE_BOOST: 1.7
+        };
+        
+        this.drawBandMirror(ctx, low, '#ffffff', '#ffffff', config.SCALE_LOW, N, w, H, config.HEIGHT_RATIO);
+        this.drawBandMirror(ctx, mid, '#ffa600', '#ffa600', config.SCALE_MID, N, w, H, config.HEIGHT_RATIO);
+        this.drawBandMirror(ctx, high, '#0055e1', '#0055e1', config.SCALE_HIGH, N, w, H, config.HEIGHT_RATIO);
+        
+        const core = new Float32Array(N);
+        for (let i = 0; i < N; i++) {
+            core[i] = Math.min(1, mid[i] * config.CORE_BOOST);
+        }
+        this.drawBandMirror(ctx, core, 'rgba(255,255,255,0.8)', 'rgba(255,255,255,0.0)', config.SCALE_CORE, N, w, H, config.HEIGHT_RATIO);
     }
     
-    draw3BandBar(ctx, x, canvasHeight, mid, high, low, barWidth) {
-        const centerY = canvasHeight / 2;
-        const scale = 0.85;
+    drawSimpleWaveformMirror(ctx, data, W, H) {
+        const N = Math.min(data.length, Math.floor(W));
+        const w = W / N;
+        const wave = new Float32Array(N);
         
-        const lowHeight = (low / 255) * centerY * scale;
-        const midHeight = (mid / 255) * centerY * scale;
-        const highHeight = (high / 255) * centerY * scale;
+        const samplesPerPixel = data.length / N;
         
-        const maxHeight = Math.max(lowHeight, midHeight, highHeight);
-        if (maxHeight === 0) return;
-        
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighten';
-        
-        // Orange (low frequencies - bass)
-        if (lowHeight > 0) {
-            ctx.fillStyle = 'rgba(255, 140, 0, 0.9)';
-            const y = centerY - lowHeight;
-            const h = lowHeight * 2;
-            const radius = Math.min(barWidth / 2, 1.5);
-            if (h > radius * 2) {
-                this.drawRoundedBar(ctx, x - barWidth / 2, y, barWidth, h, radius);
+        for (let i = 0; i < N; i++) {
+            if (samplesPerPixel > 1) {
+                const start = Math.floor(i * samplesPerPixel);
+                const end = Math.min(data.length, Math.ceil((i + 1) * samplesPerPixel));
+                
+                let max = 0;
+                for (let j = start; j < end; j++) {
+                    max = Math.max(max, (data[j].height || 0) / 255);
+                }
+                wave[i] = max;
             } else {
-                ctx.fillRect(x - barWidth / 2, y, barWidth, h);
+                wave[i] = (data[i]?.height || 0) / 255;
             }
         }
         
-        // White (mid frequencies)
-        if (midHeight > 0) {
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-            const y = centerY - midHeight;
-            const h = midHeight * 2;
-            const radius = Math.min(barWidth / 2, 1.5);
-            if (h > radius * 2) {
-                this.drawRoundedBar(ctx, x - barWidth / 2, y, barWidth, h, radius);
-            } else {
-                ctx.fillRect(x - barWidth / 2, y, barWidth, h);
-            }
+        this.drawBandMirror(ctx, wave, '#00d4ff', '#00d4ff', 0.85, N, w, H, 0.48);
+    }
+    
+    drawBandMirror(ctx, data, topColor, bottomColor, scale, N, w, H, heightRatio) {
+        ctx.beginPath();
+        ctx.imageSmoothingEnabled = false;
+        
+        for (let i = 0; i < N; i++) {
+            const x = Math.floor(i * w) + 0.5;
+            const amp = data[i];
+            const y = H / 2 - amp * (H * heightRatio * scale);
+            
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
         }
         
-        // Blue (high frequencies - treble)
-        if (highHeight > 0) {
-            ctx.fillStyle = 'rgba(0, 150, 255, 0.9)';
-            const y = centerY - highHeight;
-            const h = highHeight * 2;
-            const radius = Math.min(barWidth / 2, 1.5);
-            if (h > radius * 2) {
-                this.drawRoundedBar(ctx, x - barWidth / 2, y, barWidth, h, radius);
-            } else {
-                ctx.fillRect(x - barWidth / 2, y, barWidth, h);
-            }
+        for (let i = N - 1; i >= 0; i--) {
+            const x = Math.floor(i * w) + 0.5;
+            const amp = data[i];
+            const y = H / 2 + amp * (H * heightRatio * scale);
+            ctx.lineTo(x, y);
         }
         
-        ctx.restore();
+        ctx.closePath();
+        
+        const grad = ctx.createLinearGradient(0, 0, 0, H);
+        grad.addColorStop(0, topColor);
+        grad.addColorStop(1, bottomColor);
+        
+        ctx.fillStyle = grad;
+        ctx.lineJoin = 'round';
+        ctx.fill();
     }
     
     zoomBothDecks(direction) {
@@ -710,10 +746,9 @@ class DualPlayer {
         
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.scale(dpr, dpr);
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
+        ctx.imageSmoothingEnabled = false;
         
-        ctx.fillStyle = '#0a0a0a';
+        ctx.fillStyle = '#0b0b0b';
         ctx.fillRect(0, 0, displayWidth, displayHeight);
         
         if (!deck.waveformData) {
@@ -724,7 +759,6 @@ class DualPlayer {
             return;
         }
         
-        // Select appropriate waveform array (prioritize 3-band detail)
         const waveData = deck.waveformData.three_band_detail || 
                          deck.waveformData.color_data || 
                          deck.waveformData.preview_data;
@@ -743,8 +777,6 @@ class DualPlayer {
         const viewStart = deck.waveformOffset;
         const viewDuration = deck.duration / effectiveZoom;
         const viewEnd = viewStart + viewDuration;
-        const leadingBlankDuration = Math.max(0, -viewStart);
-        const leadingBlankWidth = (leadingBlankDuration / viewDuration) * displayWidth;
         
         const actualStart = Math.max(0, viewStart);
         const startIndex = Math.floor((actualStart / deck.duration) * waveData.length);
@@ -753,69 +785,12 @@ class DualPlayer {
         
         if (visibleData.length === 0) return;
         
-        const dataWidth = displayWidth - leadingBlankWidth;
-        const samplesPerPixel = visibleData.length / dataWidth;
-        const height = displayHeight;
         const is3Band = visibleData[0] && visibleData[0].mid !== undefined;
-        const isColorWaveform = visibleData[0] && visibleData[0].r !== undefined;
         
-        for (let x = Math.floor(leadingBlankWidth); x < displayWidth; x++) {
-            const pixelOffset = x - leadingBlankWidth;
-            const sampleStart = Math.floor(pixelOffset * samplesPerPixel);
-            const sampleEnd = Math.ceil((pixelOffset + 1) * samplesPerPixel);
-            
-            if (sampleStart >= visibleData.length) break;
-            
-            let maxHeight = 0;
-            let maxLow = 0, maxMid = 0, maxHigh = 0;
-            let maxR = 0, maxG = 0, maxB = 0;
-            
-            const endIdx = Math.min(visibleData.length, sampleEnd);
-            for (let i = sampleStart; i < endIdx; i++) {
-                const sample = visibleData[i];
-                if (!sample) continue;
-                
-                if (is3Band) {
-                    maxLow = Math.max(maxLow, sample.low || 0);
-                    maxMid = Math.max(maxMid, sample.mid || 0);
-                    maxHigh = Math.max(maxHigh, sample.high || 0);
-                } else {
-                    maxHeight = Math.max(maxHeight, sample.height || 0);
-                    if (isColorWaveform) {
-                        maxR = Math.max(maxR, sample.r || 0);
-                        maxG = Math.max(maxG, sample.g || 0);
-                        maxB = Math.max(maxB, sample.b || 0);
-                    }
-                }
-            }
-            
-            if (!is3Band && maxHeight === 0) continue;
-            if (is3Band && maxLow === 0 && maxMid === 0 && maxHigh === 0) continue;
-            
-            const barWidth = 1.2;
-            
-            if (is3Band) {
-                this.draw3BandBar(ctx, x, height, maxMid, maxHigh, maxLow, barWidth);
-            } else {
-                const normalizedHeight = maxHeight / 255;
-                const barHeight = normalizedHeight * height * 0.9;
-                const y = (height - barHeight) / 2;
-                const radius = Math.min(barWidth / 2, 1.5);
-                
-                if (isColorWaveform) {
-                    const brightness = Math.max(maxR, maxG, maxB) / 255;
-                    ctx.fillStyle = `rgba(${maxR}, ${maxG}, ${maxB}, ${0.85 + brightness * 0.15})`;
-                } else {
-                    const intensity = normalizedHeight;
-                    ctx.fillStyle = `rgba(0, 217, 255, ${0.75 + intensity * 0.25})`;
-                }
-                
-                if (barHeight > radius * 2) {
-                    this.drawRoundedBar(ctx, x - barWidth / 2, y, barWidth, barHeight, radius);
-                } else {
-                    ctx.fillRect(x - barWidth / 2, y, barWidth, barHeight);
-                }
-            }
+        if (is3Band) {
+            this.draw3BandWaveformMirror(ctx, visibleData, displayWidth, displayHeight);
+        } else {
+            this.drawSimpleWaveformMirror(ctx, visibleData, displayWidth, displayHeight);
         }
         
         this.renderBeatgrid(deckId, ctx, displayWidth, displayHeight, viewStart, viewDuration);
