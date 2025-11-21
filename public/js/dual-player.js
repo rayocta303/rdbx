@@ -601,24 +601,40 @@ class DualPlayer {
         if (!canvas || !deck.duration || deck.duration <= 0) return;
         
         const container = canvas.parentElement;
-        canvas.width = container.clientWidth * 2;
-        canvas.height = 120 * 2;
-        canvas.style.width = container.clientWidth + 'px';
-        canvas.style.height = '120px';
+        const dpr = window.devicePixelRatio || 1;
+        const displayWidth = container.clientWidth;
+        const displayHeight = 120;
         
-        const ctx = canvas.getContext('2d', { alpha: true });
+        // Set actual size in memory (scaled to account for extra pixel density)
+        canvas.width = displayWidth * dpr;
+        canvas.height = displayHeight * dpr;
         
+        // Set display size (css pixels)
+        canvas.style.width = displayWidth + 'px';
+        canvas.style.height = displayHeight + 'px';
+        
+        const ctx = canvas.getContext('2d', { 
+            alpha: true,
+            desynchronized: true,
+            willReadFrequently: false
+        });
+        
+        // Scale all drawing operations by the dpr
+        ctx.scale(dpr, dpr);
+        
+        // Enable smooth rendering
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         
+        // Fill background (use display dimensions, already scaled by dpr)
         ctx.fillStyle = '#0a0a0a';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, displayWidth, displayHeight);
         
         if (!deck.waveformData) {
             ctx.fillStyle = '#333';
             ctx.font = '14px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText('No waveform data', canvas.width / 2, canvas.height / 2);
+            ctx.fillText('No waveform data', displayWidth / 2, displayHeight / 2);
             return;
         }
         
@@ -627,7 +643,7 @@ class DualPlayer {
         const viewEnd = viewStart + viewDuration;
         
         const leadingBlankDuration = Math.max(0, -viewStart);
-        const leadingBlankWidth = (leadingBlankDuration / viewDuration) * canvas.width;
+        const leadingBlankWidth = (leadingBlankDuration / viewDuration) * displayWidth;
         
         const actualStart = Math.max(0, viewStart);
         const startIndex = Math.floor((actualStart / deck.duration) * deck.waveformData.length);
@@ -636,18 +652,20 @@ class DualPlayer {
         
         if (visibleData.length === 0) return;
         
-        const dataWidth = canvas.width - leadingBlankWidth;
+        const dataWidth = displayWidth - leadingBlankWidth;
         const step = dataWidth / visibleData.length;
-        const height = canvas.height;
+        const height = displayHeight;
         const isColorWaveform = visibleData[0] && visibleData[0].r !== undefined;
         
+        // Use sub-pixel rendering for smoother waveforms
         visibleData.forEach((sample, i) => {
             const x = leadingBlankWidth + (i * step);
             const normalizedHeight = sample.height / 255;
             const barHeight = normalizedHeight * height * 0.9;
             const y = (height - barHeight) / 2;
             
-            const barWidth = Math.max(1.5, step * 1.1);
+            // Smooth bar width with sub-pixel precision
+            const barWidth = Math.max(1.2, step * 1.05);
             
             if (isColorWaveform) {
                 const brightness = Math.max(sample.r, sample.g, sample.b) / 255;
@@ -663,8 +681,9 @@ class DualPlayer {
                 
                 ctx.fillStyle = gradient;
                 
-                ctx.shadowBlur = 2;
-                ctx.shadowColor = `rgba(${r}, ${g}, ${b}, 0.4)`;
+                // Softer glow effect
+                ctx.shadowBlur = 1.5;
+                ctx.shadowColor = `rgba(${r}, ${g}, ${b}, 0.3)`;
             } else {
                 const intensity = normalizedHeight;
                 
@@ -675,15 +694,17 @@ class DualPlayer {
                 
                 ctx.fillStyle = gradient;
                 
-                ctx.shadowBlur = 2;
-                ctx.shadowColor = `rgba(0, 217, 255, ${0.3 + intensity * 0.2})`;
+                // Softer glow effect
+                ctx.shadowBlur = 1.5;
+                ctx.shadowColor = `rgba(0, 217, 255, ${0.25 + intensity * 0.15})`;
             }
             
+            // Use sub-pixel positioning for smoother rendering
             ctx.fillRect(x - barWidth/4, y, barWidth, barHeight);
             ctx.shadowBlur = 0;
         });
         
-        this.renderBeatgrid(deckId, ctx, canvas.width, canvas.height, viewStart, viewDuration);
+        this.renderBeatgrid(deckId, ctx, displayWidth, displayHeight, viewStart, viewDuration);
     }
     
     renderBeatgrid(deckId, ctx, width, height, viewStart, viewDuration) {
