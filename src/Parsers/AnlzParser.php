@@ -312,12 +312,27 @@ class AnlzParser {
         $offset = 24;
         
         for ($i = 0; $i < $numCues && $offset + 56 <= strlen($sectionData); $i++) {
-            // PCOB cue entry structure (56 bytes total):
-            // 0-11: unknown header (12 bytes)
-            // 12-39: cue data (28 bytes) - THIS IS WHERE WE READ
+            // PCOB cue entry structure (56 bytes total per entry):
+            // Based on: https://djl-analysis.deepsymmetry.org/rekordbox-export-analysis/anlz.html#cue-list
+            // 0-3: magic (always 0x00000000)
+            // 4-7: len_header (u4 big-endian)
+            // 8-11: len_entry (u4 big-endian)
+            // 12-15: hot_cue (u4 big-endian) - HOT CUE INDEX IS HERE
+            // 16-19: status (u4 big-endian)
+            // 20-23: unknown1 (u4)
+            // 24-25: order_first (u2)
+            // 26-27: order_last (u2)
+            // 28: type (u1)
+            // 29: u1 (padding)
+            // 30-31: u2 (padding)
+            // 32-35: time (u4 big-endian) - CUE TIME IN MILLISECONDS
+            // 36-39: loop_time (u4 big-endian)
             // 40-55: padding/unknown (16 bytes)
             $cueData = unpack(
-                'Nhot_cue/' .      // offset 12-15 (4 bytes)
+                'Nmagic/' .        // offset 0-3 (4 bytes)
+                'Nlen_header/' .   // offset 4-7 (4 bytes)
+                'Nlen_entry/' .    // offset 8-11 (4 bytes)
+                'Nhot_cue/' .      // offset 12-15 (4 bytes) - CORRECT POSITION
                 'Nstatus/' .       // offset 16-19 (4 bytes)
                 'Nunknown1/' .     // offset 20-23 (4 bytes)
                 'norder_first/' .  // offset 24-25 (2 bytes)
@@ -327,7 +342,7 @@ class AnlzParser {
                 'nu2/' .           // offset 30-31 (2 bytes)
                 'Ntime/' .         // offset 32-35 (4 bytes)
                 'Nloop_time',      // offset 36-39 (4 bytes)
-                substr($sectionData, $offset + 12, 28)
+                substr($sectionData, $offset, 40)
             );
             
             // hot_cue is zero-based: 0=A, 1=B, 2=C, etc. 0xFF (255) = memory cue
@@ -378,15 +393,17 @@ class AnlzParser {
             if ($offset + 16 > strlen($sectionData)) break;
             
             // PCO2 entry header (16 bytes):
+            // Based on: https://djl-analysis.deepsymmetry.org/rekordbox-export-analysis/anlz.html#extended-cue-list
             // 0-3: fourcc 'PCP2' (4 bytes)
-            // 4-7: len_header (4 bytes)
-            // 8-11: len_entry (4 bytes)
-            // 12-15: hot_cue (4 bytes)
+            // 4-7: len_header (u4 big-endian)
+            // 8-11: len_entry (u4 big-endian)
+            // 12-15: hot_cue (u4 big-endian) - HOT CUE INDEX
             $entryHeader = unpack(
+                'a4fourcc/' .      // offset 0-3
                 'Nlen_header/' .   // offset 4-7
                 'Nlen_entry/' .    // offset 8-11
                 'Nhot_cue',        // offset 12-15
-                substr($sectionData, $offset + 4, 12)
+                substr($sectionData, $offset, 16)
             );
             
             $entryLen = $entryHeader['len_entry'] ?? 0;
