@@ -355,16 +355,17 @@ class AnlzParser {
                 // Valid hot cue (1-8), convert to zero-based (0-7)
                 $hotCueIndex = $rawHotCue - 1;
                 $hotCueLabel = chr(ord('A') + $hotCueIndex);
+                
+                // Only add cues with valid hot_cue index
+                $cues[] = [
+                    'hot_cue' => $hotCueIndex,
+                    'hot_cue_label' => $hotCueLabel,
+                    'type' => $cueData['type'] == 2 ? 'loop' : 'cue',
+                    'time' => $cueData['time'],
+                    'loop_time' => $cueData['type'] == 2 ? $cueData['loop_time'] : null,
+                    'comment' => ''
+                ];
             }
-            
-            $cues[] = [
-                'hot_cue' => $hotCueIndex,
-                'hot_cue_label' => $hotCueLabel,
-                'type' => $cueData['type'] == 2 ? 'loop' : 'cue',
-                'time' => $cueData['time'],
-                'loop_time' => $cueData['type'] == 2 ? $cueData['loop_time'] : null,
-                'comment' => ''
-            ];
             
             $offset += 56;
         }
@@ -449,17 +450,18 @@ class AnlzParser {
                 // Valid hot cue (1-8), convert to zero-based (0-7)
                 $hotCueIndex = $rawHotCue - 1;
                 $hotCueLabel = chr(ord('A') + $hotCueIndex);
+                
+                // Only add cues with valid hot_cue index
+                $cues[] = [
+                    'hot_cue' => $hotCueIndex,
+                    'hot_cue_label' => $hotCueLabel,
+                    'type' => $cueData['type'] == 2 ? 'loop' : 'cue',
+                    'time' => $cueData['time'],
+                    'loop_time' => $cueData['type'] == 2 ? $cueData['loop_time'] : null,
+                    'color_id' => $cueData['color_id'] ?? 0,
+                    'comment' => $comment
+                ];
             }
-            
-            $cues[] = [
-                'hot_cue' => $hotCueIndex,
-                'hot_cue_label' => $hotCueLabel,
-                'type' => $cueData['type'] == 2 ? 'loop' : 'cue',
-                'time' => $cueData['time'],
-                'loop_time' => $cueData['type'] == 2 ? $cueData['loop_time'] : null,
-                'color_id' => $cueData['color_id'] ?? 0,
-                'comment' => $comment
-            ];
             
             $offset += $entryLen;
         }
