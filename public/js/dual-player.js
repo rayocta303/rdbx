@@ -352,6 +352,13 @@ class DualPlayer {
         }
         
         deck.beatgridData = track.beat_grid;
+        
+        console.log(`[Deck ${deckId.toUpperCase()}] Beat grid data:`, {
+            has_beat_grid: !!track.beat_grid,
+            is_array: Array.isArray(track.beat_grid),
+            length: track.beat_grid ? track.beat_grid.length : 0,
+            first_beat: track.beat_grid && track.beat_grid.length > 0 ? track.beat_grid[0] : null
+        });
         deck.waveformOffset = 0;
         deck.pitchValue = 0;
         deck.originalBPM = track.bpm || 0;

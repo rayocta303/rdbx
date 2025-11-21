@@ -127,13 +127,32 @@ class RekordboxReader {
 
     private function integrateAnlzData($tracks) {
         // Parse ANLZ data for each track using analyze_path from database
+        if ($this->logger) {
+            $this->logger->info("Starting ANLZ integration for " . count($tracks) . " tracks");
+        }
+        
         foreach ($tracks as &$track) {
             $track['cue_points'] = [];
             $track['waveform'] = null;
             $track['beat_grid'] = [];
             
             if (empty($track['analyze_path'])) {
+                if ($this->logger && $track['id'] <= 2) {
+                    $this->logger->info("Track #{$track['id']}: No analyze_path found");
+                }
                 continue;
+            }
+            
+            if ($this->logger && $track['id'] <= 2) {
+                $this->logger->info("Track #{$track['id']}: analyze_path = '{$track['analyze_path']}'");
+            }
+            
+            // Normalize path: Windows backslash to POSIX forward slash
+            $normalizedPath = str_replace('\\', '/', trim($track['analyze_path']));
+            
+            // Ensure leading slash
+            if ($normalizedPath[0] !== '/') {
+                $normalizedPath = '/' . $normalizedPath;
             }
             
             // Try to find and parse ANLZ files (.EXT, .DAT, .2EX)
@@ -147,12 +166,16 @@ class RekordboxReader {
             $hasData = false;
             foreach ($filesToTry as $fileInfo) {
                 // Replace .DAT extension with current extension being tried
-                $anlzPath = preg_replace('/\.DAT$/i', $fileInfo['suffix'], $track['analyze_path']);
+                $anlzPath = preg_replace('/\.DAT$/i', $fileInfo['suffix'], $normalizedPath);
                 $fullPath = $this->exportPath . $anlzPath;
+                
+                if ($this->logger && !empty($track['id']) && $track['id'] <= 2) {
+                    $this->logger->info("Track #{$track['id']}: Trying ANLZ: {$fullPath} - " . (file_exists($fullPath) ? 'EXISTS' : 'NOT FOUND'));
+                }
                 
                 if (file_exists($fullPath)) {
                     try {
-                        $parser = new AnlzParser($fullPath, null);
+                        $parser = new AnlzParser($fullPath, $this->logger);
                         $anlzData = $parser->parse();
 
                         if (!empty($anlzData['cue_points'])) {

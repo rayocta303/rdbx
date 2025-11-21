@@ -4,7 +4,20 @@
 Tool PHP untuk membaca dan menampilkan database Rekordbox USB/SD export dengan web GUI modern. Project ini mengkonversi implementasi Python menjadi PHP murni dengan struktur modular.
 
 ## Recent Changes
-- **2025-11-21 (Latest)**: Enhanced Waveform Rendering & BPM Sync Improvements
+- **2025-11-21 (Latest)**: Critical Bug Fixes - High-DPI Interaction & Beat Sync
+  - **High-DPI Waveform Interaction Fix** (Critical):
+    - Fixed waveform scrubbing accuracy pada high-DPI displays (Retina, 4K)
+    - Changed pixelsPerSecond calculation dari `canvas.width` (physical pixels) ke `container.clientWidth` (CSS pixels)
+    - Resolves issue dimana waveform scrubbing berjalan di half-speed atau incorrect speed pada DPR=2/3 displays
+    - Maintains accurate cursor-to-time mapping across semua display densities
+  - **Beat Sync Data Structure Fix** (Critical):
+    - Fixed beat grid data structure mismatch antara AnlzParser dan dual-player.js
+    - Changed dari `beatgridData.beats[0]` ke `beatgridData[0]` (direct array access)
+    - Added `Array.isArray()` validation di semua beat grid accessors
+    - Resolves "Beat grid not available" error message untuk tracks dengan valid PQTZ data
+    - Beat Sync dan Quantize functionality sekarang bekerja correctly dengan Rekordbox beat grid data
+
+- **2025-11-21 (sebelumnya)**: Enhanced Waveform Rendering & BPM Sync Improvements
   - **Rounded Waveform Caps**: Rekordbox-style smooth waveform bars
     - Implemented `ctx.roundRect()` dengan fallback ke manual arc paths
     - Rounded bar caps untuk professional appearance seperti referensi Rekordbox
