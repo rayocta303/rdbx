@@ -190,12 +190,14 @@ class AnlzParser {
             'detail' => null,
             'color' => null,
             'preview_data' => null,
-            'color_data' => null
+            'color_data' => null,
+            'three_band_preview' => null,
+            'three_band_detail' => null
         ];
 
         // Parse preview waveform (PWAV)
         if (isset($this->sections['PWAV'])) {
-            $waveData = $this->parseWaveformData($this->sections['PWAV'][0], false);
+            $waveData = $this->parseWaveformData($this->sections['PWAV'][0], 'mono');
             $waveform['preview'] = [
                 'type' => 'monochrome',
                 'data_length' => strlen($this->sections['PWAV'][0]),
@@ -212,42 +214,55 @@ class AnlzParser {
             ];
         }
 
-        // Parse color waveform (PWV5)
+        // Parse color waveform (PWV5 - 3-band preview)
         if (isset($this->sections['PWV5'])) {
-            $waveData = $this->parseWaveformData($this->sections['PWV5'][0], true);
+            $waveData = $this->parseWaveformData($this->sections['PWV5'][0], '3band');
             $waveform['color'] = [
-                'type' => 'color',
+                'type' => '3band',
                 'data_length' => strlen($this->sections['PWV5'][0]),
                 'samples' => count($waveData)
             ];
             $waveform['color_data'] = $waveData;
+            $waveform['three_band_preview'] = $waveData;
+        }
+
+        // Parse 3-band detail waveform (PWV6)
+        if (isset($this->sections['PWV6'])) {
+            $waveData = $this->parseWaveformData($this->sections['PWV6'][0], '3band');
+            $waveform['three_band_detail'] = $waveData;
         }
 
         return $waveform;
     }
     
-    private function parseWaveformData($sectionData, $isColor) {
+    private function parseWaveformData($sectionData, $type) {
         $waveData = [];
         
-        if (strlen($sectionData) < 20) {
+        if (strlen($sectionData) < 12) {
             return $waveData;
         }
         
-        // Skip section header (20 bytes)
-        $offset = 20;
+        // Read len_header and len_tag from section (big-endian)
+        $headerInfo = unpack('Nlen_header/Nlen_tag', substr($sectionData, 4, 8));
+        $offset = $headerInfo['len_header'];
+        $tagEnd = $headerInfo['len_tag'];
         
-        // Each waveform sample is 1 byte for mono, or 3-6 bytes for color
-        $sampleSize = $isColor ? 6 : 1;
+        // Each waveform sample size depends on type
+        $sampleSize = 1;
+        if ($type === '3band') {
+            $sampleSize = 3; // 3 bytes: mid, high, low frequencies
+        }
         
-        while ($offset + $sampleSize <= strlen($sectionData)) {
-            if ($isColor) {
-                // Color waveform: RGB values for different frequency bands
-                $sample = unpack('Cred/Cgreen/Cblue/Cred2/Cgreen2/Cblue2', substr($sectionData, $offset, 6));
+        // Read only up to len_tag to avoid padding/footer
+        while ($offset + $sampleSize <= $tagEnd && $offset + $sampleSize <= strlen($sectionData)) {
+            if ($type === '3band') {
+                // 3-band waveform: mid, high, low frequency values
+                // Each is 1 byte representing amplitude
+                $sample = unpack('Cmid/Chigh/Clow', substr($sectionData, $offset, 3));
                 $waveData[] = [
-                    'height' => max($sample['red'], $sample['green'], $sample['blue']),
-                    'r' => $sample['red'],
-                    'g' => $sample['green'],
-                    'b' => $sample['blue']
+                    'mid' => $sample['mid'],
+                    'high' => $sample['high'],
+                    'low' => $sample['low']
                 ];
             } else {
                 // Monochrome waveform: single height value

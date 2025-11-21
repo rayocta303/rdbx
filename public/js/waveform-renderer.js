@@ -64,7 +64,7 @@ class WaveformRenderer {
         ctx.fillStyle = '#0a0a0a';
         ctx.fillRect(0, 0, width, height);
         
-        const waveData = this.waveformData.preview_data || this.waveformData.color_data;
+        const waveData = this.waveformData.three_band_preview || this.waveformData.color_data || this.waveformData.preview_data;
         if (!waveData || waveData.length === 0) {
             ctx.fillStyle = '#333';
             ctx.font = '14px Arial';
@@ -73,7 +73,7 @@ class WaveformRenderer {
             return;
         }
         
-        const isColorWaveform = waveData[0].r !== undefined;
+        const is3Band = waveData[0].mid !== undefined;
         const samplesPerPixel = waveData.length / width;
         
         if (samplesPerPixel > 1) {
@@ -81,38 +81,38 @@ class WaveformRenderer {
                 const sampleStart = Math.floor(x * samplesPerPixel);
                 const sampleEnd = Math.min(waveData.length, Math.ceil((x + 1) * samplesPerPixel));
                 
-                let maxHeight = 0;
-                let maxR = 0, maxG = 0, maxB = 0;
+                let maxLow = 0, maxMid = 0, maxHigh = 0, maxHeight = 0;
                 
                 for (let i = sampleStart; i < sampleEnd; i++) {
                     const sample = waveData[i];
-                    maxHeight = Math.max(maxHeight, sample.height || 0);
-                    if (isColorWaveform) {
-                        maxR = Math.max(maxR, sample.r || 0);
-                        maxG = Math.max(maxG, sample.g || 0);
-                        maxB = Math.max(maxB, sample.b || 0);
+                    if (is3Band) {
+                        maxLow = Math.max(maxLow, sample.low || 0);
+                        maxMid = Math.max(maxMid, sample.mid || 0);
+                        maxHigh = Math.max(maxHigh, sample.high || 0);
+                    } else {
+                        maxHeight = Math.max(maxHeight, sample.height || 0);
                     }
                 }
                 
-                if (maxHeight === 0) continue;
+                if (!is3Band && maxHeight === 0) continue;
+                if (is3Band && maxLow === 0 && maxMid === 0 && maxHigh === 0) continue;
                 
-                const barHeight = (maxHeight / 255) * height * 0.85;
-                const y = (height - barHeight) / 2;
                 const barWidth = 1.2;
-                const radius = Math.min(barWidth / 2, 1.5);
                 
-                if (isColorWaveform) {
-                    const brightness = Math.max(maxR, maxG, maxB) / 255;
-                    ctx.fillStyle = `rgba(${maxR}, ${maxG}, ${maxB}, ${0.8 + brightness * 0.2})`;
+                if (is3Band) {
+                    this.draw3BandBar(ctx, x, height, maxMid, maxHigh, maxLow, barWidth);
                 } else {
+                    const barHeight = (maxHeight / 255) * height * 0.85;
+                    const y = (height - barHeight) / 2;
+                    const radius = Math.min(barWidth / 2, 1.5);
                     const intensity = maxHeight / 255;
                     ctx.fillStyle = `rgba(0, 217, 255, ${0.7 + intensity * 0.3})`;
-                }
-                
-                if (barHeight > radius * 2) {
-                    this.drawRoundedBar(ctx, x - barWidth / 2, y, barWidth, barHeight, radius);
-                } else {
-                    ctx.fillRect(x - barWidth / 2, y, barWidth, barHeight);
+                    
+                    if (barHeight > radius * 2) {
+                        this.drawRoundedBar(ctx, x - barWidth / 2, y, barWidth, barHeight, radius);
+                    } else {
+                        ctx.fillRect(x - barWidth / 2, y, barWidth, barHeight);
+                    }
                 }
             }
         } else {
@@ -120,23 +120,22 @@ class WaveformRenderer {
             for (let i = 0; i < waveData.length; i++) {
                 const sample = waveData[i];
                 const x = i * step;
-                const barHeight = (sample.height / 255) * height * 0.85;
-                const y = (height - barHeight) / 2;
                 const barWidth = Math.max(1, step);
-                const radius = Math.min(barWidth / 2, 1.5);
                 
-                if (isColorWaveform) {
-                    const brightness = Math.max(sample.r, sample.g, sample.b) / 255;
-                    ctx.fillStyle = `rgba(${sample.r}, ${sample.g}, ${sample.b}, ${0.8 + brightness * 0.2})`;
+                if (is3Band) {
+                    this.draw3BandBar(ctx, x, height, sample.mid || 0, sample.high || 0, sample.low || 0, barWidth);
                 } else {
+                    const barHeight = (sample.height / 255) * height * 0.85;
+                    const y = (height - barHeight) / 2;
+                    const radius = Math.min(barWidth / 2, 1.5);
                     const intensity = sample.height / 255;
                     ctx.fillStyle = `rgba(0, 217, 255, ${0.7 + intensity * 0.3})`;
-                }
-                
-                if (barHeight > radius * 2) {
-                    this.drawRoundedBar(ctx, x, y, barWidth, barHeight, radius);
-                } else {
-                    ctx.fillRect(x, y, barWidth, barHeight);
+                    
+                    if (barHeight > radius * 2) {
+                        this.drawRoundedBar(ctx, x, y, barWidth, barHeight, radius);
+                    } else {
+                        ctx.fillRect(x, y, barWidth, barHeight);
+                    }
                 }
             }
         }
@@ -161,7 +160,7 @@ class WaveformRenderer {
         ctx.fillStyle = '#0a0a0a';
         ctx.fillRect(0, 0, width, height);
         
-        const waveData = this.waveformData.preview_data || this.waveformData.color_data;
+        const waveData = this.waveformData.three_band_detail || this.waveformData.color_data || this.waveformData.preview_data;
         if (!waveData || waveData.length === 0) {
             ctx.fillStyle = '#333';
             ctx.font = '16px Arial';
@@ -179,7 +178,7 @@ class WaveformRenderer {
         
         if (visibleData.length === 0) return;
         
-        const isColorWaveform = visibleData[0] && visibleData[0].r !== undefined;
+        const is3Band = visibleData[0] && visibleData[0].mid !== undefined;
         const samplesPerPixel = visibleData.length / width;
         
         if (samplesPerPixel > 1) {
@@ -187,39 +186,39 @@ class WaveformRenderer {
                 const sampleStart = Math.floor(x * samplesPerPixel);
                 const sampleEnd = Math.min(visibleData.length, Math.ceil((x + 1) * samplesPerPixel));
                 
-                let maxHeight = 0;
-                let maxR = 0, maxG = 0, maxB = 0;
+                let maxLow = 0, maxMid = 0, maxHigh = 0, maxHeight = 0;
                 
                 for (let i = sampleStart; i < sampleEnd; i++) {
                     const sample = visibleData[i];
                     if (!sample) continue;
-                    maxHeight = Math.max(maxHeight, sample.height || 0);
-                    if (isColorWaveform) {
-                        maxR = Math.max(maxR, sample.r || 0);
-                        maxG = Math.max(maxG, sample.g || 0);
-                        maxB = Math.max(maxB, sample.b || 0);
+                    if (is3Band) {
+                        maxLow = Math.max(maxLow, sample.low || 0);
+                        maxMid = Math.max(maxMid, sample.mid || 0);
+                        maxHigh = Math.max(maxHigh, sample.high || 0);
+                    } else {
+                        maxHeight = Math.max(maxHeight, sample.height || 0);
                     }
                 }
                 
-                if (maxHeight === 0) continue;
+                if (!is3Band && maxHeight === 0) continue;
+                if (is3Band && maxLow === 0 && maxMid === 0 && maxHigh === 0) continue;
                 
-                const barHeight = (maxHeight / 255) * height * 0.85;
-                const y = (height - barHeight) / 2;
                 const barWidth = 1.2;
-                const radius = Math.min(barWidth / 2, 1.5);
                 
-                if (isColorWaveform) {
-                    const brightness = Math.max(maxR, maxG, maxB) / 255;
-                    ctx.fillStyle = `rgba(${maxR}, ${maxG}, ${maxB}, ${0.8 + brightness * 0.2})`;
+                if (is3Band) {
+                    this.draw3BandBar(ctx, x, height, maxMid, maxHigh, maxLow, barWidth);
                 } else {
+                    const barHeight = (maxHeight / 255) * height * 0.85;
+                    const y = (height - barHeight) / 2;
+                    const radius = Math.min(barWidth / 2, 1.5);
                     const intensity = maxHeight / 255;
                     ctx.fillStyle = `rgba(0, 217, 255, ${0.7 + intensity * 0.3})`;
-                }
-                
-                if (barHeight > radius * 2) {
-                    this.drawRoundedBar(ctx, x - barWidth / 2, y, barWidth, barHeight, radius);
-                } else {
-                    ctx.fillRect(x - barWidth / 2, y, barWidth, barHeight);
+                    
+                    if (barHeight > radius * 2) {
+                        this.drawRoundedBar(ctx, x - barWidth / 2, y, barWidth, barHeight, radius);
+                    } else {
+                        ctx.fillRect(x - barWidth / 2, y, barWidth, barHeight);
+                    }
                 }
             }
         } else {
@@ -227,23 +226,22 @@ class WaveformRenderer {
             for (let i = 0; i < visibleData.length; i++) {
                 const sample = visibleData[i];
                 const x = i * step;
-                const barHeight = (sample.height / 255) * height * 0.85;
-                const y = (height - barHeight) / 2;
                 const barWidth = Math.max(1, step);
-                const radius = Math.min(barWidth / 2, 1.5);
                 
-                if (isColorWaveform) {
-                    const brightness = Math.max(sample.r, sample.g, sample.b) / 255;
-                    ctx.fillStyle = `rgba(${sample.r}, ${sample.g}, ${sample.b}, ${0.8 + brightness * 0.2})`;
+                if (is3Band) {
+                    this.draw3BandBar(ctx, x, height, sample.mid || 0, sample.high || 0, sample.low || 0, barWidth);
                 } else {
+                    const barHeight = (sample.height / 255) * height * 0.85;
+                    const y = (height - barHeight) / 2;
+                    const radius = Math.min(barWidth / 2, 1.5);
                     const intensity = sample.height / 255;
                     ctx.fillStyle = `rgba(0, 217, 255, ${0.7 + intensity * 0.3})`;
-                }
-                
-                if (barHeight > radius * 2) {
-                    this.drawRoundedBar(ctx, x, y, barWidth, barHeight, radius);
-                } else {
-                    ctx.fillRect(x, y, barWidth, barHeight);
+                    
+                    if (barHeight > radius * 2) {
+                        this.drawRoundedBar(ctx, x, y, barWidth, barHeight, radius);
+                    } else {
+                        ctx.fillRect(x, y, barWidth, barHeight);
+                    }
                 }
             }
         }
@@ -329,6 +327,65 @@ class WaveformRenderer {
         
         this.renderOverview();
         this.renderDetailed();
+    }
+    
+    draw3BandBar(ctx, x, canvasHeight, mid, high, low, barWidth) {
+        const centerY = canvasHeight / 2;
+        const scale = 0.85;
+        
+        const lowHeight = (low / 255) * centerY * scale;
+        const midHeight = (mid / 255) * centerY * scale;
+        const highHeight = (high / 255) * centerY * scale;
+        
+        const maxHeight = Math.max(lowHeight, midHeight, highHeight);
+        if (maxHeight === 0) return;
+        
+        const radius = Math.min(barWidth / 2, 1.5);
+        
+        ctx.globalCompositeOperation = 'source-over';
+        
+        if (lowHeight > 0) {
+            const yTop = centerY - lowHeight;
+            const yBottom = centerY + lowHeight;
+            const intensity = low / 255;
+            ctx.fillStyle = `rgba(255, 140, 0, ${0.7 + intensity * 0.3})`;
+            
+            if (lowHeight > radius * 2) {
+                this.drawRoundedBar(ctx, x - barWidth / 2, yTop, barWidth, lowHeight * 2, radius);
+            } else {
+                ctx.fillRect(x - barWidth / 2, yTop, barWidth, lowHeight * 2);
+            }
+        }
+        
+        if (midHeight > 0) {
+            const yTop = centerY - midHeight;
+            const yBottom = centerY + midHeight;
+            const intensity = mid / 255;
+            ctx.globalCompositeOperation = 'lighten';
+            ctx.fillStyle = `rgba(255, 255, 255, ${0.6 + intensity * 0.4})`;
+            
+            if (midHeight > radius * 2) {
+                this.drawRoundedBar(ctx, x - barWidth / 2, yTop, barWidth, midHeight * 2, radius);
+            } else {
+                ctx.fillRect(x - barWidth / 2, yTop, barWidth, midHeight * 2);
+            }
+        }
+        
+        if (highHeight > 0) {
+            const yTop = centerY - highHeight;
+            const yBottom = centerY + highHeight;
+            const intensity = high / 255;
+            ctx.globalCompositeOperation = 'lighten';
+            ctx.fillStyle = `rgba(0, 150, 255, ${0.7 + intensity * 0.3})`;
+            
+            if (highHeight > radius * 2) {
+                this.drawRoundedBar(ctx, x - barWidth / 2, yTop, barWidth, highHeight * 2, radius);
+            } else {
+                ctx.fillRect(x - barWidth / 2, yTop, barWidth, highHeight * 2);
+            }
+        }
+        
+        ctx.globalCompositeOperation = 'source-over';
     }
     
     drawRoundedBar(ctx, x, y, width, height, radius) {

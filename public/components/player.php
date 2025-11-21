@@ -119,7 +119,7 @@
                     <div class="hot-cue-grid">
                         <?php for ($i = 1; $i <= 8; $i++): ?>
                         <button class="hot-cue-pad" data-deck="a" data-cue="<?= $i ?>" onclick="window.dualPlayer.triggerHotCue('a', <?= $i ?>)">
-                            <div class="cue-number"><?= $i ?></div>
+                            <div class="cue-number"><?= chr(64 + $i) ?></div>
                             <div class="cue-time" id="cueTimeA<?= $i ?>">--:--</div>
                         </button>
                         <?php endfor; ?>
@@ -248,7 +248,7 @@
                     <div class="hot-cue-grid">
                         <?php for ($i = 1; $i <= 8; $i++): ?>
                         <button class="hot-cue-pad" data-deck="b" data-cue="<?= $i ?>" onclick="window.dualPlayer.triggerHotCue('b', <?= $i ?>)">
-                            <div class="cue-number"><?= $i ?></div>
+                            <div class="cue-number"><?= chr(64 + $i) ?></div>
                             <div class="cue-time" id="cueTimeB<?= $i ?>">--:--</div>
                         </button>
                         <?php endfor; ?>

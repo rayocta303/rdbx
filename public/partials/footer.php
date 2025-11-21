@@ -95,8 +95,12 @@
                     }
                 };
                 
-                const cueCount = track.cue_points ? track.cue_points.length : 0;
-                const cueIcon = cueCount > 0 ? `<i class="fas fa-map-marker-alt text-orange-400"></i> ${cueCount}` : '-';
+                const hotCueLabels = track.cue_points ? 
+                    track.cue_points
+                        .filter(cue => cue.hot_cue_label)
+                        .map(cue => cue.hot_cue_label)
+                        .join(' ') : '';
+                const cueIcon = hotCueLabels ? `<span class="text-orange-400 font-semibold">${hotCueLabels}</span>` : '-';
                 
                 row.innerHTML = `
                     <td class="px-4 py-3 text-sm text-gray-500">${index + 1}</td>
