@@ -183,7 +183,8 @@ class DualPlayer {
                 hasDragged = true;
             }
             
-            const pixelsPerSecond = canvas.width / (deck.duration / this.sharedZoomLevel);
+            const displayWidth = container.clientWidth;
+            const pixelsPerSecond = displayWidth / (deck.duration / this.sharedZoomLevel);
             const deltaTime = deltaX / pixelsPerSecond;
             const visibleDuration = deck.duration / this.sharedZoomLevel;
             const minOffset = -visibleDuration / 2;
@@ -549,6 +550,21 @@ class DualPlayer {
         this.renderCueMarkers(deckId);
     }
     
+    drawRoundedBar(ctx, x, y, width, height, radius) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+        ctx.fill();
+    }
+    
     zoomBothDecks(direction) {
         const zoomLevels = [16, 32, 64, 128];
         let currentIndex = zoomLevels.indexOf(this.sharedZoomLevel);
@@ -605,28 +621,22 @@ class DualPlayer {
         const displayWidth = container.clientWidth;
         const displayHeight = 120;
         
-        // Set actual size in memory (scaled to account for extra pixel density)
         canvas.width = displayWidth * dpr;
         canvas.height = displayHeight * dpr;
-        
-        // Set display size (css pixels)
         canvas.style.width = displayWidth + 'px';
         canvas.style.height = displayHeight + 'px';
         
         const ctx = canvas.getContext('2d', { 
-            alpha: true,
+            alpha: false,
             desynchronized: true,
             willReadFrequently: false
         });
         
-        // Scale all drawing operations by the dpr
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.scale(dpr, dpr);
-        
-        // Enable smooth rendering
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         
-        // Fill background (use display dimensions, already scaled by dpr)
         ctx.fillStyle = '#0a0a0a';
         ctx.fillRect(0, 0, displayWidth, displayHeight);
         
@@ -641,7 +651,6 @@ class DualPlayer {
         const viewStart = deck.waveformOffset;
         const viewDuration = deck.duration / this.sharedZoomLevel;
         const viewEnd = viewStart + viewDuration;
-        
         const leadingBlankDuration = Math.max(0, -viewStart);
         const leadingBlankWidth = (leadingBlankDuration / viewDuration) * displayWidth;
         
@@ -657,21 +666,13 @@ class DualPlayer {
         const height = displayHeight;
         const isColorWaveform = visibleData[0] && visibleData[0].r !== undefined;
         
-        // MIXXX-inspired max sampling for smooth rendering
-        // Iterate per display pixel and aggregate samples
-        const barWidth = Math.max(1.0, 1.0 / samplesPerPixel);
-        const barRadius = Math.min(barWidth / 2, 2); // Rounded caps
-        
         for (let x = Math.floor(leadingBlankWidth); x < displayWidth; x++) {
-            // Calculate which samples this pixel represents
             const pixelOffset = x - leadingBlankWidth;
             const sampleStart = Math.floor(pixelOffset * samplesPerPixel);
             const sampleEnd = Math.ceil((pixelOffset + 1) * samplesPerPixel);
             
-            // Skip if beyond data
             if (sampleStart >= visibleData.length) break;
             
-            // Find max values in this pixel's sample range (MIXXX max-sampling technique)
             let maxHeight = 0;
             let maxR = 0, maxG = 0, maxB = 0;
             
@@ -693,57 +694,22 @@ class DualPlayer {
             const normalizedHeight = maxHeight / 255;
             const barHeight = normalizedHeight * height * 0.9;
             const y = (height - barHeight) / 2;
+            const barWidth = 1.2;
+            const radius = Math.min(barWidth / 2, 1.5);
             
-            // Draw rounded bar capsule for smooth Rekordbox-like appearance
             if (isColorWaveform) {
                 const brightness = Math.max(maxR, maxG, maxB) / 255;
-                
-                const gradient = ctx.createLinearGradient(x, y, x, y + barHeight);
-                gradient.addColorStop(0, `rgba(${maxR}, ${maxG}, ${maxB}, ${0.9 + brightness * 0.1})`);
-                gradient.addColorStop(0.5, `rgba(${maxR}, ${maxG}, ${maxB}, ${0.95})`);
-                gradient.addColorStop(1, `rgba(${maxR}, ${maxG}, ${maxB}, ${0.9 + brightness * 0.1})`);
-                
-                ctx.fillStyle = gradient;
-                ctx.shadowBlur = 1.0;
-                ctx.shadowColor = `rgba(${maxR}, ${maxG}, ${maxB}, 0.2)`;
+                ctx.fillStyle = `rgba(${maxR}, ${maxG}, ${maxB}, ${0.85 + brightness * 0.15})`;
             } else {
                 const intensity = normalizedHeight;
-                
-                const gradient = ctx.createLinearGradient(x, y, x, y + barHeight);
-                gradient.addColorStop(0, `rgba(0, 217, 255, ${0.8 + intensity * 0.2})`);
-                gradient.addColorStop(0.5, `rgba(0, 255, 200, ${0.85 + intensity * 0.15})`);
-                gradient.addColorStop(1, `rgba(0, 217, 255, ${0.8 + intensity * 0.2})`);
-                
-                ctx.fillStyle = gradient;
-                ctx.shadowBlur = 1.0;
-                ctx.shadowColor = `rgba(0, 217, 255, ${0.15 + intensity * 0.1})`;
+                ctx.fillStyle = `rgba(0, 217, 255, ${0.75 + intensity * 0.25})`;
             }
             
-            // Draw rounded rectangle bar (Rekordbox-style smooth caps)
-            if (barHeight > barRadius * 2) {
-                // Use roundRect if available (modern browsers), fallback to arcs
-                if (ctx.roundRect) {
-                    ctx.beginPath();
-                    ctx.roundRect(x - barWidth * 0.05, y, barWidth, barHeight, barRadius);
-                    ctx.fill();
-                } else {
-                    // Fallback: rounded caps with arcs
-                    const barX = x - barWidth * 0.05;
-                    ctx.beginPath();
-                    ctx.moveTo(barX + barRadius, y);
-                    ctx.arcTo(barX + barWidth, y, barX + barWidth, y + barHeight, barRadius);
-                    ctx.arcTo(barX + barWidth, y + barHeight, barX, y + barHeight, barRadius);
-                    ctx.arcTo(barX, y + barHeight, barX, y, barRadius);
-                    ctx.arcTo(barX, y, barX + barWidth, y, barRadius);
-                    ctx.closePath();
-                    ctx.fill();
-                }
+            if (barHeight > radius * 2) {
+                this.drawRoundedBar(ctx, x - barWidth / 2, y, barWidth, barHeight, radius);
             } else {
-                // Bar too short for rounded corners, use simple rect
-                ctx.fillRect(x - barWidth * 0.05, y, barWidth, barHeight);
+                ctx.fillRect(x - barWidth / 2, y, barWidth, barHeight);
             }
-            
-            ctx.shadowBlur = 0;
         }
         
         this.renderBeatgrid(deckId, ctx, displayWidth, displayHeight, viewStart, viewDuration);
@@ -1040,13 +1006,13 @@ class DualPlayer {
         const sourceDeck = this.decks[sourceDeckId];
         const targetDeck = this.decks[targetDeckId];
         
-        if (!sourceDeck.beatgridData || !sourceDeck.beatgridData.beats || sourceDeck.beatgridData.beats.length === 0) {
+        if (!sourceDeck.beatgridData || !Array.isArray(sourceDeck.beatgridData) || sourceDeck.beatgridData.length === 0) {
             console.warn(`[Beat Sync] No beat grid data available for source deck ${sourceDeckId.toUpperCase()}. Beat sync requires analyzed beat grids.`);
             this.showNotification(`Beat grid not available for ${sourceDeckId.toUpperCase()}. Beat sync requires tracks analyzed in Rekordbox.`, 'error', 4000);
             return;
         }
         
-        if (!targetDeck.beatgridData || !targetDeck.beatgridData.beats || targetDeck.beatgridData.beats.length === 0) {
+        if (!targetDeck.beatgridData || !Array.isArray(targetDeck.beatgridData) || targetDeck.beatgridData.length === 0) {
             console.warn(`[Beat Sync] No beat grid data available for target deck ${targetDeckId.toUpperCase()}. Beat sync requires analyzed beat grids.`);
             this.showNotification(`Beat grid not available for ${targetDeckId.toUpperCase()}. Beat sync requires tracks analyzed in Rekordbox.`, 'error', 4000);
             return;
@@ -1062,10 +1028,10 @@ class DualPlayer {
         let sourceFirstBeatOffset = 0;
         let targetFirstBeatOffset = 0;
         
-        const firstBeat = sourceDeck.beatgridData.beats[0];
+        const firstBeat = sourceDeck.beatgridData[0];
         sourceFirstBeatOffset = firstBeat.time || 0;
         
-        const targetFirstBeat = targetDeck.beatgridData.beats[0];
+        const targetFirstBeat = targetDeck.beatgridData[0];
         targetFirstBeatOffset = targetFirstBeat.time || 0;
         
         const sourceTimeFromFirstBeat = sourceCurrentTime - sourceFirstBeatOffset;
@@ -1235,8 +1201,8 @@ class DualPlayer {
         const beatLength = 60 / currentBPM;
         
         let firstBeatOffset = 0;
-        if (deck.beatgridData && deck.beatgridData.beats && deck.beatgridData.beats.length > 0) {
-            firstBeatOffset = deck.beatgridData.beats[0].time;
+        if (deck.beatgridData && Array.isArray(deck.beatgridData) && deck.beatgridData.length > 0) {
+            firstBeatOffset = deck.beatgridData[0].time;
         }
         
         const timeFromFirstBeat = targetTime - firstBeatOffset;

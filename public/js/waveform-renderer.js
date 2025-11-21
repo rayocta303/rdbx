@@ -41,7 +41,6 @@ class WaveformRenderer {
         this.detailedScrollOffset = 0;
         this.playheadPosition = 0;
         
-        // Re-setup canvases if they have zero width
         if (this.overviewCanvas && this.overviewCanvas.width === 0) {
             this.setupCanvases();
         }
@@ -55,7 +54,10 @@ class WaveformRenderer {
             return;
         }
         
-        const ctx = this.overviewCanvas.getContext('2d');
+        const ctx = this.overviewCanvas.getContext('2d', { 
+            alpha: false,
+            desynchronized: true
+        });
         const width = this.overviewCanvas.width;
         const height = this.overviewCanvas.height;
         
@@ -71,24 +73,73 @@ class WaveformRenderer {
             return;
         }
         
-        const step = width / waveData.length;
         const isColorWaveform = waveData[0].r !== undefined;
+        const samplesPerPixel = waveData.length / width;
         
-        waveData.forEach((sample, i) => {
-            const x = i * step;
-            const barHeight = (sample.height / 255) * height * 0.85;
-            const y = (height - barHeight) / 2;
-            
-            if (isColorWaveform) {
-                const brightness = Math.max(sample.r, sample.g, sample.b) / 255;
-                ctx.fillStyle = `rgba(${sample.r}, ${sample.g}, ${sample.b}, ${0.8 + brightness * 0.2})`;
-            } else {
-                const intensity = sample.height / 255;
-                ctx.fillStyle = `rgba(0, 217, 255, ${0.7 + intensity * 0.3})`;
+        if (samplesPerPixel > 1) {
+            for (let x = 0; x < width; x++) {
+                const sampleStart = Math.floor(x * samplesPerPixel);
+                const sampleEnd = Math.min(waveData.length, Math.ceil((x + 1) * samplesPerPixel));
+                
+                let maxHeight = 0;
+                let maxR = 0, maxG = 0, maxB = 0;
+                
+                for (let i = sampleStart; i < sampleEnd; i++) {
+                    const sample = waveData[i];
+                    maxHeight = Math.max(maxHeight, sample.height || 0);
+                    if (isColorWaveform) {
+                        maxR = Math.max(maxR, sample.r || 0);
+                        maxG = Math.max(maxG, sample.g || 0);
+                        maxB = Math.max(maxB, sample.b || 0);
+                    }
+                }
+                
+                if (maxHeight === 0) continue;
+                
+                const barHeight = (maxHeight / 255) * height * 0.85;
+                const y = (height - barHeight) / 2;
+                const barWidth = 1.2;
+                const radius = Math.min(barWidth / 2, 1.5);
+                
+                if (isColorWaveform) {
+                    const brightness = Math.max(maxR, maxG, maxB) / 255;
+                    ctx.fillStyle = `rgba(${maxR}, ${maxG}, ${maxB}, ${0.8 + brightness * 0.2})`;
+                } else {
+                    const intensity = maxHeight / 255;
+                    ctx.fillStyle = `rgba(0, 217, 255, ${0.7 + intensity * 0.3})`;
+                }
+                
+                if (barHeight > radius * 2) {
+                    this.drawRoundedBar(ctx, x - barWidth / 2, y, barWidth, barHeight, radius);
+                } else {
+                    ctx.fillRect(x - barWidth / 2, y, barWidth, barHeight);
+                }
             }
-            
-            ctx.fillRect(x, y, Math.max(1, step), barHeight);
-        });
+        } else {
+            const step = width / waveData.length;
+            for (let i = 0; i < waveData.length; i++) {
+                const sample = waveData[i];
+                const x = i * step;
+                const barHeight = (sample.height / 255) * height * 0.85;
+                const y = (height - barHeight) / 2;
+                const barWidth = Math.max(1, step);
+                const radius = Math.min(barWidth / 2, 1.5);
+                
+                if (isColorWaveform) {
+                    const brightness = Math.max(sample.r, sample.g, sample.b) / 255;
+                    ctx.fillStyle = `rgba(${sample.r}, ${sample.g}, ${sample.b}, ${0.8 + brightness * 0.2})`;
+                } else {
+                    const intensity = sample.height / 255;
+                    ctx.fillStyle = `rgba(0, 217, 255, ${0.7 + intensity * 0.3})`;
+                }
+                
+                if (barHeight > radius * 2) {
+                    this.drawRoundedBar(ctx, x, y, barWidth, barHeight, radius);
+                } else {
+                    ctx.fillRect(x, y, barWidth, barHeight);
+                }
+            }
+        }
         
         ctx.strokeStyle = '#00d4ff30';
         ctx.lineWidth = 1;
@@ -100,7 +151,10 @@ class WaveformRenderer {
     renderDetailed() {
         if (!this.detailedCanvas || !this.waveformData) return;
         
-        const ctx = this.detailedCanvas.getContext('2d');
+        const ctx = this.detailedCanvas.getContext('2d', { 
+            alpha: false,
+            desynchronized: true
+        });
         const width = this.detailedCanvas.width;
         const height = this.detailedCanvas.height;
         
@@ -119,29 +173,80 @@ class WaveformRenderer {
         const visibleDuration = this.duration / this.detailedZoom;
         const startTime = this.detailedScrollOffset;
         const endTime = startTime + visibleDuration;
-        
         const startIndex = Math.floor((startTime / this.duration) * waveData.length);
         const endIndex = Math.ceil((endTime / this.duration) * waveData.length);
         const visibleData = waveData.slice(startIndex, endIndex);
         
-        const step = width / visibleData.length;
-        const isColorWaveform = visibleData[0] && visibleData[0].r !== undefined;
+        if (visibleData.length === 0) return;
         
-        visibleData.forEach((sample, i) => {
-            const x = i * step;
-            const barHeight = (sample.height / 255) * height * 0.85;
-            const y = (height - barHeight) / 2;
-            
-            if (isColorWaveform) {
-                const brightness = Math.max(sample.r, sample.g, sample.b) / 255;
-                ctx.fillStyle = `rgba(${sample.r}, ${sample.g}, ${sample.b}, ${0.8 + brightness * 0.2})`;
-            } else {
-                const intensity = sample.height / 255;
-                ctx.fillStyle = `rgba(0, 217, 255, ${0.7 + intensity * 0.3})`;
+        const isColorWaveform = visibleData[0] && visibleData[0].r !== undefined;
+        const samplesPerPixel = visibleData.length / width;
+        
+        if (samplesPerPixel > 1) {
+            for (let x = 0; x < width; x++) {
+                const sampleStart = Math.floor(x * samplesPerPixel);
+                const sampleEnd = Math.min(visibleData.length, Math.ceil((x + 1) * samplesPerPixel));
+                
+                let maxHeight = 0;
+                let maxR = 0, maxG = 0, maxB = 0;
+                
+                for (let i = sampleStart; i < sampleEnd; i++) {
+                    const sample = visibleData[i];
+                    if (!sample) continue;
+                    maxHeight = Math.max(maxHeight, sample.height || 0);
+                    if (isColorWaveform) {
+                        maxR = Math.max(maxR, sample.r || 0);
+                        maxG = Math.max(maxG, sample.g || 0);
+                        maxB = Math.max(maxB, sample.b || 0);
+                    }
+                }
+                
+                if (maxHeight === 0) continue;
+                
+                const barHeight = (maxHeight / 255) * height * 0.85;
+                const y = (height - barHeight) / 2;
+                const barWidth = 1.2;
+                const radius = Math.min(barWidth / 2, 1.5);
+                
+                if (isColorWaveform) {
+                    const brightness = Math.max(maxR, maxG, maxB) / 255;
+                    ctx.fillStyle = `rgba(${maxR}, ${maxG}, ${maxB}, ${0.8 + brightness * 0.2})`;
+                } else {
+                    const intensity = maxHeight / 255;
+                    ctx.fillStyle = `rgba(0, 217, 255, ${0.7 + intensity * 0.3})`;
+                }
+                
+                if (barHeight > radius * 2) {
+                    this.drawRoundedBar(ctx, x - barWidth / 2, y, barWidth, barHeight, radius);
+                } else {
+                    ctx.fillRect(x - barWidth / 2, y, barWidth, barHeight);
+                }
             }
-            
-            ctx.fillRect(x, y, Math.max(1, step), barHeight);
-        });
+        } else {
+            const step = width / visibleData.length;
+            for (let i = 0; i < visibleData.length; i++) {
+                const sample = visibleData[i];
+                const x = i * step;
+                const barHeight = (sample.height / 255) * height * 0.85;
+                const y = (height - barHeight) / 2;
+                const barWidth = Math.max(1, step);
+                const radius = Math.min(barWidth / 2, 1.5);
+                
+                if (isColorWaveform) {
+                    const brightness = Math.max(sample.r, sample.g, sample.b) / 255;
+                    ctx.fillStyle = `rgba(${sample.r}, ${sample.g}, ${sample.b}, ${0.8 + brightness * 0.2})`;
+                } else {
+                    const intensity = sample.height / 255;
+                    ctx.fillStyle = `rgba(0, 217, 255, ${0.7 + intensity * 0.3})`;
+                }
+                
+                if (barHeight > radius * 2) {
+                    this.drawRoundedBar(ctx, x, y, barWidth, barHeight, radius);
+                } else {
+                    ctx.fillRect(x, y, barWidth, barHeight);
+                }
+            }
+        }
         
         ctx.strokeStyle = '#00d4ff30';
         ctx.lineWidth = 1;
@@ -224,6 +329,21 @@ class WaveformRenderer {
         
         this.renderOverview();
         this.renderDetailed();
+    }
+    
+    drawRoundedBar(ctx, x, y, width, height, radius) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+        ctx.fill();
     }
     
     handleOverviewClick(event) {
