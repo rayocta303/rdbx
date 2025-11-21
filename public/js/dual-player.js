@@ -43,7 +43,11 @@ class DualPlayer {
             nudgeAmount: 0,
             basePitchValue: 0,
             volume: 100,
-            quantizeEnabled: false
+            quantizeEnabled: false,
+            isScratching: false,
+            scratchDirection: 1,
+            scratchSpeed: 0,
+            scratchAnimationFrame: null
         };
     }
     
@@ -112,8 +116,9 @@ class DualPlayer {
         let isDragging = false;
         let hasDragged = false;
         let startX = 0;
-        let startOffset = 0;
+        let startCenter = 0;
         let lastX = 0;
+        let lastCenter = 0;
         let lastTime = 0;
         let wasPlaying = false;
         
@@ -121,11 +126,13 @@ class DualPlayer {
         
         container.addEventListener('mousedown', (e) => {
             const deck = this.decks[deckId];
+            const visibleDuration = deck.duration / this.sharedZoomLevel;
             isDragging = true;
             hasDragged = false;
             startX = e.clientX;
             lastX = e.clientX;
-            startOffset = deck.waveformOffset;
+            startCenter = deck.waveformOffset + (visibleDuration / 2);
+            lastCenter = startCenter;
             wasPlaying = deck.isPlaying;
             lastTime = Date.now();
             container.style.cursor = 'grabbing';
@@ -144,11 +151,12 @@ class DualPlayer {
             }
             
             const pixelsPerSecond = canvas.width / (deck.duration / this.sharedZoomLevel);
-            const totalDeltaTime = deltaX / pixelsPerSecond;
+            const deltaTime = deltaX / pixelsPerSecond;
             const visibleDuration = deck.duration / this.sharedZoomLevel;
             const minOffset = -visibleDuration / 2;
             
-            deck.waveformOffset = startOffset - totalDeltaTime;
+            const newCenter = startCenter - deltaTime;
+            deck.waveformOffset = newCenter - (visibleDuration / 2);
             deck.waveformOffset = Math.max(minOffset, Math.min(deck.waveformOffset, deck.duration - visibleDuration));
             
             const centerTime = deck.waveformOffset + (visibleDuration / 2);
@@ -158,20 +166,39 @@ class DualPlayer {
                 deck.audio.currentTime = targetTime;
                 
                 if (wasPlaying) {
-                    const frameDeltaX = e.clientX - lastX;
                     const now = Date.now();
                     const frameDeltaTime = (now - lastTime) / 1000;
                     
                     if (frameDeltaTime > 0) {
-                        const frameDeltaSeconds = frameDeltaX / pixelsPerSecond;
-                        const scratchSpeed = frameDeltaSeconds / frameDeltaTime;
-                        const clampedRate = Math.max(0.25, Math.min(4, Math.abs(scratchSpeed)));
+                        const centerDelta = newCenter - lastCenter;
+                        const scratchSpeed = centerDelta / frameDeltaTime;
                         const direction = scratchSpeed >= 0 ? 1 : -1;
-                        deck.audio.playbackRate = clampedRate * direction;
+                        
+                        deck.isScratching = true;
+                        deck.scratchDirection = direction;
+                        deck.scratchSpeed = Math.abs(scratchSpeed);
+                        
+                        if (direction < 0) {
+                            if (!deck.audio.paused) {
+                                deck.audio.pause();
+                            }
+                            this.startReverseScratch(deckId);
+                        } else {
+                            if (deck.scratchAnimationFrame) {
+                                cancelAnimationFrame(deck.scratchAnimationFrame);
+                                deck.scratchAnimationFrame = null;
+                            }
+                            if (deck.audio.paused) {
+                                deck.audio.play();
+                            }
+                            const clampedRate = Math.max(0.25, Math.min(4, deck.scratchSpeed));
+                            deck.audio.playbackRate = clampedRate;
+                        }
+                        
+                        lastCenter = newCenter;
+                        lastX = e.clientX;
+                        lastTime = now;
                     }
-                    
-                    lastX = e.clientX;
-                    lastTime = now;
                 }
             }
             
@@ -192,9 +219,19 @@ class DualPlayer {
             isDragging = false;
             container.style.cursor = 'grab';
             
-            if (deck.audio && wasPlaying) {
+            deck.isScratching = false;
+            if (deck.scratchAnimationFrame) {
+                cancelAnimationFrame(deck.scratchAnimationFrame);
+                deck.scratchAnimationFrame = null;
+            }
+            
+            if (deck.audio) {
                 const normalRate = 1.0 + (deck.pitchValue / 100);
                 deck.audio.playbackRate = Math.max(0.25, Math.min(4, normalRate));
+                
+                if (wasPlaying && deck.audio.paused) {
+                    deck.audio.play();
+                }
             }
         };
         
@@ -210,6 +247,43 @@ class DualPlayer {
             const direction = e.deltaY < 0 ? 1 : -1;
             this.zoomBothDecks(direction);
         }, { passive: false });
+    }
+    
+    startReverseScratch(deckId) {
+        const deck = this.decks[deckId];
+        
+        if (deck.scratchAnimationFrame) {
+            cancelAnimationFrame(deck.scratchAnimationFrame);
+        }
+        
+        let lastFrameTime = Date.now();
+        
+        const reverseLoop = () => {
+            if (!deck.isScratching || deck.scratchDirection >= 0) {
+                deck.scratchAnimationFrame = null;
+                return;
+            }
+            
+            const now = Date.now();
+            const deltaTime = (now - lastFrameTime) / 1000;
+            lastFrameTime = now;
+            
+            const reverseSpeed = Math.max(0.25, Math.min(4, deck.scratchSpeed));
+            const timeStep = reverseSpeed * deltaTime;
+            
+            const newTime = Math.max(0, deck.audio.currentTime - timeStep);
+            deck.audio.currentTime = newTime;
+            
+            this.updatePlayhead(deckId);
+            
+            if (newTime > 0 && deck.isScratching && deck.scratchDirection < 0) {
+                deck.scratchAnimationFrame = requestAnimationFrame(reverseLoop);
+            } else {
+                deck.scratchAnimationFrame = null;
+            }
+        };
+        
+        reverseLoop();
     }
     
     loadTrack(track, deckId) {
@@ -244,7 +318,6 @@ class DualPlayer {
         }
         
         deck.beatgridData = track.beat_grid;
-        deck.zoomLevel = 16;
         deck.waveformOffset = 0;
         deck.pitchValue = 0;
         deck.originalBPM = track.bpm || 0;
@@ -442,7 +515,7 @@ class DualPlayer {
     }
     
     zoomBothDecks(direction) {
-        const zoomLevels = [1, 2, 4, 8, 16, 32, 64];
+        const zoomLevels = [16, 32, 64, 128];
         let currentIndex = zoomLevels.indexOf(this.sharedZoomLevel);
         
         if (direction > 0 && currentIndex < zoomLevels.length - 1) {
@@ -511,7 +584,7 @@ class DualPlayer {
         }
         
         const viewStart = deck.waveformOffset;
-        const viewDuration = deck.duration / deck.zoomLevel;
+        const viewDuration = deck.duration / this.sharedZoomLevel;
         const viewEnd = viewStart + viewDuration;
         
         const leadingBlankDuration = Math.max(0, -viewStart);
@@ -558,8 +631,8 @@ class DualPlayer {
         
         const firstBeat = Math.ceil(viewStart / beatInterval) * beatInterval;
         
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.lineWidth = 4;
         
         for (let beatTime = firstBeat; beatTime < viewEnd; beatTime += beatInterval) {
             const relativePosition = (beatTime - viewStart) / viewDuration;
@@ -582,7 +655,7 @@ class DualPlayer {
         container.innerHTML = '';
         
         const viewStart = deck.waveformOffset;
-        const viewDuration = deck.duration / deck.zoomLevel;
+        const viewDuration = deck.duration / this.sharedZoomLevel;
         const viewEnd = viewStart + viewDuration;
         
         Object.entries(deck.hotCues).forEach(([cueNum, cue]) => {
@@ -611,7 +684,6 @@ class DualPlayer {
         deck.waveformData = null;
         deck.beatgridData = null;
         deck.hotCues = {};
-        deck.zoomLevel = 1;
         deck.waveformOffset = 0;
         
         const trackInfoEl = document.getElementById(`trackInfo${deckLabel}`);
