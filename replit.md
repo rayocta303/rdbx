@@ -4,7 +4,27 @@
 Tool PHP untuk membaca dan menampilkan database Rekordbox USB/SD export dengan web GUI modern. Project ini mengkonversi implementasi Python menjadi PHP murni dengan struktur modular.
 
 ## Recent Changes
-- **2025-11-21 (Latest)**: Master Deck Selection & Cross-Browser Playback Fix
+- **2025-11-21 (Latest)**: Enhanced Waveform Rendering & BPM Sync Improvements
+  - **Rounded Waveform Caps**: Rekordbox-style smooth waveform bars
+    - Implemented `ctx.roundRect()` dengan fallback ke manual arc paths
+    - Rounded bar caps untuk professional appearance seperti referensi Rekordbox
+    - Dynamic bar radius calculation untuk consistency di semua zoom levels
+  - **MIXXX-Style Max Sampling**: Pixel-based rendering untuk smooth, non-pixelated waveforms
+    - Iterate per display pixel (bukan per sample) untuk optimal performance
+    - Max amplitude aggregation per pixel window untuk anti-aliasing
+    - High DPI support dengan devicePixelRatio scaling
+  - **BPM Sync Toggle**: Converted dari momentary ke latching toggle
+    - Toggle on/off seperti Quantize button (bukan momentary push)
+    - Auto-sync pitch slider saat BPM Sync active - perubahan di satu deck langsung sync ke deck lain
+    - Auto-enable master deck saat sync pressed jika master belum set (hanya jika track loaded)
+  - **In-UI Notifications**: Replaced semua JavaScript `alert()` calls dengan `showNotification()`
+    - Better UX dengan non-blocking toast-style notifications
+    - Consistent notification system di seluruh aplikasi
+  - **PQTZ Beat Grid Parsing**: Implemented correct big-endian parsing di AnlzParser.php
+    - Parse beat grid data untuk accurate BPM sync dan quantize
+    - Supports multiple beats per PQTZ tag dengan proper offset calculation
+
+- **2025-11-21 (sebelumnya)**: Master Deck Selection & Cross-Browser Playback Fix
   - **Chrome Playback Fix**: Resolved AudioContext autoplay policy issue
     - Added async user interaction handler untuk resume AudioContext
     - Implemented di togglePlay() dengan proper error handling
