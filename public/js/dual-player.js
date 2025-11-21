@@ -1,5 +1,7 @@
 class DualPlayer {
     constructor() {
+        this.sharedZoomLevel = 16;
+        
         this.decks = {
             a: this.createDeck('a'),
             b: this.createDeck('b')
@@ -29,7 +31,6 @@ class DualPlayer {
             isPlaying: false,
             currentTime: 0,
             duration: 0,
-            zoomLevel: 16,
             waveformOffset: 0,
             hotCues: {},
             waveformData: null,
@@ -109,13 +110,24 @@ class DualPlayer {
         if (!canvas || !container) return;
         
         let isDragging = false;
+        let hasDragged = false;
         let startX = 0;
         let startOffset = 0;
+        let lastX = 0;
+        let lastTime = 0;
+        let wasPlaying = false;
+        
+        container.style.cursor = 'grab';
         
         container.addEventListener('mousedown', (e) => {
+            const deck = this.decks[deckId];
             isDragging = true;
+            hasDragged = false;
             startX = e.clientX;
-            startOffset = this.decks[deckId].waveformOffset;
+            lastX = e.clientX;
+            startOffset = deck.waveformOffset;
+            wasPlaying = deck.isPlaying;
+            lastTime = Date.now();
             container.style.cursor = 'grabbing';
         });
         
@@ -126,40 +138,76 @@ class DualPlayer {
             if (!deck.duration || deck.duration <= 0) return;
             
             const deltaX = e.clientX - startX;
-            const pixelsPerSecond = canvas.width / (deck.duration / deck.zoomLevel);
-            const deltaTime = deltaX / pixelsPerSecond;
-            const visibleDuration = deck.duration / deck.zoomLevel;
+            
+            if (Math.abs(deltaX) > 3) {
+                hasDragged = true;
+            }
+            
+            const pixelsPerSecond = canvas.width / (deck.duration / this.sharedZoomLevel);
+            const totalDeltaTime = -deltaX / pixelsPerSecond;
+            const visibleDuration = deck.duration / this.sharedZoomLevel;
             const minOffset = -visibleDuration / 2;
             
-            deck.waveformOffset = startOffset - deltaTime;
+            deck.waveformOffset = startOffset - totalDeltaTime;
             deck.waveformOffset = Math.max(minOffset, Math.min(deck.waveformOffset, deck.duration - visibleDuration));
+            
+            const centerTime = deck.waveformOffset + (visibleDuration / 2);
+            const targetTime = Math.max(0, Math.min(centerTime, deck.duration));
+            
+            if (deck.audio && hasDragged) {
+                deck.audio.currentTime = targetTime;
+                
+                if (wasPlaying) {
+                    const frameDeltaX = e.clientX - lastX;
+                    const now = Date.now();
+                    const frameDeltaTime = (now - lastTime) / 1000;
+                    
+                    if (frameDeltaTime > 0) {
+                        const frameDeltaSeconds = -frameDeltaX / pixelsPerSecond;
+                        const scratchSpeed = frameDeltaSeconds / frameDeltaTime;
+                        const clampedRate = Math.max(-2, Math.min(2, scratchSpeed));
+                        deck.audio.playbackRate = clampedRate;
+                    }
+                    
+                    lastX = e.clientX;
+                    lastTime = now;
+                }
+            }
             
             this.renderWaveform(deckId);
             this.renderCueMarkers(deckId);
-        });
-        
-        container.addEventListener('mouseup', () => {
-            isDragging = false;
-            container.style.cursor = 'grab';
-        });
-        
-        container.addEventListener('mouseleave', () => {
-            isDragging = false;
-            container.style.cursor = 'grab';
-        });
-        
-        container.addEventListener('click', (e) => {
-            if (isDragging) return;
             
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const percentage = x / rect.width;
-            const time = (this.decks[deckId].waveformOffset + (this.decks[deckId].duration / this.decks[deckId].zoomLevel) * percentage);
-            
-            if (this.decks[deckId].track) {
-                this.decks[deckId].audio.currentTime = Math.min(time, this.decks[deckId].duration);
+            const deckLabel = deckId.toUpperCase();
+            const timeDisplay = document.getElementById(`timeDisplay${deckLabel}`);
+            if (timeDisplay) {
+                timeDisplay.textContent = `${this.formatTime(targetTime)} / ${this.formatTime(deck.duration)}`;
             }
         });
+        
+        const endDrag = () => {
+            if (!isDragging) return;
+            
+            const deck = this.decks[deckId];
+            isDragging = false;
+            container.style.cursor = 'grab';
+            
+            if (deck.audio && wasPlaying) {
+                deck.audio.playbackRate = 1.0 + (deck.pitchValue / 100);
+            }
+        };
+        
+        container.addEventListener('mouseup', endDrag);
+        container.addEventListener('mouseleave', endDrag);
+        
+        container.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            
+            const deck = this.decks[deckId];
+            if (!deck.duration || deck.duration <= 0) return;
+            
+            const direction = e.deltaY < 0 ? 1 : -1;
+            this.zoomBothDecks(direction);
+        }, { passive: false });
     }
     
     loadTrack(track, deckId) {
@@ -232,15 +280,15 @@ class DualPlayer {
         console.log(`[Deck ${deckLabel}] Track metadata loaded - Duration: ${deck.duration.toFixed(2)}s`);
         
         if (deck.duration > 0) {
-            const visibleDuration = deck.duration / deck.zoomLevel;
+            const visibleDuration = deck.duration / this.sharedZoomLevel;
             deck.waveformOffset = -visibleDuration / 2;
             
             const sharedZoomEl = document.getElementById('sharedZoomLevel');
             if (sharedZoomEl) {
-                sharedZoomEl.textContent = `${deck.zoomLevel}x`;
+                sharedZoomEl.textContent = `${this.sharedZoomLevel}x`;
             }
             
-            console.log(`[Deck ${deckLabel}] Rendering waveform...`);
+            console.log(`[Deck ${deckLabel}] Rendering waveform with zoom level: ${this.sharedZoomLevel}x`);
             this.renderWaveform(deckId);
             this.renderCueMarkers(deckId);
         } else {
@@ -370,7 +418,7 @@ class DualPlayer {
         const currentTime = deck.audio.currentTime;
         const duration = deck.duration;
         
-        const visibleDuration = duration / deck.zoomLevel;
+        const visibleDuration = duration / this.sharedZoomLevel;
         const minOffset = -visibleDuration / 2;
         deck.waveformOffset = Math.max(minOffset, Math.min(currentTime - (visibleDuration / 2), duration - visibleDuration));
         
@@ -392,22 +440,8 @@ class DualPlayer {
     }
     
     zoomBothDecks(direction) {
-        this.zoomWaveform('a', direction);
-        this.zoomWaveform('b', direction);
-        
-        const sharedZoomEl = document.getElementById('sharedZoomLevel');
-        if (sharedZoomEl) {
-            sharedZoomEl.textContent = `${this.decks.a.zoomLevel}x`;
-        }
-    }
-    
-    zoomWaveform(deckId, direction) {
-        const deck = this.decks[deckId];
-        
-        if (!deck.duration || deck.duration <= 0) return;
-        
         const zoomLevels = [1, 2, 4, 8, 16, 32, 64];
-        let currentIndex = zoomLevels.indexOf(deck.zoomLevel);
+        let currentIndex = zoomLevels.indexOf(this.sharedZoomLevel);
         
         if (direction > 0 && currentIndex < zoomLevels.length - 1) {
             currentIndex++;
@@ -415,9 +449,23 @@ class DualPlayer {
             currentIndex--;
         }
         
-        deck.zoomLevel = zoomLevels[currentIndex];
+        this.sharedZoomLevel = zoomLevels[currentIndex];
         
-        const visibleDuration = deck.duration / deck.zoomLevel;
+        this.applyZoomToDeck('a');
+        this.applyZoomToDeck('b');
+        
+        const sharedZoomEl = document.getElementById('sharedZoomLevel');
+        if (sharedZoomEl) {
+            sharedZoomEl.textContent = `${this.sharedZoomLevel}x`;
+        }
+    }
+    
+    applyZoomToDeck(deckId) {
+        const deck = this.decks[deckId];
+        
+        if (!deck.duration || deck.duration <= 0) return;
+        
+        const visibleDuration = deck.duration / this.sharedZoomLevel;
         const minOffset = -visibleDuration / 2;
         deck.waveformOffset = Math.max(minOffset, Math.min(deck.waveformOffset, deck.duration - visibleDuration));
         
