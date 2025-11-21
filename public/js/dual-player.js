@@ -348,8 +348,13 @@ class DualPlayer {
         deck.audio.load();
         
         if (track.waveform) {
-            deck.waveformData = track.waveform.color_data || track.waveform.preview_data || null;
-            console.log(`[Deck ${deckId.toUpperCase()}] Waveform data available:`, !!deck.waveformData);
+            deck.waveformData = track.waveform;
+            console.log(`[Deck ${deckId.toUpperCase()}] Waveform data available:`, {
+                has_three_band_preview: !!track.waveform.three_band_preview,
+                has_three_band_detail: !!track.waveform.three_band_detail,
+                has_color_data: !!track.waveform.color_data,
+                has_preview_data: !!track.waveform.preview_data
+            });
         } else {
             deck.waveformData = null;
             console.log(`[Deck ${deckId.toUpperCase()}] No waveform data available`);
@@ -576,6 +581,62 @@ class DualPlayer {
         ctx.fill();
     }
     
+    draw3BandBar(ctx, x, canvasHeight, mid, high, low, barWidth) {
+        const centerY = canvasHeight / 2;
+        const scale = 0.85;
+        
+        const lowHeight = (low / 255) * centerY * scale;
+        const midHeight = (mid / 255) * centerY * scale;
+        const highHeight = (high / 255) * centerY * scale;
+        
+        const maxHeight = Math.max(lowHeight, midHeight, highHeight);
+        if (maxHeight === 0) return;
+        
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighten';
+        
+        // Orange (low frequencies - bass)
+        if (lowHeight > 0) {
+            ctx.fillStyle = 'rgba(255, 140, 0, 0.9)';
+            const y = centerY - lowHeight;
+            const h = lowHeight * 2;
+            const radius = Math.min(barWidth / 2, 1.5);
+            if (h > radius * 2) {
+                this.drawRoundedBar(ctx, x - barWidth / 2, y, barWidth, h, radius);
+            } else {
+                ctx.fillRect(x - barWidth / 2, y, barWidth, h);
+            }
+        }
+        
+        // White (mid frequencies)
+        if (midHeight > 0) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            const y = centerY - midHeight;
+            const h = midHeight * 2;
+            const radius = Math.min(barWidth / 2, 1.5);
+            if (h > radius * 2) {
+                this.drawRoundedBar(ctx, x - barWidth / 2, y, barWidth, h, radius);
+            } else {
+                ctx.fillRect(x - barWidth / 2, y, barWidth, h);
+            }
+        }
+        
+        // Blue (high frequencies - treble)
+        if (highHeight > 0) {
+            ctx.fillStyle = 'rgba(0, 150, 255, 0.9)';
+            const y = centerY - highHeight;
+            const h = highHeight * 2;
+            const radius = Math.min(barWidth / 2, 1.5);
+            if (h > radius * 2) {
+                this.drawRoundedBar(ctx, x - barWidth / 2, y, barWidth, h, radius);
+            } else {
+                ctx.fillRect(x - barWidth / 2, y, barWidth, h);
+            }
+        }
+        
+        ctx.restore();
+    }
+    
     zoomBothDecks(direction) {
         const zoomLevels = [16, 32, 64, 128];
         let currentIndex = zoomLevels.indexOf(this.sharedZoomLevel);
@@ -661,6 +722,19 @@ class DualPlayer {
             return;
         }
         
+        // Select appropriate waveform array (prioritize 3-band detail)
+        const waveData = deck.waveformData.three_band_detail || 
+                         deck.waveformData.color_data || 
+                         deck.waveformData.preview_data;
+        
+        if (!waveData || waveData.length === 0) {
+            ctx.fillStyle = '#333';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('No waveform data', displayWidth / 2, displayHeight / 2);
+            return;
+        }
+        
         const pitchMultiplier = 1 + (deck.pitchValue / 100);
         const effectiveZoom = this.sharedZoomLevel * pitchMultiplier;
         
@@ -671,15 +745,16 @@ class DualPlayer {
         const leadingBlankWidth = (leadingBlankDuration / viewDuration) * displayWidth;
         
         const actualStart = Math.max(0, viewStart);
-        const startIndex = Math.floor((actualStart / deck.duration) * deck.waveformData.length);
-        const endIndex = Math.ceil((viewEnd / deck.duration) * deck.waveformData.length);
-        const visibleData = deck.waveformData.slice(startIndex, endIndex);
+        const startIndex = Math.floor((actualStart / deck.duration) * waveData.length);
+        const endIndex = Math.ceil((viewEnd / deck.duration) * waveData.length);
+        const visibleData = waveData.slice(startIndex, endIndex);
         
         if (visibleData.length === 0) return;
         
         const dataWidth = displayWidth - leadingBlankWidth;
         const samplesPerPixel = visibleData.length / dataWidth;
         const height = displayHeight;
+        const is3Band = visibleData[0] && visibleData[0].mid !== undefined;
         const isColorWaveform = visibleData[0] && visibleData[0].r !== undefined;
         
         for (let x = Math.floor(leadingBlankWidth); x < displayWidth; x++) {
@@ -690,6 +765,7 @@ class DualPlayer {
             if (sampleStart >= visibleData.length) break;
             
             let maxHeight = 0;
+            let maxLow = 0, maxMid = 0, maxHigh = 0;
             let maxR = 0, maxG = 0, maxB = 0;
             
             const endIdx = Math.min(visibleData.length, sampleEnd);
@@ -697,34 +773,46 @@ class DualPlayer {
                 const sample = visibleData[i];
                 if (!sample) continue;
                 
-                maxHeight = Math.max(maxHeight, sample.height || 0);
-                if (isColorWaveform) {
-                    maxR = Math.max(maxR, sample.r || 0);
-                    maxG = Math.max(maxG, sample.g || 0);
-                    maxB = Math.max(maxB, sample.b || 0);
+                if (is3Band) {
+                    maxLow = Math.max(maxLow, sample.low || 0);
+                    maxMid = Math.max(maxMid, sample.mid || 0);
+                    maxHigh = Math.max(maxHigh, sample.high || 0);
+                } else {
+                    maxHeight = Math.max(maxHeight, sample.height || 0);
+                    if (isColorWaveform) {
+                        maxR = Math.max(maxR, sample.r || 0);
+                        maxG = Math.max(maxG, sample.g || 0);
+                        maxB = Math.max(maxB, sample.b || 0);
+                    }
                 }
             }
             
-            if (maxHeight === 0) continue;
+            if (!is3Band && maxHeight === 0) continue;
+            if (is3Band && maxLow === 0 && maxMid === 0 && maxHigh === 0) continue;
             
-            const normalizedHeight = maxHeight / 255;
-            const barHeight = normalizedHeight * height * 0.9;
-            const y = (height - barHeight) / 2;
             const barWidth = 1.2;
-            const radius = Math.min(barWidth / 2, 1.5);
             
-            if (isColorWaveform) {
-                const brightness = Math.max(maxR, maxG, maxB) / 255;
-                ctx.fillStyle = `rgba(${maxR}, ${maxG}, ${maxB}, ${0.85 + brightness * 0.15})`;
+            if (is3Band) {
+                this.draw3BandBar(ctx, x, height, maxMid, maxHigh, maxLow, barWidth);
             } else {
-                const intensity = normalizedHeight;
-                ctx.fillStyle = `rgba(0, 217, 255, ${0.75 + intensity * 0.25})`;
-            }
-            
-            if (barHeight > radius * 2) {
-                this.drawRoundedBar(ctx, x - barWidth / 2, y, barWidth, barHeight, radius);
-            } else {
-                ctx.fillRect(x - barWidth / 2, y, barWidth, barHeight);
+                const normalizedHeight = maxHeight / 255;
+                const barHeight = normalizedHeight * height * 0.9;
+                const y = (height - barHeight) / 2;
+                const radius = Math.min(barWidth / 2, 1.5);
+                
+                if (isColorWaveform) {
+                    const brightness = Math.max(maxR, maxG, maxB) / 255;
+                    ctx.fillStyle = `rgba(${maxR}, ${maxG}, ${maxB}, ${0.85 + brightness * 0.15})`;
+                } else {
+                    const intensity = normalizedHeight;
+                    ctx.fillStyle = `rgba(0, 217, 255, ${0.75 + intensity * 0.25})`;
+                }
+                
+                if (barHeight > radius * 2) {
+                    this.drawRoundedBar(ctx, x - barWidth / 2, y, barWidth, barHeight, radius);
+                } else {
+                    ctx.fillRect(x - barWidth / 2, y, barWidth, barHeight);
+                }
             }
         }
         
