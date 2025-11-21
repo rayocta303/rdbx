@@ -446,11 +446,12 @@ canvas {
     height: 120px;
     overflow: hidden;
     cursor: grab;
-    border-bottom: 1px solid #1a1a1a;
+    border: 2px solid #2a2a2a;
+    border-radius: 8px;
 }
 
 .waveform-container-player:last-child {
-    border-bottom: none;
+    margin-top: 8px;
 }
 
 .waveform-container-player:active {

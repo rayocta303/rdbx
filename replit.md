@@ -3,6 +3,11 @@
 ## Overview
 This project is a PHP-based web GUI tool designed to read and display Rekordbox USB/SD export databases. It's a re-implementation of a Python tool into a pure PHP, modular structure. The primary goal is to provide a modern web interface for DJ-specific functionalities, including dual-deck playback, waveform visualization, beat grid analysis, hot cue management, and advanced synchronization features, mirroring the professional experience of Rekordbox.
 
+## Recent Changes (November 2025)
+- **Waveform Rendering Optimization**: Refactored to path-based rendering approach, eliminating per-bar drawing overhead. Implemented Float32Array for memory efficiency and max-aggregation downsampling to prevent aliasing.
+- **Beat Grid Rendering Optimization**: Changed from per-beat stroke operations to single-path rendering. This reduces canvas operations from N strokes to 1 stroke per frame, significantly improving performance on low-end devices.
+- **Amplitude Normalization Fix**: Corrected amplitude scaling - backend data is already normalized to 0-1 range, removed incorrect /255 division that was collapsing waveform visibility.
+
 ## User Preferences
 - Menggunakan PHP murni tanpa framework
 - Struktur modular dan terorganisir
@@ -28,9 +33,9 @@ This project is a PHP-based web GUI tool designed to read and display Rekordbox 
     - `PlaylistParser.php`: Parses playlist trees with corruption handling.
     - `AnlzParser.php`: Parses ANLZ files (`.DAT`, `.EXT`, `.2EX`) for beatgrids (PQTZ), waveforms (PWAV/PWV5), and cue points (PCO2/PCOB), handling big-endian byte order. Merges data preferring detailed waveform data from `.EXT` files.
 - **Frontend (JavaScript)**:
-    - `dual-player.js`: Orchestrates the dual-deck player functionality.
+    - `dual-player.js`: Orchestrates the dual-deck player functionality. Includes optimized path-based beat grid rendering for low-end devices.
     - `audio-player.js`: Web Audio API wrapper for playback, including async user interaction handling for browser autoplay policies.
-    - `waveform-renderer.js`: Handles canvas-based waveform drawing, beat grid overlay, and 3-band rendering. Features pixel-based max sampling for smooth visuals and pitch-aware time-stretching.
+    - `waveform-renderer.js`: Handles canvas-based waveform drawing with path-based rendering. Features Float32Array for memory efficiency, max-aggregation downsampling, and 3-band frequency visualization (low/mid/high). Optimized for low-end devices with single-path rendering instead of per-bar drawing.
     - `cue-manager.js`: Manages hot cue triggering and markers, supporting Rekordbox-style 0-indexed pads.
     - `track-detail.js`: Displays detailed track information in a modal.
 
