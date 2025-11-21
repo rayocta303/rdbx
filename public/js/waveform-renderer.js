@@ -80,7 +80,11 @@ class WaveformRenderer {
         canvas.style.width = W + "px";
         canvas.style.height = H + "px";
 
-        const ctx = canvas.getContext("2d", { alpha: false });
+        const ctx = canvas.getContext("2d", { 
+            alpha: false,
+            desynchronized: true,
+            willReadFrequently: false
+        });
         ctx.setTransform(this.DPR, 0, 0, this.DPR, 0, 0);
     }
 
@@ -107,10 +111,15 @@ class WaveformRenderer {
     renderOverview() {
         if (!this.overviewCanvas || !this.waveformData) return;
 
-        const ctx = this.overviewCanvas.getContext("2d");
+        const ctx = this.overviewCanvas.getContext("2d", {
+            alpha: false,
+            desynchronized: true,
+            willReadFrequently: false
+        });
         const W = this.overviewCanvas.width / this.DPR;
         const H = this.overviewCanvas.height / this.DPR;
 
+        ctx.clearRect(0, 0, W, H);
         ctx.fillStyle = "#0b0b0b";
         ctx.fillRect(0, 0, W, H);
 
@@ -142,10 +151,15 @@ class WaveformRenderer {
     renderDetailed() {
         if (!this.detailedCanvas || !this.waveformData) return;
 
-        const ctx = this.detailedCanvas.getContext("2d");
+        const ctx = this.detailedCanvas.getContext("2d", {
+            alpha: false,
+            desynchronized: true,
+            willReadFrequently: false
+        });
         const W = this.detailedCanvas.width / this.DPR;
         const H = this.detailedCanvas.height / this.DPR;
 
+        ctx.clearRect(0, 0, W, H);
         ctx.fillStyle = "#0b0b0b";
         ctx.fillRect(0, 0, W, H);
 
@@ -306,9 +320,11 @@ class WaveformRenderer {
     }
 
     drawBandMirror(ctx, data, topColor, bottomColor, scale, N, w, H) {
+        ctx.save();
         ctx.beginPath();
         ctx.imageSmoothingEnabled = false;
 
+        // Draw top half
         for (let i = 0; i < N; i++) {
             const x = Math.floor(i * w) + 0.5;
             const amp = data[i];
@@ -318,6 +334,7 @@ class WaveformRenderer {
             else ctx.lineTo(x, y);
         }
 
+        // Draw bottom half (mirror)
         for (let i = N - 1; i >= 0; i--) {
             const x = Math.floor(i * w) + 0.5;
             const amp = data[i];
@@ -327,6 +344,7 @@ class WaveformRenderer {
 
         ctx.closePath();
 
+        // Create gradient
         const grad = ctx.createLinearGradient(0, 0, 0, H);
         grad.addColorStop(0, topColor);
         grad.addColorStop(1, bottomColor);
@@ -334,6 +352,8 @@ class WaveformRenderer {
         ctx.fillStyle = grad;
         ctx.lineJoin = "round";
         ctx.fill();
+        
+        ctx.restore();
     }
 
     drawPlayhead(ctx, W, H, position) {
@@ -419,6 +439,7 @@ class WaveformRenderer {
             const ctx = this.overviewCanvas.getContext("2d");
             const W = this.overviewCanvas.width / this.DPR;
             const H = this.overviewCanvas.height / this.DPR;
+            ctx.clearRect(0, 0, W, H);
             ctx.fillStyle = "#0b0b0b";
             ctx.fillRect(0, 0, W, H);
         }
@@ -427,6 +448,7 @@ class WaveformRenderer {
             const ctx = this.detailedCanvas.getContext("2d");
             const W = this.detailedCanvas.width / this.DPR;
             const H = this.detailedCanvas.height / this.DPR;
+            ctx.clearRect(0, 0, W, H);
             ctx.fillStyle = "#0b0b0b";
             ctx.fillRect(0, 0, W, H);
         }
