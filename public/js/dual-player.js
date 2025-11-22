@@ -1497,18 +1497,19 @@ class DualPlayer {
         return deck.originalBPM * playbackRate;
     }
 
-    determineBPMMultiplier(myBPM, targetBPM) {
-        if (!myBPM || !targetBPM || myBPM === 0 || targetBPM === 0) {
+    determineBPMMultiplier(targetOriginalBPM, sourceActualBPM) {
+        if (!targetOriginalBPM || !sourceActualBPM || targetOriginalBPM === 0 || sourceActualBPM === 0) {
             return 1.0;
         }
         
-        const unityRatio = myBPM / targetBPM;
-        const unityRatioSquare = unityRatio * unityRatio;
+        const delta0_5 = Math.abs(sourceActualBPM - (targetOriginalBPM * 0.5));
+        const delta1_0 = Math.abs(sourceActualBPM - (targetOriginalBPM * 1.0));
+        const delta2_0 = Math.abs(sourceActualBPM - (targetOriginalBPM * 2.0));
         
-        if (unityRatioSquare > 2.0) {
-            return 2.0;
-        } else if (unityRatioSquare < 0.5) {
+        if (delta0_5 < delta1_0 && delta0_5 < delta2_0) {
             return 0.5;
+        } else if (delta2_0 < delta1_0 && delta2_0 < delta0_5) {
+            return 2.0;
         }
         
         return 1.0;
@@ -1535,8 +1536,8 @@ class DualPlayer {
             targetDeck.bpmMultiplier = this.determineBPMMultiplier(targetOriginalBPM, sourceActualBPM);
         }
 
-        const adjustedTargetBPM = sourceActualBPM * targetDeck.bpmMultiplier;
-        const requiredPlaybackRate = adjustedTargetBPM / targetOriginalBPM;
+        const targetEffectiveBPM = targetOriginalBPM * targetDeck.bpmMultiplier;
+        const requiredPlaybackRate = sourceActualBPM / targetEffectiveBPM;
 
         const requiredPitchPercent = (requiredPlaybackRate - 1) * 100;
 
@@ -1551,9 +1552,10 @@ class DualPlayer {
             this.snapBeatsToGrid(sourceDeckId, targetDeckId);
         }
 
+        const finalBPM = targetEffectiveBPM * requiredPlaybackRate;
         console.log(
             `[Beat Sync] Synced ${targetDeckId.toUpperCase()} (${targetOriginalBPM} BPM) to ${sourceDeckId.toUpperCase()} (${sourceActualBPM.toFixed(2)} BPM)\n` +
-            `  → Multiplier: ${targetDeck.bpmMultiplier}x | Target BPM: ${adjustedTargetBPM.toFixed(2)} | Playback Rate: ${requiredPlaybackRate.toFixed(4)}${snapBeats ? " + Beat Grid Aligned" : ""}`,
+            `  → Multiplier: ${targetDeck.bpmMultiplier}x | Target Effective: ${targetEffectiveBPM.toFixed(2)} BPM | Final BPM: ${finalBPM.toFixed(2)} | Playback Rate: ${requiredPlaybackRate.toFixed(4)}${snapBeats ? " + Beat Grid Aligned" : ""}`,
         );
     }
 

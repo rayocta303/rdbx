@@ -40,28 +40,38 @@ getActualBPM(deckId) {
 
 ### 2. BPM Multiplier Logic (Terinspirasi dari Mixxx)
 ```javascript
-determineBPMMultiplier(myBPM, targetBPM) {
-    if (!myBPM || !targetBPM || myBPM === 0 || targetBPM === 0) {
+determineBPMMultiplier(targetOriginalBPM, sourceActualBPM) {
+    if (!targetOriginalBPM || !sourceActualBPM || targetOriginalBPM === 0 || sourceActualBPM === 0) {
         return 1.0;
     }
     
-    const unityRatio = myBPM / targetBPM;
-    const unityRatioSquare = unityRatio * unityRatio;
+    // Test all possible multipliers and choose the one that brings
+    // targetOriginalBPM × multiplier closest to sourceActualBPM
+    const delta0_5 = Math.abs(sourceActualBPM - (targetOriginalBPM * 0.5));
+    const delta1_0 = Math.abs(sourceActualBPM - (targetOriginalBPM * 1.0));
+    const delta2_0 = Math.abs(sourceActualBPM - (targetOriginalBPM * 2.0));
     
-    if (unityRatioSquare > 2.0) {
-        return 2.0;  // Double BPM
-    } else if (unityRatioSquare < 0.5) {
-        return 0.5;  // Halve BPM
+    if (delta0_5 < delta1_0 && delta0_5 < delta2_0) {
+        return 0.5;  // Halve (target detected BPM is 2x too high)
+    } else if (delta2_0 < delta1_0 && delta2_0 < delta0_5) {
+        return 2.0;  // Double (target detected BPM is 2x too low)
     }
     
-    return 1.0;  // Unity
+    return 1.0;  // Unity (BPM detection is correct)
 }
 ```
 
-**Keunggulan:**
-- Otomatis mendeteksi track dengan BPM yang berbeda jauh
-- Menggunakan square ratio (lebih stabil dari ratio langsung)
-- Contoh: Track 70 BPM bisa sync dengan track 140 BPM (multiplier 2.0x)
+**Cara Kerja:**
+- Multiplier memilih dari {0.5, 1.0, 2.0}
+- Pilih multiplier yang membuat `targetOriginalBPM × multiplier` paling dekat dengan `sourceActualBPM`
+- Ini mengoreksi deteksi BPM yang mungkin salah (misalnya terdeteksi 70 tapi sebenarnya 140)
+
+**Contoh:**
+- Source: 140 BPM, Target: 70 BPM
+  - Test 0.5x: |140 - 35| = 105
+  - Test 1.0x: |140 - 70| = 70
+  - Test 2.0x: |140 - 140| = 0 ✓ BEST
+  - Pilih multiplier = 2.0
 
 ### 3. Rebuild `syncBPM()` Function
 
@@ -136,29 +146,61 @@ Track A: 128 BPM di pitch +2% → 130.56 BPM aktual
 Track B: 128 BPM di pitch 0% → 128 BPM aktual
 
 Sync B ke A:
-1. getActualBPM(A) → 130.56 BPM
-2. determineBPMMultiplier(128, 130.56) → 1.0x
-3. Adjusted BPM = 130.56 * 1.0 = 130.56 BPM
-4. Required playbackRate = 130.56 / 128 = 1.0200
-5. Set B.playbackRate = 1.0200
-6. Align beats dengan snapBeatsToGrid()
+1. sourceActualBPM = 130.56 BPM
+2. targetOriginalBPM = 128 BPM
+3. determineBPMMultiplier(128, 130.56):
+   - delta0.5 = |130.56 - 64| = 66.56
+   - delta1.0 = |130.56 - 128| = 2.56 ✓ BEST
+   - delta2.0 = |130.56 - 256| = 125.44
+   - Multiplier = 1.0x
+4. targetEffectiveBPM = 128 × 1.0 = 128 BPM
+5. playbackRate = 130.56 / 128 = 1.0200
+6. Set B.playbackRate = 1.0200
+7. Final BPM B = 128 × 1.0200 = 130.56 ✓
+8. Align beats dengan snapBeatsToGrid()
 ```
 
-### Skenario 2: BPM Berbeda Jauh (Auto Double/Halve)
+### Skenario 2: BPM Berbeda Jauh (Auto Double)
 ```
-Track A: 140 BPM di pitch +3% → 144.2 BPM aktual
+Track A: 140 BPM di pitch 0% → 140 BPM aktual
 Track B: 70 BPM di pitch 0% → 70 BPM aktual
 
 Sync B ke A:
-1. getActualBPM(A) → 144.2 BPM
-2. determineBPMMultiplier(70, 144.2) → 2.0x (karena 70/144.2 ratio square < 0.5)
-3. Adjusted BPM = 144.2 * 2.0 = 288.4 BPM
-4. Required playbackRate = 288.4 / 70 = 4.12
-5. Set B.playbackRate = 4.12
-6. Track B akan bermain 2x lebih cepat, sync dengan A
+1. sourceActualBPM = 140 BPM
+2. targetOriginalBPM = 70 BPM
+3. determineBPMMultiplier(70, 140):
+   - delta0.5 = |140 - 35| = 105
+   - delta1.0 = |140 - 70| = 70
+   - delta2.0 = |140 - 140| = 0 ✓ BEST
+   - Multiplier = 2.0x
+4. targetEffectiveBPM = 70 × 2.0 = 140 BPM
+5. playbackRate = 140 / 140 = 1.0
+6. Set B.playbackRate = 1.0
+7. Final BPM B = 140 × 1.0 = 140 ✓
+8. Track B bermain dengan BPM yang sama dengan A
 ```
 
-### Skenario 3: Master Tempo ON
+### Skenario 3: BPM Berbeda Jauh (Auto Halve)
+```
+Track A: 70 BPM di pitch 0% → 70 BPM aktual
+Track B: 140 BPM di pitch 0% → 140 BPM aktual
+
+Sync B ke A:
+1. sourceActualBPM = 70 BPM
+2. targetOriginalBPM = 140 BPM
+3. determineBPMMultiplier(140, 70):
+   - delta0.5 = |70 - 70| = 0 ✓ BEST
+   - delta1.0 = |70 - 140| = 70
+   - delta2.0 = |70 - 280| = 210
+   - Multiplier = 0.5x
+4. targetEffectiveBPM = 140 × 0.5 = 70 BPM
+5. playbackRate = 70 / 70 = 1.0
+6. Set B.playbackRate = 1.0
+7. Final BPM B = 70 × 1.0 = 70 ✓
+8. Track B bermain dengan BPM yang sama dengan A
+```
+
+### Skenario 4: Master Tempo ON
 ```
 Track A: 128 BPM, Master Tempo ON, pitch +10%
 - audio.preservesPitch = true
