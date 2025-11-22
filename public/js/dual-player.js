@@ -4,6 +4,26 @@ class DualPlayer {
         this.masterDeck = null;
         this.notificationTimeout = null;
         
+        // Konfigurasi waveform yang dapat disesuaikan (sama dengan Waveform.html)
+        this.waveformConfig = {
+            // Waveform rendering
+            HEIGHT_RATIO: 0.48,
+            SCALE_LOW: 1.0,
+            SCALE_MID: 0.85,
+            SCALE_HIGH: 0.7,
+            SCALE_CORE: 0.3,
+            CORE_BOOST: 1.7,
+
+            // Beat-related
+            DENSITY: 0.4,
+            DECAY: 4.5,
+            NOISE: 0,
+            FLAT_ZONE: 0,
+            TRANSIENT_ZONE: 0.0,
+            CONE_CURVE: 2.8,
+            CONE_BOOST: 1.15,
+        };
+        
         this.decks = {
             a: this.createDeck('a'),
             b: this.createDeck('b')
@@ -539,6 +559,29 @@ class DualPlayer {
         animate();
     }
     
+    beatProgress(i, pointsPerBeat) {
+        const idx = i % pointsPerBeat;
+        if (idx === 0) return 0;
+        return idx / pointsPerBeat;
+    }
+
+    shapeAmplitude(amp, p, scale) {
+        // 1. Flat zone
+        if (p <= this.waveformConfig.FLAT_ZONE) return 0;
+
+        const coneEnd = this.waveformConfig.FLAT_ZONE + this.waveformConfig.TRANSIENT_ZONE;
+
+        // 2. Cone/transient zone (smooth attack)
+        if (p <= coneEnd) {
+            const t = (p - this.waveformConfig.FLAT_ZONE) / this.waveformConfig.TRANSIENT_ZONE;
+            const curve = Math.pow(t, this.waveformConfig.CONE_CURVE);
+            return curve * amp * scale * this.waveformConfig.CONE_BOOST;
+        }
+
+        // 3. Body (sustain)
+        return amp * scale;
+    }
+
     updatePlayhead(deckId) {
         const deck = this.decks[deckId];
         const deckLabel = deckId.toUpperCase();
@@ -578,6 +621,7 @@ class DualPlayer {
         const high = new Float32Array(N);
         
         const samplesPerPixel = data.length / N;
+        const pointsPerBeat = Math.round(90 * this.waveformConfig.DENSITY);
         
         for (let i = 0; i < N; i++) {
             if (samplesPerPixel > 1) {
@@ -586,38 +630,37 @@ class DualPlayer {
                 
                 let maxL = 0, maxM = 0, maxH = 0;
                 for (let j = start; j < end; j++) {
-                    maxL = Math.max(maxL, (data[j].low || 0) / 255);
-                    maxM = Math.max(maxM, (data[j].mid || 0) / 255);
-                    maxH = Math.max(maxH, (data[j].high || 0) / 255);
+                    const p = this.beatProgress(j, pointsPerBeat);
+                    const bodyEnv = Math.exp(-p * this.waveformConfig.DECAY);
+                    const waveNoise = (Math.random() - 0.5) * this.waveformConfig.NOISE;
+                    
+                    maxL = Math.max(maxL, Math.max(0, bodyEnv * 1.0 + waveNoise) * ((data[j].low || 0) / 255));
+                    maxM = Math.max(maxM, Math.max(0, bodyEnv * 0.8 + waveNoise) * ((data[j].mid || 0) / 255));
+                    maxH = Math.max(maxH, Math.max(0, bodyEnv * 0.6 + waveNoise) * ((data[j].high || 0) / 255));
                 }
                 low[i] = maxL;
                 mid[i] = maxM;
                 high[i] = maxH;
             } else {
-                low[i] = (data[i]?.low || 0) / 255;
-                mid[i] = (data[i]?.mid || 0) / 255;
-                high[i] = (data[i]?.high || 0) / 255;
+                const p = this.beatProgress(i, pointsPerBeat);
+                const bodyEnv = Math.exp(-p * this.waveformConfig.DECAY);
+                const waveNoise = (Math.random() - 0.5) * this.waveformConfig.NOISE;
+                
+                low[i] = Math.max(0, bodyEnv * 1.0 + waveNoise) * ((data[i]?.low || 0) / 255);
+                mid[i] = Math.max(0, bodyEnv * 0.8 + waveNoise) * ((data[i]?.mid || 0) / 255);
+                high[i] = Math.max(0, bodyEnv * 0.6 + waveNoise) * ((data[i]?.high || 0) / 255);
             }
         }
         
-        const config = {
-            HEIGHT_RATIO: 0.48,
-            SCALE_LOW: 1.0,
-            SCALE_MID: 0.85,
-            SCALE_HIGH: 0.7,
-            SCALE_CORE: 0.3,
-            CORE_BOOST: 1.7
-        };
-        
-        this.drawBandMirror(ctx, low, '#ffffff', '#ffffff', config.SCALE_LOW, N, w, H, config.HEIGHT_RATIO);
-        this.drawBandMirror(ctx, mid, '#ffa600', '#ffa600', config.SCALE_MID, N, w, H, config.HEIGHT_RATIO);
-        this.drawBandMirror(ctx, high, '#0055e1', '#0055e1', config.SCALE_HIGH, N, w, H, config.HEIGHT_RATIO);
+        this.drawBandMirror(ctx, low, '#ffffff', '#ffffff', this.waveformConfig.SCALE_LOW, N, w, H, pointsPerBeat);
+        this.drawBandMirror(ctx, mid, '#ffa600', '#ffa600', this.waveformConfig.SCALE_MID, N, w, H, pointsPerBeat);
+        this.drawBandMirror(ctx, high, '#0055e1', '#0055e1', this.waveformConfig.SCALE_HIGH, N, w, H, pointsPerBeat);
         
         const core = new Float32Array(N);
         for (let i = 0; i < N; i++) {
-            core[i] = Math.min(1, mid[i] * config.CORE_BOOST);
+            core[i] = Math.min(1, mid[i] * this.waveformConfig.CORE_BOOST);
         }
-        this.drawBandMirror(ctx, core, 'rgba(255,255,255,0.8)', 'rgba(255,255,255,0.0)', config.SCALE_CORE, N, w, H, config.HEIGHT_RATIO);
+        this.drawBandMirror(ctx, core, 'rgba(255,255,255,0.8)', 'rgba(255,255,255,0.0)', this.waveformConfig.SCALE_CORE, N, w, H, pointsPerBeat);
     }
     
     drawSimpleWaveformMirror(ctx, data, W, H) {
@@ -626,6 +669,7 @@ class DualPlayer {
         const wave = new Float32Array(N);
         
         const samplesPerPixel = data.length / N;
+        const pointsPerBeat = Math.round(90 * this.waveformConfig.DENSITY);
         
         for (let i = 0; i < N; i++) {
             if (samplesPerPixel > 1) {
@@ -642,31 +686,37 @@ class DualPlayer {
             }
         }
         
-        this.drawBandMirror(ctx, wave, '#00d4ff', '#00d4ff', 0.85, N, w, H, 0.48);
+        this.drawBandMirror(ctx, wave, '#00d4ff', '#00d4ff', 0.85, N, w, H, pointsPerBeat);
     }
     
-    drawBandMirror(ctx, data, topColor, bottomColor, scale, N, w, H, heightRatio) {
+    drawBandMirror(ctx, data, topColor, bottomColor, scale, N, w, H, pointsPerBeat) {
+        ctx.save();
         ctx.beginPath();
         ctx.imageSmoothingEnabled = false;
         
+        // Draw top half
         for (let i = 0; i < N; i++) {
             const x = Math.floor(i * w) + 0.5;
-            const amp = data[i];
-            const y = H / 2 - amp * (H * heightRatio * scale);
+            const p = this.beatProgress(i, pointsPerBeat);
+            const amp = this.shapeAmplitude(data[i], p, scale);
+            const y = H / 2 - amp * (H * this.waveformConfig.HEIGHT_RATIO);
             
             if (i === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
         }
         
+        // Draw bottom half (mirror)
         for (let i = N - 1; i >= 0; i--) {
             const x = Math.floor(i * w) + 0.5;
-            const amp = data[i];
-            const y = H / 2 + amp * (H * heightRatio * scale);
+            const p = this.beatProgress(i, pointsPerBeat);
+            const amp = this.shapeAmplitude(data[i], p, scale);
+            const y = H / 2 + amp * (H * this.waveformConfig.HEIGHT_RATIO);
             ctx.lineTo(x, y);
         }
         
         ctx.closePath();
         
+        // Create gradient
         const grad = ctx.createLinearGradient(0, 0, 0, H);
         grad.addColorStop(0, topColor);
         grad.addColorStop(1, bottomColor);
@@ -674,6 +724,8 @@ class DualPlayer {
         ctx.fillStyle = grad;
         ctx.lineJoin = 'round';
         ctx.fill();
+        
+        ctx.restore();
     }
     
     zoomBothDecks(direction) {
