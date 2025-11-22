@@ -55,7 +55,9 @@ class DualPlayer {
             scratchSpeed: 0,
             scratchAnimationFrame: null,
             bpmSyncEnabled: false,
-            beatSyncEnabled: false,
+            beatSyncLocked: false,
+            beatSyncAnimationFrame: null,
+            beatSyncTargetDeck: null,
         };
     }
 
@@ -387,6 +389,11 @@ class DualPlayer {
         if (deck.isPlaying) {
             this.togglePlay(deckId);
         }
+
+        this.stopBeatSyncLoop(deckId);
+
+        const otherDeckId = deckId === "a" ? "b" : "a";
+        this.stopBeatSyncLoop(otherDeckId);
 
         deck.track = track;
         const audioSrc = `/audio.php?path=${encodeURIComponent(track.file_path)}`;
@@ -1311,10 +1318,16 @@ class DualPlayer {
         const otherDeckId = deckId === "a" ? "b" : "a";
 
         if (this.masterDeck === deckId) {
+            this.stopBeatSyncLoop(deckId);
+            this.stopBeatSyncLoop(otherDeckId);
+
             this.masterDeck = null;
             this.updateMasterUI(deckId, false);
             console.log(`[Master] No master deck selected`);
         } else {
+            this.stopBeatSyncLoop(deckId);
+            this.stopBeatSyncLoop(otherDeckId);
+
             this.masterDeck = deckId;
             this.updateMasterUI(deckId, true);
             this.updateMasterUI(otherDeckId, false);
@@ -1338,6 +1351,11 @@ class DualPlayer {
     }
 
     syncToMaster(deckId, mode = "bpm") {
+        if (mode === "beat") {
+            this.toggleBeatSync(deckId);
+            return;
+        }
+
         if (!this.masterDeck) {
             console.warn(
                 "[Sync] No master deck selected. Please select a master deck first.",
@@ -1380,8 +1398,89 @@ class DualPlayer {
             );
         }
 
-        const snapBeats = mode === "beat";
+        const snapBeats = false;
         this.syncBPM(sourceDeckId, targetDeckId, snapBeats);
+    }
+
+    toggleBeatSync(deckId) {
+        if (!this.masterDeck) {
+            console.warn(
+                "[Beat Sync] No master deck selected. Please select a master deck first.",
+            );
+            this.showNotification(
+                "Please select a master deck first by clicking the MASTER button on either deck.",
+                "warning",
+                3000,
+            );
+            return;
+        }
+
+        let sourceDeckId, targetDeckId;
+
+        if (deckId === this.masterDeck) {
+            sourceDeckId = this.masterDeck;
+            targetDeckId = deckId === "a" ? "b" : "a";
+
+            if (!this.decks[targetDeckId].track) {
+                console.warn(
+                    `[Beat Sync] Cannot push sync - Deck ${targetDeckId.toUpperCase()} has no track loaded.`,
+                );
+                this.showNotification(
+                    `Cannot sync: Deck ${targetDeckId.toUpperCase()} has no track loaded. Load a track first.`,
+                    "warning",
+                    3000,
+                );
+                return;
+            }
+        } else {
+            sourceDeckId = this.masterDeck;
+            targetDeckId = deckId;
+        }
+
+        const sourceDeck = this.decks[sourceDeckId];
+        const targetDeck = this.decks[targetDeckId];
+
+        if (sourceDeck.beatSyncLocked && sourceDeck.beatSyncTargetDeck === targetDeckId) {
+            this.stopBeatSyncLoop(sourceDeckId);
+            console.log(
+                `[Beat Sync] Locked sync OFF for ${sourceDeckId.toUpperCase()} → ${targetDeckId.toUpperCase()}`,
+            );
+            this.showNotification(
+                `Beat Sync UNLOCKED`,
+                "info",
+                2000,
+            );
+            return;
+        }
+
+        this.stopBeatSyncLoop(sourceDeckId);
+
+        const snapBeats = true;
+        this.syncBPM(sourceDeckId, targetDeckId, snapBeats);
+
+        if (!sourceDeck.isPlaying) {
+            this.togglePlay(sourceDeckId);
+        }
+
+        if (!targetDeck.isPlaying) {
+            this.togglePlay(targetDeckId);
+        }
+
+        sourceDeck.beatSyncLocked = true;
+        sourceDeck.beatSyncTargetDeck = targetDeckId;
+
+        this.updateBeatSyncUI(deckId, true);
+
+        this.startBeatSyncLoop(sourceDeckId, targetDeckId);
+
+        console.log(
+            `[Beat Sync] Locked sync ON for ${sourceDeckId.toUpperCase()} → ${targetDeckId.toUpperCase()}`,
+        );
+        this.showNotification(
+            `Beat Sync LOCKED - Continuous phase monitoring active`,
+            "success",
+            3000,
+        );
     }
 
     syncBPM(sourceDeckId, targetDeckId, snapBeats = false) {
@@ -1406,7 +1505,7 @@ class DualPlayer {
         const targetDeckLabel = targetDeckId.toUpperCase();
         const slider = document.getElementById(`pitchSlider${targetDeckLabel}`);
         if (slider) {
-            slider.value = requiredPitchPercent.toFixed(1);
+            slider.value = requiredPitchPercent;
             this.setPitch(targetDeckId, requiredPitchPercent);
         }
 
@@ -1509,6 +1608,140 @@ class DualPlayer {
             "success",
             2000,
         );
+    }
+
+    startBeatSyncLoop(sourceDeckId, targetDeckId) {
+        const sourceDeck = this.decks[sourceDeckId];
+        const targetDeck = this.decks[targetDeckId];
+
+        if (!sourceDeck.beatgridData || !targetDeck.beatgridData) {
+            console.warn("[Beat Sync Loop] Missing beat grid data");
+            return;
+        }
+
+        const phaseMonitor = () => {
+            if (!sourceDeck.beatSyncLocked || sourceDeck.beatSyncTargetDeck !== targetDeckId) {
+                return;
+            }
+
+            if (!sourceDeck.isPlaying || !targetDeck.isPlaying) {
+                sourceDeck.beatSyncAnimationFrame = requestAnimationFrame(phaseMonitor);
+                return;
+            }
+
+            const sourceBPM = sourceDeck.originalBPM * (1 + sourceDeck.pitchValue / 100);
+            const targetBPM = targetDeck.originalBPM * (1 + targetDeck.pitchValue / 100);
+
+            if (Math.abs(sourceBPM - targetBPM) > 0.01) {
+                const requiredPitchPercent = (sourceBPM / targetDeck.originalBPM - 1) * 100;
+                targetDeck.pitchValue = requiredPitchPercent;
+                targetDeck.audio.playbackRate = 1 + requiredPitchPercent / 100;
+                targetDeck.audio.preservesPitch = targetDeck.masterTempo;
+            }
+
+            const sourceBeatLength = 60 / sourceBPM;
+            const targetBeatLength = 60 / targetBPM;
+
+            const sourceFirstBeatOffset = sourceDeck.beatgridData[0].time || 0;
+            const targetFirstBeatOffset = targetDeck.beatgridData[0].time || 0;
+
+            const sourceCenterPoint = sourceDeck.audio.currentTime;
+            const targetCenterPoint = targetDeck.audio.currentTime;
+
+            const sourceTimeFromFirstBeat = sourceCenterPoint - sourceFirstBeatOffset;
+            const targetTimeFromFirstBeat = targetCenterPoint - targetFirstBeatOffset;
+
+            const sourceBeatPhase = (sourceTimeFromFirstBeat % sourceBeatLength) / sourceBeatLength;
+            const targetBeatPhase = (targetTimeFromFirstBeat % targetBeatLength) / targetBeatLength;
+
+            let phaseError = sourceBeatPhase - targetBeatPhase;
+
+            if (phaseError > 0.5) {
+                phaseError -= 1;
+            } else if (phaseError < -0.5) {
+                phaseError += 1;
+            }
+
+            const phaseErrorMs = phaseError * targetBeatLength * 1000;
+
+            const PHASE_ERROR_THRESHOLD_MS = 10;
+            const MICRO_ADJUST_THRESHOLD_MS = 3;
+
+            if (Math.abs(phaseErrorMs) > PHASE_ERROR_THRESHOLD_MS) {
+                const slipAmount = phaseError * targetBeatLength;
+                const newTargetTime = targetCenterPoint + slipAmount;
+                const clampedTime = Math.max(0, Math.min(newTargetTime, targetDeck.duration - 0.1));
+
+                targetDeck.audio.currentTime = clampedTime;
+                this.updatePlayhead(targetDeckId);
+
+                console.log(
+                    `[Beat Sync Loop] Large phase error detected: ${phaseErrorMs.toFixed(1)}ms → Slip correction: ${(slipAmount * 1000).toFixed(1)}ms`,
+                );
+            } else if (Math.abs(phaseErrorMs) > MICRO_ADJUST_THRESHOLD_MS) {
+                const microAdjust = phaseError * 0.1;
+                const adjustedRate = 1 + (targetDeck.pitchValue / 100) + microAdjust;
+
+                targetDeck.audio.playbackRate = adjustedRate;
+                targetDeck.audio.preservesPitch = targetDeck.masterTempo;
+
+                console.log(
+                    `[Beat Sync Loop] Micro-adjustment: Phase error ${phaseErrorMs.toFixed(1)}ms → Rate nudge ${(microAdjust * 100).toFixed(3)}%`,
+                );
+            }
+
+            sourceDeck.beatSyncAnimationFrame = requestAnimationFrame(phaseMonitor);
+        };
+
+        console.log(
+            `[Beat Sync Loop] Starting continuous phase monitoring: ${sourceDeckId.toUpperCase()} → ${targetDeckId.toUpperCase()}`,
+        );
+
+        sourceDeck.beatSyncAnimationFrame = requestAnimationFrame(phaseMonitor);
+    }
+
+    stopBeatSyncLoop(sourceDeckId) {
+        const sourceDeck = this.decks[sourceDeckId];
+
+        if (sourceDeck.beatSyncAnimationFrame) {
+            cancelAnimationFrame(sourceDeck.beatSyncAnimationFrame);
+            sourceDeck.beatSyncAnimationFrame = null;
+        }
+
+        if (sourceDeck.beatSyncLocked) {
+            const targetDeckId = sourceDeck.beatSyncTargetDeck;
+
+            sourceDeck.beatSyncLocked = false;
+            sourceDeck.beatSyncTargetDeck = null;
+
+            this.updateBeatSyncUI(sourceDeckId, false);
+
+            if (targetDeckId) {
+                const targetDeck = this.decks[targetDeckId];
+                const normalRate = 1 + targetDeck.pitchValue / 100;
+                targetDeck.audio.playbackRate = normalRate;
+                targetDeck.audio.preservesPitch = targetDeck.masterTempo;
+            }
+
+            console.log(
+                `[Beat Sync Loop] Stopped continuous phase monitoring for ${sourceDeckId.toUpperCase()}`,
+            );
+        }
+    }
+
+    updateBeatSyncUI(deckId, isLocked) {
+        const deckLabel = deckId.toUpperCase();
+        const btn = document.getElementById(`beatSync${deckLabel}`);
+
+        if (btn) {
+            if (isLocked) {
+                btn.classList.add("active");
+                btn.title = "Beat Sync LOCKED (Click to unlock)";
+            } else {
+                btn.classList.remove("active");
+                btn.title = "Beat Sync (Lock beats to master)";
+            }
+        }
     }
 
     updateBPMDisplay(deckId, currentBPM) {
