@@ -3,7 +3,7 @@
 
 | # | BPM | Artwork | Track Title | Key | Time | Rating | Date Added | Bitrate | Message | Album | Genre | Artist |
 |---|-----|----------|------------|-----|------|--------|------------|---------|---------|-------|-------|--------|
-| 1 | 0.00 |  | OPENING SEDIKIT | 12A | 00:33 | ***** | 2025-08-19 | 320 kbps |  | Anwar Congo (Algojo 1965) -- "Musik Enak, Saya Bisa Nari" | Music | arsyadtookphoto |
+| 1 | 130.00 |  | OPENING SEDIKIT | 12A | 00:33 | ***** | 2025-08-19 | 320 kbps |  | Anwar Congo (Algojo 1965) -- "Musik Enak, Saya Bisa Nari" | Music | arsyadtookphoto |
 | 2 | 105.00 |  | Fifth Harmony - Work From Home (Muffin Remix) | 4A | 05:13 |  | 2025-08-07 | 320 kbps |  |  |  |  |
 | 3 | 91.00 |  | 91-5A-MOOD-24KGOLDN) (EXTENDED) | 6B | 02:38 | *** | 2025-08-06 | 320 kbps |  |  |  | ARU&SIDD |
 | 4 | 80.00 |  | Flo-Rida - GDFR (Bar-Noize Remix) F.2 | 6A | 04:11 |  | 2025-08-07 | 320 kbps |  |  |  |  |
