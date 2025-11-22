@@ -147,6 +147,7 @@ class RekordboxReader {
         $trackParser = new TrackParser($pdbParser, $this->logger);
         $trackParser->setArtistAlbumParser($artistAlbumParser);
         $trackParser->setGenreParser($genreParser);
+        $trackParser->setArtworkParser($artworkParser);
         $trackParser->setKeyParser($keyParser);
         $trackParser->setColorParser($colorParser);
         $trackParser->setLabelParser($labelParser);

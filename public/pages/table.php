@@ -629,7 +629,9 @@ require_once __DIR__ . '/../partials/head.php';
 
         <!-- Columns -->
         <div id="columnsContent" class="tab-content p-6 hidden">
-            <h2 class="text-2xl font-bold deck-title mb-4">Columns</h2>
+            <h2 class="text-2xl font-bold deck-title mb-4">
+                <i class="fas fa-columns mr-2"></i>Browse Categories (Columns)
+            </h2>
             <div class="bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
                 <?php if(empty($columnsData)): ?>
                 <div class="p-6">
@@ -641,8 +643,14 @@ require_once __DIR__ . '/../partials/head.php';
                 <?php else: ?>
                 <div class="p-6">
                     <div class="bg-blue-900 bg-opacity-30 border border-blue-600 rounded p-4 mb-4">
-                        <h3 class="text-blue-400 font-semibold mb-2"><i class="fas fa-info-circle"></i> About Columns Table</h3>
-                        <p class="text-blue-300 text-sm">The Columns table contains metadata browsing categories used by CDJs to organize and display tracks. This includes sorting and filtering criteria available on Pioneer DJ equipment.</p>
+                        <h3 class="text-blue-400 font-semibold mb-2"><i class="fas fa-info-circle"></i> About Browse Categories</h3>
+                        <p class="text-blue-300 text-sm mb-2">
+                            The Columns table defines metadata browsing categories used by Pioneer CDJs and XDJs. 
+                            These determine what fields are available for sorting/filtering on DJ equipment.
+                        </p>
+                        <p class="text-blue-300 text-sm">
+                            <strong>Total Categories:</strong> <?= count($columnsData) ?> | Based on rekordbox DeviceSQL specification
+                        </p>
                     </div>
                     <div class="overflow-x-auto" style="max-height: 600px;">
                         <table class="w-full text-sm">

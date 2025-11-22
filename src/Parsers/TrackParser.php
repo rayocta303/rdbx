@@ -11,6 +11,7 @@ class TrackParser {
     private $keyParser;
     private $colorParser;
     private $labelParser;
+    private $artworkParser;
 
     public function __construct($pdbParser, $logger = null) {
         $this->pdbParser = $pdbParser;
@@ -21,6 +22,7 @@ class TrackParser {
         $this->keyParser = null;
         $this->colorParser = null;
         $this->labelParser = null;
+        $this->artworkParser = null;
     }
 
     public function setArtistAlbumParser($parser) {
@@ -41,6 +43,10 @@ class TrackParser {
 
     public function setLabelParser($parser) {
         $this->labelParser = $parser;
+    }
+    
+    public function setArtworkParser($parser) {
+        $this->artworkParser = $parser;
     }
 
     public function parseTracks() {
@@ -360,6 +366,13 @@ class TrackParser {
             
             // Extract file path (string index 20)
             $filePath = $strings[20] ?? '';
+            
+            // Parse Artwork path
+            $artworkPath = '';
+            $artworkId = $fixed['artwork_id'] ?? 0;
+            if ($this->artworkParser && $artworkId > 0) {
+                $artworkPath = $this->artworkParser->getArtworkPath($artworkId);
+            }
 
             return [
                 'id' => $fixed['id'],
@@ -388,7 +401,8 @@ class TrackParser {
                 'year' => $fixed['year'] ?? 0,
                 'rating' => $fixed['rating'] ?? 0,
                 'color_id' => $fixed['color_id'] ?? 0,
-                'artwork_id' => $fixed['artwork_id'] ?? 0,
+                'artwork_id' => $artworkId,
+                'artwork_path' => trim($artworkPath),
                 'play_count' => $fixed['play_count'] ?? 0,
                 'track_number' => $fixed['track_number'] ?? 0,
                 'disc_number' => $fixed['disc_number'] ?? 0,
