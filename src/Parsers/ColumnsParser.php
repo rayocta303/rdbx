@@ -156,48 +156,49 @@ class ColumnsParser {
                 return null;
             }
             
+            // According to rekordcrate spec:
+            // ColumnEntry row structure:
+            // 0x00 - 0x01: subtype (uint16) - Always 0x06
+            // 0x02 - 0x03: index_shift (uint16)
+            // 0x04 - 0x05: unknown field
+            
             $rowData = substr($pageData, $offset, $maxLength);
             $hexDump = bin2hex($rowData);
             
             $result = [
                 'offset' => $offset,
-                'raw_hex' => substr($hexDump, 0, 64),
+                'raw_hex' => substr($hexDump, 0, 128),
                 'data' => []
             ];
             
-            // Parse subtype (first 2 bytes)
-            if ($maxLength >= 2) {
-                $subtype = unpack('v', substr($rowData, 0, 2))[1];
-                $result['data']['subtype'] = $subtype;
-                $result['data']['id'] = $subtype;
-            }
-            
-            // Try to identify column type based on pattern
-            if ($maxLength >= 4) {
-                $type_indicator = unpack('v', substr($rowData, 2, 2))[1];
-                $result['data']['type_indicator'] = $type_indicator;
+            // Parse header (first 6 bytes)
+            if ($maxLength >= 6) {
+                $header = unpack(
+                    'vsubtype/' .      // 0x00
+                    'vindex_shift/' .  // 0x02
+                    'vunknown',        // 0x04
+                    substr($rowData, 0, 6)
+                );
                 
-                // Attempt to classify column type
-                if ($type_indicator == 0) {
-                    $result['data']['column_type'] = 'Unknown';
-                } else {
-                    $result['data']['column_type'] = 'Type_' . $type_indicator;
-                }
+                $result['data']['subtype'] = $header['subtype'];
+                $result['data']['index_shift'] = $header['index_shift'];
+                $result['data']['id'] = $header['index_shift']; // Use index_shift as ID
+                
+                // Classify column type based on observed patterns
+                $result['data']['column_type'] = $this->getColumnTypeName($header['index_shift']);
             }
             
-            // Try to extract string data (similar to other parsers)
-            // Look for string offset at position 4-6
+            // Try to extract string data
+            // String offset typically at position 4 or 6
             if ($maxLength >= 8) {
-                $stringOffset = unpack('v', substr($rowData, 4, 2))[1];
+                $stringOffset = unpack('v', substr($rowData, 6, 2))[1] ?? 0;
                 
                 if ($stringOffset > 0 && $stringOffset < $maxLength) {
-                    // Try to extract string at this offset
                     $absOffset = $offset + $stringOffset;
                     if ($absOffset < $pageSize) {
                         list($str, $newOffset) = $this->pdbParser->extractString($pageData, $absOffset);
                         
                         if ($str && strlen(trim($str)) > 0) {
-                            // Clean the string
                             $nullPos = strpos($str, "\x00");
                             if ($nullPos !== false) {
                                 $str = substr($str, 0, $nullPos);
@@ -209,18 +210,39 @@ class ColumnsParser {
                 }
             }
             
-            // Extract additional numeric fields
-            if ($maxLength >= 12) {
-                for ($i = 0; $i < min(12, $maxLength); $i++) {
-                    $result['data']['byte_' . $i] = ord($rowData[$i]);
-                }
-            }
-            
             return $result;
 
         } catch (\Exception $e) {
             return null;
         }
+    }
+    
+    private function getColumnTypeName($indexShift) {
+        // Based on rekordcrate documentation and observed patterns
+        // These are the browsing categories used by CDJs
+        $columnTypes = [
+            0x00 => 'Track',
+            0x01 => 'Genre',
+            0x02 => 'Artist',
+            0x03 => 'Album',
+            0x04 => 'Label',
+            0x05 => 'Key',
+            0x06 => 'Rating',
+            0x07 => 'Color',
+            0x08 => 'Time',
+            0x09 => 'Bit Rate',
+            0x0A => 'BPM',
+            0x0B => 'Year',
+            0x0C => 'Comment',
+            0x0D => 'Date Added',
+            0x0E => 'Original Artist',
+            0x0F => 'Remixer',
+            0x10 => 'Composer',
+            0x11 => 'Album Artist',
+            0x12 => 'DJ Play Count'
+        ];
+        
+        return $columnTypes[$indexShift] ?? 'Unknown_' . dechex($indexShift);
     }
 
     public function getColumns() {

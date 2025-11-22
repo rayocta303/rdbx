@@ -25,16 +25,20 @@ class ArtworkParser {
 
         $artworks = $this->extractRows($artworkTable);
         
+        // Store both simple mapping and full artwork data
         $this->artworks = [];
+        $fullArtworkData = [];
+        
         foreach ($artworks as $artwork) {
             $this->artworks[$artwork['id']] = $artwork['path'];
+            $fullArtworkData[] = $artwork;
         }
 
         if ($this->logger) {
             $this->logger->info("Parsed " . count($this->artworks) . " artworks from database");
         }
 
-        return $this->artworks;
+        return $fullArtworkData;
     }
 
     private function extractRows($table) {
@@ -185,16 +189,48 @@ class ArtworkParser {
                 return null;
             }
             
-            $id = unpack('V', substr($pageData, $offset + 4, 4))[1];
+            // According to rekordcrate spec:
+            // Artwork row structure:
+            // 0x00 - 0x01: subtype (uint16) - Always 0x03
+            // 0x02 - 0x03: index_shift (uint16)
+            // 0x04 - 0x07: artwork_id (uint32)
+            // 0x08+: path string offset
+            
+            $header = unpack(
+                'vsubtype/' .      // 0x00
+                'vindex_shift/' .  // 0x02
+                'Vartwork_id',     // 0x04
+                substr($pageData, $offset, 8)
+            );
+            
+            if ($header['subtype'] != 0x03) {
+                // Not an artwork row
+                return null;
+            }
+            
+            $id = $header['artwork_id'];
             
             if ($id == 0 || $id > 100000) {
                 return null;
             }
             
+            // Extract artwork path string
             list($path, $newOffset) = $this->pdbParser->extractString($pageData, $offset + 8);
             
             if ($path && strlen($path) > 0) {
-                return ['id' => $id, 'path' => trim($path)];
+                // Clean path
+                $nullPos = strpos($path, "\x00");
+                if ($nullPos !== false) {
+                    $path = substr($path, 0, $nullPos);
+                }
+                $path = preg_replace('/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/', '', $path);
+                
+                return [
+                    'id' => $id,
+                    'path' => trim($path),
+                    'subtype' => $header['subtype'],
+                    'index_shift' => $header['index_shift']
+                ];
             }
 
             return null;
