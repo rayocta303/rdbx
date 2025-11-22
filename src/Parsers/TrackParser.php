@@ -9,6 +9,8 @@ class TrackParser {
     private $artistAlbumParser;
     private $genreParser;
     private $keyParser;
+    private $colorParser;
+    private $labelParser;
 
     public function __construct($pdbParser, $logger = null) {
         $this->pdbParser = $pdbParser;
@@ -17,6 +19,8 @@ class TrackParser {
         $this->artistAlbumParser = null;
         $this->genreParser = null;
         $this->keyParser = null;
+        $this->colorParser = null;
+        $this->labelParser = null;
     }
 
     public function setArtistAlbumParser($parser) {
@@ -29,6 +33,14 @@ class TrackParser {
 
     public function setKeyParser($parser) {
         $this->keyParser = $parser;
+    }
+
+    public function setColorParser($parser) {
+        $this->colorParser = $parser;
+    }
+
+    public function setLabelParser($parser) {
+        $this->labelParser = $parser;
     }
 
     public function parseTracks() {

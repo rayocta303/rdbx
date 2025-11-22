@@ -8,6 +8,10 @@ require_once __DIR__ . '/../../src/Parsers/TrackParser.php';
 require_once __DIR__ . '/../../src/Parsers/ArtistAlbumParser.php';
 require_once __DIR__ . '/../../src/Parsers/GenreParser.php';
 require_once __DIR__ . '/../../src/Parsers/KeyParser.php';
+require_once __DIR__ . '/../../src/Parsers/ColorParser.php';
+require_once __DIR__ . '/../../src/Parsers/LabelParser.php';
+require_once __DIR__ . '/../../src/Parsers/HistoryParser.php';
+require_once __DIR__ . '/../../src/Parsers/ColumnsParser.php';
 
 use RekordboxReader\RekordboxReader;
 use RekordboxReader\Parsers\PdbParser;
@@ -15,6 +19,10 @@ use RekordboxReader\Parsers\TrackParser;
 use RekordboxReader\Parsers\ArtistAlbumParser;
 use RekordboxReader\Parsers\GenreParser;
 use RekordboxReader\Parsers\KeyParser;
+use RekordboxReader\Parsers\ColorParser;
+use RekordboxReader\Parsers\LabelParser;
+use RekordboxReader\Parsers\HistoryParser;
+use RekordboxReader\Parsers\ColumnsParser;
 
 $error = null;
 $pdbHeader = [];
@@ -90,53 +98,16 @@ try {
             $keysData[] = ['id' => $id, 'name' => $name];
         }
         
-        // Parse Colors, Labels, Artwork directly from PDB tables
-        $colorsTable = $pdbParser->getTable(PdbParser::TABLE_COLORS);
-        if ($colorsTable) {
-            for ($pageIdx = $colorsTable['first_page']; $pageIdx <= $colorsTable['last_page']; $pageIdx++) {
-                $pageData = $pdbParser->readPage($pageIdx);
-                if ($pageData && strlen($pageData) >= 40) {
-                    $offset = 40;
-                    while ($offset + 20 < strlen($pageData)) {
-                        $testId = unpack('v', substr($pageData, $offset, 2))[1];
-                        if ($testId > 0 && $testId < 256) {
-                            list($str, $newOff) = $pdbParser->extractString($pageData, $offset + 4);
-                            if ($str) {
-                                $colorsData[] = ['id' => $testId, 'name' => trim($str)];
-                                $offset = $newOff;
-                            } else {
-                                break;
-                            }
-                        } else {
-                            break;
-                        }
-                    }
-                }
-            }
+        $colorParser = new ColorParser($pdbParser);
+        $colors = $colorParser->parseColors();
+        foreach ($colors as $id => $name) {
+            $colorsData[] = ['id' => $id, 'name' => $name];
         }
         
-        $labelsTable = $pdbParser->getTable(PdbParser::TABLE_LABELS);
-        if ($labelsTable) {
-            for ($pageIdx = $labelsTable['first_page']; $pageIdx <= $labelsTable['last_page']; $pageIdx++) {
-                $pageData = $pdbParser->readPage($pageIdx);
-                if ($pageData && strlen($pageData) >= 40) {
-                    $offset = 40;
-                    while ($offset + 20 < strlen($pageData)) {
-                        $testId = unpack('v', substr($pageData, $offset, 2))[1];
-                        if ($testId > 0 && $testId < 10000) {
-                            list($str, $newOff) = $pdbParser->extractString($pageData, $offset + 4);
-                            if ($str) {
-                                $labelsData[] = ['id' => $testId, 'name' => trim($str)];
-                                $offset = $newOff;
-                            } else {
-                                break;
-                            }
-                        } else {
-                            break;
-                        }
-                    }
-                }
-            }
+        $labelParser = new LabelParser($pdbParser);
+        $labels = $labelParser->parseLabels();
+        foreach ($labels as $id => $name) {
+            $labelsData[] = ['id' => $id, 'name' => $name];
         }
         
         $artworkTable = $pdbParser->getTable(PdbParser::TABLE_ARTWORK);
@@ -163,9 +134,22 @@ try {
             }
         }
         
-        // Note: History, Columns tables require complex parsing - mark as unparsed for now
-        $columnsData = [['note' => 'Columns table parsing not yet implemented']];
-        $historyData = [['note' => 'History table parsing not yet implemented']];
+        $historyParser = new HistoryParser($pdbParser);
+        $historyPlaylists = $historyParser->parseHistoryPlaylists();
+        $historyEntries = $historyParser->parseHistoryEntries();
+        
+        foreach ($historyPlaylists as $id => $name) {
+            $entryCount = isset($historyEntries[$id]) ? count($historyEntries[$id]) : 0;
+            $historyData[] = [
+                'id' => $id,
+                'name' => $name,
+                'entry_count' => $entryCount
+            ];
+        }
+        
+        $columnsParser = new ColumnsParser($pdbParser);
+        $columns = $columnsParser->parseColumns();
+        $columnsData = $columns;
         
     } else {
         $error = "Rekordbox-USB directory or export.pdb not found!";
@@ -607,11 +591,31 @@ require_once __DIR__ . '/../partials/head.php';
 
         <!-- History -->
         <div id="historyContent" class="tab-content p-6 hidden">
-            <h2 class="text-2xl font-bold deck-title mb-4">History</h2>
-            <div class="bg-gray-900 rounded-lg p-6 border border-gray-700">
-                <div class="bg-yellow-900 bg-opacity-30 border border-yellow-600 rounded p-4">
-                    <h3 class="text-yellow-400 font-semibold mb-2"><i class="fas fa-exclamation-triangle"></i> Not Implemented</h3>
-                    <p class="text-yellow-300 text-sm">History table parsing requires complex structure analysis and is not yet implemented.</p>
+            <h2 class="text-2xl font-bold deck-title mb-4">History Playlists</h2>
+            <div class="bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
+                <div class="overflow-x-auto" style="max-height: 600px;">
+                    <table class="w-full text-sm">
+                        <thead class="sticky top-0 bg-gray-800">
+                            <tr>
+                                <th class="py-3 px-3 text-left text-cyan-400">ID</th>
+                                <th class="py-3 px-3 text-left text-cyan-400">Name</th>
+                                <th class="py-3 px-3 text-left text-cyan-400">Entries</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if(empty($historyData)): ?>
+                            <tr><td colspan="3" class="py-4 px-3 text-center text-gray-500">No history playlists found</td></tr>
+                            <?php else: ?>
+                                <?php foreach ($historyData as $history): ?>
+                                <tr class="border-b border-gray-800 hover:bg-gray-800">
+                                    <td class="py-2 px-3 font-mono text-purple-400"><?= $history['id'] ?></td>
+                                    <td class="py-2 px-3 text-white"><?= htmlspecialchars($history['name']) ?></td>
+                                    <td class="py-2 px-3 text-cyan-400"><?= $history['entry_count'] ?></td>
+                                </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -619,11 +623,54 @@ require_once __DIR__ . '/../partials/head.php';
         <!-- Columns -->
         <div id="columnsContent" class="tab-content p-6 hidden">
             <h2 class="text-2xl font-bold deck-title mb-4">Columns</h2>
-            <div class="bg-gray-900 rounded-lg p-6 border border-gray-700">
-                <div class="bg-yellow-900 bg-opacity-30 border border-yellow-600 rounded p-4">
-                    <h3 class="text-yellow-400 font-semibold mb-2"><i class="fas fa-exclamation-triangle"></i> Not Implemented</h3>
-                    <p class="text-yellow-300 text-sm">Columns table parsing requires complex structure analysis and is not yet implemented.</p>
+            <div class="bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
+                <?php if(empty($columnsData)): ?>
+                <div class="p-6">
+                    <div class="bg-yellow-900 bg-opacity-30 border border-yellow-600 rounded p-4">
+                        <h3 class="text-yellow-400 font-semibold mb-2"><i class="fas fa-info-circle"></i> No Data</h3>
+                        <p class="text-yellow-300 text-sm">No columns data found in database.</p>
+                    </div>
                 </div>
+                <?php else: ?>
+                <div class="p-6">
+                    <div class="bg-blue-900 bg-opacity-30 border border-blue-600 rounded p-4 mb-4">
+                        <h3 class="text-blue-400 font-semibold mb-2"><i class="fas fa-info-circle"></i> Raw Data</h3>
+                        <p class="text-blue-300 text-sm">The structure of columns table is not fully documented yet. Showing raw hex data for analysis.</p>
+                    </div>
+                    <div class="overflow-x-auto" style="max-height: 600px;">
+                        <table class="w-full text-xs">
+                            <thead class="sticky top-0 bg-gray-800">
+                                <tr>
+                                    <th class="py-2 px-2 text-left text-cyan-400">Offset</th>
+                                    <th class="py-2 px-2 text-left text-cyan-400">Raw Hex (first 32 bytes)</th>
+                                    <th class="py-2 px-2 text-left text-cyan-400">Parsed Data</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($columnsData as $column): ?>
+                                <tr class="border-b border-gray-800 hover:bg-gray-800">
+                                    <td class="py-1 px-2 font-mono text-purple-400"><?= $column['offset'] ?></td>
+                                    <td class="py-1 px-2 font-mono text-gray-300 text-xs"><?= htmlspecialchars($column['raw_hex']) ?></td>
+                                    <td class="py-1 px-2 text-gray-400 text-xs">
+                                        <?php 
+                                        if (isset($column['data'])) {
+                                            echo 'ID: ' . ($column['data']['id'] ?? 'N/A');
+                                            echo ' | Bytes: ';
+                                            for ($i = 0; $i < 8; $i++) {
+                                                if (isset($column['data']['byte_' . $i])) {
+                                                    echo sprintf('%02X ', $column['data']['byte_' . $i]);
+                                                }
+                                            }
+                                        }
+                                        ?>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <?php endif; ?>
             </div>
         </div>
 

@@ -9,6 +9,10 @@ require_once __DIR__ . '/Parsers/AnlzParser.php';
 require_once __DIR__ . '/Parsers/ArtistAlbumParser.php';
 require_once __DIR__ . '/Parsers/GenreParser.php';
 require_once __DIR__ . '/Parsers/KeyParser.php';
+require_once __DIR__ . '/Parsers/ColorParser.php';
+require_once __DIR__ . '/Parsers/LabelParser.php';
+require_once __DIR__ . '/Parsers/HistoryParser.php';
+require_once __DIR__ . '/Parsers/ColumnsParser.php';
 require_once __DIR__ . '/Utils/Logger.php';
 
 use RekordboxReader\Parsers\PdbParser;
@@ -18,6 +22,10 @@ use RekordboxReader\Parsers\AnlzParser;
 use RekordboxReader\Parsers\ArtistAlbumParser;
 use RekordboxReader\Parsers\GenreParser;
 use RekordboxReader\Parsers\KeyParser;
+use RekordboxReader\Parsers\ColorParser;
+use RekordboxReader\Parsers\LabelParser;
+use RekordboxReader\Parsers\HistoryParser;
+use RekordboxReader\Parsers\ColumnsParser;
 use RekordboxReader\Utils\Logger;
 
 class RekordboxReader {
@@ -78,7 +86,16 @@ class RekordboxReader {
         $result = [
             'tracks' => [],
             'playlists' => [],
-            'metadata' => []
+            'metadata' => [],
+            'artists' => [],
+            'albums' => [],
+            'genres' => [],
+            'keys' => [],
+            'colors' => [],
+            'labels' => [],
+            'history_playlists' => [],
+            'history_entries' => [],
+            'columns' => []
         ];
 
         if (!file_exists($this->pdbPath)) {
@@ -91,17 +108,41 @@ class RekordboxReader {
         $artistAlbumParser = new ArtistAlbumParser($pdbParser, $this->logger);
         $artists = $artistAlbumParser->parseArtists();
         $albums = $artistAlbumParser->parseAlbums();
+        $result['artists'] = $artists;
+        $result['albums'] = $albums;
         
         $genreParser = new GenreParser($pdbParser, $this->logger);
         $genres = $genreParser->parseGenres();
+        $result['genres'] = $genres;
         
         $keyParser = new KeyParser($pdbParser, $this->logger);
         $keys = $keyParser->parseKeys();
+        $result['keys'] = $keys;
+        
+        $colorParser = new ColorParser($pdbParser, $this->logger);
+        $colors = $colorParser->parseColors();
+        $result['colors'] = $colors;
+        
+        $labelParser = new LabelParser($pdbParser, $this->logger);
+        $labels = $labelParser->parseLabels();
+        $result['labels'] = $labels;
+        
+        $historyParser = new HistoryParser($pdbParser, $this->logger);
+        $historyPlaylists = $historyParser->parseHistoryPlaylists();
+        $historyEntries = $historyParser->parseHistoryEntries();
+        $result['history_playlists'] = $historyPlaylists;
+        $result['history_entries'] = $historyEntries;
+        
+        $columnsParser = new ColumnsParser($pdbParser, $this->logger);
+        $columns = $columnsParser->parseColumns();
+        $result['columns'] = $columns;
         
         $trackParser = new TrackParser($pdbParser, $this->logger);
         $trackParser->setArtistAlbumParser($artistAlbumParser);
         $trackParser->setGenreParser($genreParser);
         $trackParser->setKeyParser($keyParser);
+        $trackParser->setColorParser($colorParser);
+        $trackParser->setLabelParser($labelParser);
         $tracks = $trackParser->parseTracks();
         $result['tracks'] = $tracks;
         $this->stats['total_tracks'] = count($tracks);
