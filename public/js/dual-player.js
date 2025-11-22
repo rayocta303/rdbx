@@ -1017,18 +1017,17 @@ class DualPlayer {
         const pitchMultiplier = 1 + deck.pitchValue / 100;
         const viewEnd = viewStart + viewDuration;
 
-        // OPTIMIZATION: Use path-based rendering instead of per-beat drawing
-        // This draws ALL beat lines in a single path, then strokes ONCE
-        // Much more efficient for low-end devices (1 stroke vs N strokes)
-        ctx.beginPath();
-
         // Use PQTZ beat grid data if available, otherwise fallback to BPM calculation
         if (
             deck.beatgridData &&
             Array.isArray(deck.beatgridData) &&
             deck.beatgridData.length > 0
         ) {
-            // Collect all beat lines in one path
+            // Separate paths for bars (downbeat) and regular beats
+            ctx.beginPath();
+            const barPath = new Path2D();
+            const beatPath = new Path2D();
+
             deck.beatgridData.forEach((beat) => {
                 const beatTime = beat.time;
 
@@ -1038,17 +1037,40 @@ class DualPlayer {
                         (beatTime - viewStart) / viewDuration;
                     const x = Math.floor(relativePosition * width) + 0.5; // +0.5 for crisp pixels
 
-                    // Add line to path (no stroke yet!)
-                    ctx.moveTo(x, 0);
-                    ctx.lineTo(x, height);
+                    // beat.beat == 1 means downbeat (first beat of bar)
+                    if (beat.beat === 1) {
+                        // Bar line (merah)
+                        barPath.moveTo(x, 0);
+                        barPath.lineTo(x, height);
+                    } else {
+                        // Regular beat line (putih)
+                        beatPath.moveTo(x, 0);
+                        beatPath.lineTo(x, height);
+                    }
                 }
             });
+
+            // Draw bar lines (merah)
+            ctx.strokeStyle = "rgba(255, 0, 0, 0.5)";
+            ctx.lineWidth = 2;
+            ctx.stroke(barPath);
+
+            // Draw beat lines (putih)
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+            ctx.lineWidth = 1;
+            ctx.stroke(beatPath);
+
         } else {
             // Fallback: Use simple BPM calculation when no beat grid data available
             const effectiveBPM = deck.track.bpm * pitchMultiplier;
             const beatInterval = 60 / effectiveBPM;
-            const firstBeat =
-                Math.ceil(viewStart / beatInterval) * beatInterval;
+            const barInterval = beatInterval * 4; // 1 bar = 4 beats
+            
+            const firstBeat = Math.ceil(viewStart / beatInterval) * beatInterval;
+
+            // Separate paths for bars and beats
+            const barPath = new Path2D();
+            const beatPath = new Path2D();
 
             for (
                 let beatTime = firstBeat;
@@ -1056,18 +1078,32 @@ class DualPlayer {
                 beatTime += beatInterval
             ) {
                 const relativePosition = (beatTime - viewStart) / viewDuration;
-                const x = Math.floor(relativePosition * width) + 0.5; // +0.5 for crisp pixels
+                const x = Math.floor(relativePosition * width) + 0.5;
 
-                // Add line to path (no stroke yet!)
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, height);
+                // Check if this is a bar (downbeat) - every 4 beats
+                const beatNumber = Math.round(beatTime / beatInterval) % 4;
+                
+                if (beatNumber === 0) {
+                    // Bar line (merah)
+                    barPath.moveTo(x, 0);
+                    barPath.lineTo(x, height);
+                } else {
+                    // Regular beat line (putih)
+                    beatPath.moveTo(x, 0);
+                    beatPath.lineTo(x, height);
+                }
             }
-        }
 
-        // Stroke ALL beat lines at once (single operation!)
-        ctx.strokeStyle = "rgba(255, 255, 255, 1)";
-        ctx.lineWidth = 2;
-        ctx.stroke();
+            // Draw bar lines (merah)
+            ctx.strokeStyle = "rgba(255, 0, 0, 0.5)";
+            ctx.lineWidth = 2;
+            ctx.stroke(barPath);
+
+            // Draw beat lines (putih)
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+            ctx.lineWidth = 1;
+            ctx.stroke(beatPath);
+        }
     }
 
     renderCueMarkers(deckId) {
