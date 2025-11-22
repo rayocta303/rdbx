@@ -63,12 +63,7 @@
                                 <span>Q</span>
                             </button>
                         </div>
-                        <div class="deck-controls">
-                            <button class="control-btn play-btn" onclick="window.dualPlayer.togglePlay('a')" title="Play/Pause">
-                                <i class="fas fa-play" id="playIconA"></i>
-                            </button>
                         </div>
-                    </div>
                     
                     <div class="track-info-compact" id="trackInfoA">
                         <div class="track-title-compact">No Track Loaded</div>
@@ -115,7 +110,17 @@
                 </div>
 
                 <div class="hot-cue-pads">
-                    <div class="hot-cue-label">HOT CUES</div>
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="hot-cue-label">HOT CUES</div>
+                        <div class="flex items-center gap-2">
+                            <button class="control-btn play-btn" onclick="window.dualPlayer.togglePlay('a')" title="Play/Pause">
+                                <i class="fas fa-play" id="playIconA"></i>
+                            </button>
+                            <button class="control-btn cue-btn" onclick="window.dualPlayer.setCuePoint('a')" title="Set/Return to Cue Point">
+                                <i class="fas fa-step-backward"></i>
+                            </button>
+                        </div>
+                    </div>
                     <div class="hot-cue-grid">
                         <?php for ($i = 0; $i < 8; $i++): ?>
                         <button class="hot-cue-pad" data-deck="a" data-cue="<?= $i ?>" onclick="window.dualPlayer.triggerHotCue('a', <?= $i ?>)">
@@ -187,12 +192,7 @@
                                 <span>Q</span>
                             </button>
                         </div>
-                        <div class="deck-controls">
-                            <button class="control-btn play-btn" onclick="window.dualPlayer.togglePlay('b')" title="Play/Pause">
-                                <i class="fas fa-play" id="playIconB"></i>
-                            </button>
                         </div>
-                    </div>
                     
                     <div class="track-info-compact" id="trackInfoB">
                         <div class="track-title-compact">No Track Loaded</div>
@@ -239,7 +239,17 @@
                 </div>
 
                 <div class="hot-cue-pads">
-                    <div class="hot-cue-label">HOT CUES</div>
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="hot-cue-label">HOT CUES</div>
+                        <div class="flex items-center gap-2">
+                            <button class="control-btn play-btn" onclick="window.dualPlayer.togglePlay('b')" title="Play/Pause">
+                                <i class="fas fa-play" id="playIconB"></i>
+                            </button>
+                            <button class="control-btn cue-btn" onclick="window.dualPlayer.setCuePoint('b')" title="Set/Return to Cue Point">
+                                <i class="fas fa-step-backward"></i>
+                            </button>
+                        </div>
+                    </div>
                     <div class="hot-cue-grid">
                         <?php for ($i = 0; $i < 8; $i++): ?>
                         <button class="hot-cue-pad" data-deck="b" data-cue="<?= $i ?>" onclick="window.dualPlayer.triggerHotCue('b', <?= $i ?>)">

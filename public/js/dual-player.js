@@ -73,6 +73,7 @@ class DualPlayer {
             beatSyncErrorIntegral: 0,
             beatSyncSlipCounter: 0,
             bpmMultiplier: 1.0,
+            cuePoint: null, // Added property as per changes
         };
     }
 

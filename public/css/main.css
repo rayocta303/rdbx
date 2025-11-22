@@ -523,7 +523,16 @@ canvas {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    margin-bottom: 0.5rem;
+}
+
+.cue-btn {
+    background: linear-gradient(135deg, #ff6b00 0%, #cc5500 100%);
+    border: 2px solid #ff6b00;
+}
+
+.cue-btn:hover {
+    background: linear-gradient(135deg, #ff8533 0%, #e66000 100%);
+    border-color: #ff8533;
 }
 
 .hot-cue-grid {
