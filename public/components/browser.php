@@ -1,5 +1,5 @@
 <?php if ($data): ?>
-<div class="mixxx-container rounded-lg mb-6">
+<div class="app-container rounded-lg mb-6">
     <div class="flex gap-0" style="height: 750px;">
         <div class="w-64 library-panel overflow-y-auto flex-shrink-0 scrollbar-thin">
             <div class="p-4 bg-gradient-to-r from-cyan-900 to-cyan-800 border-b border-cyan-600">

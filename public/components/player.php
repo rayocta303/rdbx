@@ -1,5 +1,5 @@
 <?php if ($data): ?>
-<div class="mixxx-container rounded-lg mb-6">
+<div class="app-container rounded-lg mb-6">
 
         <!-- Waveform Section (Separated for Beat Matching) -->
         <div class="waveform-beatmatch-section">

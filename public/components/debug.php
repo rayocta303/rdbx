@@ -1,5 +1,5 @@
 <?php if ($data): ?>
-<div class="mixxx-container rounded-lg mb-6">
+<div class="app-container rounded-lg mb-6">
     <div class="border-b-2 border-cyan-600">
         <nav class="flex -mb-px">
             <button onclick="showTab('metadata')" id="metadataTab" class="tab-button px-6 py-4 text-sm font-medium border-b-2 border-cyan-500 text-cyan-400 bg-gray-800">

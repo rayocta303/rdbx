@@ -1,10 +1,10 @@
-# Rekordbox Export Reader - MIXXX Edition
+# Rekordbox Export Reader
 
-Professional DJ Library Manager dengan Dual Deck Player untuk membaca dan memainkan Rekordbox USB exports dengan Web GUI bergaya MIXXX DJ Software.
+Professional DJ Library Manager dengan Dual Deck Player untuk membaca dan memainkan Rekordbox USB exports.
 
-## ✨ Fitur Utama
+## Fitur Utama
 
-### 🎛️ Professional Dual DJ Player
+### Professional Dual DJ Player
 - **Independent Dual Decks**: Load dan play tracks pada Deck A dan Deck B secara bersamaan
 - **BPM Pitch Control**: ±16% tempo adjustment dengan real-time BPM display
 - **Master Tempo (Key Lock)**: Maintain pitch asli saat adjust tempo
@@ -30,7 +30,7 @@ Professional DJ Library Manager dengan Dual Deck Player untuk membaca dan memain
   - Applies to hot cue triggers
   - Uses Rekordbox beat grid untuk accuracy
 
-### 🎨 MIXXX-Inspired Professional UI
+### Professional DJ Interface
 - **Dark Theme**: Interface profesional bergaya MIXXX LateNight Skin
 - **FontAwesome Icons**: Modern icon system menggantikan emoji
 - **Dual Deck Layout**: Library browser, dual waveform display, dan hot cue pads
@@ -45,7 +45,7 @@ Professional DJ Library Manager dengan Dual Deck Player untuk membaca dan memain
 - **Zoom Controls**: 1x to 64x zoom (default 16x) dengan drag-to-seek
 - **In-UI Notifications**: Toast notifications untuk feedback (menggantikan JavaScript alerts)
 
-### 📀 Parsing Database Lengkap
+### Database Parsing
 - Membaca file `export.pdb` dan `exportExt.pdb` (DeviceSQL format)
 - Ekstraksi track metadata (title, artist, album, BPM, key, duration)
 - Parsing playlist structure dan folder hierarchy
@@ -53,7 +53,7 @@ Professional DJ Library Manager dengan Dual Deck Player untuk membaca dan memain
 - Audio streaming dengan byte-range support untuk playback
 - Corruption detection dan graceful error handling
 
-### 🎵 Audio & Analysis Features
+### Audio & Analysis Features
 - **Waveform Visualization**: 
   - Color-coded frequency data (RGB dari ANLZ files)
   - Beatgrid overlay dengan glow effects
@@ -71,7 +71,7 @@ Professional DJ Library Manager dengan Dual Deck Player untuk membaca dan memain
   - Real-time position tracking
   - Independent volume control per deck
 
-## 📁 Struktur Project
+## Struktur Project
 
 ```
 .
@@ -120,7 +120,7 @@ Professional DJ Library Manager dengan Dual Deck Player untuk membaca dan memain
     └── Contents/                   # Audio files (.mp3, .flac, etc)
 ```
 
-## 🚀 Cara Penggunaan
+## Cara Penggunaan
 
 ### Requirements
 - PHP 8.2 atau lebih tinggi
@@ -183,7 +183,7 @@ Rekordbox-USB/
 └── Contents/                       # Audio files
 ```
 
-## 📖 Format Database
+## Format Database
 
 ### PDB (Pioneer Database)
 Database Rekordbox menggunakan format binary proprietary dengan struktur page-based:
@@ -210,9 +210,9 @@ Parser menggunakan prioritas file:
 2. `.DAT` files (basic waveform & beatgrid)
 3. `.2EX` files (often empty, CDJ-3000 specific)
 
-## 🎨 UI Design - MIXXX LateNight Theme
+## UI Design
 
-Interface dirancang dengan inspirasi dari **MIXXX DJ Software LateNight Skin**:
+Interface dirancang dengan gaya professional DJ software:
 
 ### Color Palette
 - **Background**: `#1a1a1a` (dark base), `#2a2a2a` (elevated surfaces)
@@ -237,7 +237,7 @@ Menggunakan **FontAwesome 6.5.1** (CDN):
 - `fa-triangle-exclamation`: Corrupt data
 - Dan lainnya untuk UI consistency
 
-## 🔍 Fitur Teknis
+## Fitur Teknis
 
 ### Canvas Waveform Rendering
 - High DPI rendering dengan devicePixelRatio untuk retina/4K displays
@@ -266,7 +266,7 @@ Menggunakan **FontAwesome 6.5.1** (CDN):
 - Comprehensive logging untuk debugging
 - Fallback rendering untuk missing waveform data
 
-## 📚 Referensi
+## Referensi
 
 ### File Format Documentation
 
@@ -296,7 +296,6 @@ Project ini didasarkan pada reverse-engineering work dan dokumentasi format Reko
 5. **MIXXX DJ Software** (Open Source DJ Application)
    - Repository: https://github.com/mixxxdj/mixxx
    - Website: https://mixxx.org
-   - UI Design Inspiration: MIXXX LateNight Skin
 
 ### Technical Resources
 
@@ -307,7 +306,7 @@ Project ini didasarkan pada reverse-engineering work dan dokumentasi format Reko
   - ANLZ uses big-endian (critical untuk cue point timestamps)
 - **String Encoding**: Short ASCII, Long ASCII, UTF-16LE (in PDB)
 
-## 🐛 Known Issues & Solutions
+## Known Issues & Solutions
 
 ### Waveform Canvas Width = 0
 **Solution**: Canvas setup dipanggil ulang saat `loadWaveform()` jika width masih 0, dengan fallback ke parent width atau default 800px.
@@ -318,11 +317,11 @@ Project ini didasarkan pada reverse-engineering work dan dokumentasi format Reko
 ### Empty .2EX Files
 **Solution**: File priority order `.EXT` → `.DAT` → `.2EX`, dengan `hasData` flag untuk skip empty files.
 
-## 📝 License
+## License
 
 Project ini dibuat untuk tujuan educational dan interoperability.
 
-## 🙏 Credits
+## Credits
 
 Reverse-engineering format Rekordbox dilakukan oleh:
 - **Henry Betts** (@henrybetts) - Rekordbox Decoding (C#)
@@ -335,9 +334,9 @@ Special thanks kepada seluruh komunitas yang berkontribusi dalam reverse-enginee
 
 ---
 
-**v2.1 - Enhanced BPM Sync & Smooth Waveforms** | Powered by PHP 8.2 | UI inspired by MIXXX DJ Software
+**v2.1 - Enhanced BPM Sync & Smooth Waveforms** | Powered by PHP 8.2
 
-### 📋 Recent Updates (v2.1)
+### Recent Updates (v2.1)
 
 #### BPM Sync Enhancements
 - ✅ **Latching BPM Sync**: Toggle on/off mode seperti Quantize button
@@ -359,7 +358,7 @@ Special thanks kepada seluruh komunitas yang berkontribusi dalam reverse-enginee
 - ✅ **In-UI Notifications**: Toast notifications menggantikan JavaScript alerts
 - ✅ **Better Error Messages**: Contextual feedback untuk user actions
 
-## 🎛️ DJ Player Features Summary
+## DJ Player Features Summary
 
 | Feature | Description |
 |---------|-------------|

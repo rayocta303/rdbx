@@ -162,18 +162,18 @@ require_once __DIR__ . '/../partials/head.php';
 ?>
 
 <div class="container mx-auto px-2 max-w-full">
-    <div class="mixxx-container rounded-lg mb-6">
-        <div class="mixxx-header">
+    <div class="app-container rounded-lg mb-6">
+        <div class="app-header">
             <div class="flex items-center justify-between">
-                <div class="flex items-center gap-4">
-                    <i class="fas fa-database text-4xl text-cyan-400"></i>
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-table text-2xl text-cyan-400"></i>
                     <div>
-                        <h1 class="text-3xl font-bold deck-title">Complete Database View</h1>
-                        <p class="text-gray-400 mt-1 text-sm">Comprehensive export.pdb Table Browser - All Tables & Fields</p>
+                        <h1 class="text-2xl font-bold text-white">Database Tables</h1>
+                        <p class="text-gray-400 text-xs">Export.pdb Table Browser</p>
                     </div>
                 </div>
-                <div class="flex items-center gap-3">
-                    <a href="/" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-sm font-medium transition-colors">
+                <div class="flex items-center gap-2">
+                    <a href="/" class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs font-medium transition-colors border border-gray-600">
                         <i class="fas fa-arrow-left"></i> Back
                     </a>
                 </div>
@@ -181,116 +181,115 @@ require_once __DIR__ . '/../partials/head.php';
         </div>
 
         <?php if ($error): ?>
-        <div class="p-6">
-            <div class="bg-red-900 bg-opacity-30 border border-red-500 rounded-lg p-4">
-                <h3 class="text-red-400 font-semibold mb-2"><i class="fas fa-times-circle"></i> Error</h3>
-                <p class="text-red-300"><?= htmlspecialchars($error) ?></p>
+        <div class="p-4">
+            <div class="bg-red-900/20 border border-red-700 rounded p-3">
+                <h3 class="text-red-400 font-semibold text-sm mb-1"><i class="fas fa-exclamation-circle"></i> Error</h3>
+                <p class="text-red-300 text-xs"><?= htmlspecialchars($error) ?></p>
             </div>
         </div>
         <?php else: ?>
         
-        <div class="border-b-2 border-cyan-600">
-            <nav class="flex -mb-px overflow-x-auto">
-                <button onclick="showParentTab('overview')" id="overviewParentTab" class="parent-tab-button px-5 py-3 text-sm font-medium border-b-2 border-cyan-500 text-cyan-400 bg-gray-800 whitespace-nowrap">
+        <div class="border-b border-gray-700">
+            <nav class="flex px-4 overflow-x-auto">
+                <button onclick="showParentTab('overview')" id="overviewParentTab" class="parent-tab-button px-4 py-2.5 text-xs font-medium border-b-2 border-cyan-500 text-cyan-400 bg-gray-800/50 whitespace-nowrap">
                     <i class="fas fa-info"></i> Overview
                 </button>
-                <button onclick="showParentTab('library')" id="libraryParentTab" class="parent-tab-button px-5 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-cyan-400 whitespace-nowrap">
+                <button onclick="showParentTab('library')" id="libraryParentTab" class="parent-tab-button px-4 py-2.5 text-xs font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-300 whitespace-nowrap">
                     <i class="fas fa-database"></i> Library
                 </button>
-                <button onclick="showParentTab('playlists')" id="playlistsParentTab" class="parent-tab-button px-5 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-cyan-400 whitespace-nowrap">
+                <button onclick="showParentTab('playlists')" id="playlistsParentTab" class="parent-tab-button px-4 py-2.5 text-xs font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-300 whitespace-nowrap">
                     <i class="fas fa-list"></i> Playlists
                 </button>
-                <button onclick="showParentTab('assets')" id="assetsParentTab" class="parent-tab-button px-5 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-cyan-400 whitespace-nowrap">
+                <button onclick="showParentTab('assets')" id="assetsParentTab" class="parent-tab-button px-4 py-2.5 text-xs font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-300 whitespace-nowrap">
                     <i class="fas fa-folder"></i> Assets
                 </button>
             </nav>
         </div>
 
-        <div id="librarySubTabs" class="bg-gray-800 border-b border-gray-700 hidden">
-            <div class="px-6 py-3 flex gap-2 flex-wrap">
-                <button onclick="showSubTab('library', 'tracks')" id="tracksSubTab" class="sub-tab-button px-4 py-2 text-xs font-medium rounded-full bg-cyan-600 text-white">
+        <div id="librarySubTabs" class="bg-gray-800/50 border-b border-gray-700 hidden">
+            <div class="px-4 py-2 flex gap-1.5 flex-wrap">
+                <button onclick="showSubTab('library', 'tracks')" id="tracksSubTab" class="sub-tab-button px-3 py-1.5 text-xs font-medium rounded bg-cyan-600 text-white">
                     <i class="fas fa-music"></i> Tracks (<?= count($tracks) ?>)
                 </button>
-                <button onclick="showSubTab('library', 'artists')" id="artistsSubTab" class="sub-tab-button px-4 py-2 text-xs font-medium rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600">
+                <button onclick="showSubTab('library', 'artists')" id="artistsSubTab" class="sub-tab-button px-3 py-1.5 text-xs font-medium rounded bg-gray-700 text-gray-300 hover:bg-gray-600">
                     <i class="fas fa-user"></i> Artists (<?= count($artistsData) ?>)
                 </button>
-                <button onclick="showSubTab('library', 'albums')" id="albumsSubTab" class="sub-tab-button px-4 py-2 text-xs font-medium rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600">
+                <button onclick="showSubTab('library', 'albums')" id="albumsSubTab" class="sub-tab-button px-3 py-1.5 text-xs font-medium rounded bg-gray-700 text-gray-300 hover:bg-gray-600">
                     <i class="fas fa-compact-disc"></i> Albums (<?= count($albumsData) ?>)
                 </button>
-                <button onclick="showSubTab('library', 'genres')" id="genresSubTab" class="sub-tab-button px-4 py-2 text-xs font-medium rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600">
+                <button onclick="showSubTab('library', 'genres')" id="genresSubTab" class="sub-tab-button px-3 py-1.5 text-xs font-medium rounded bg-gray-700 text-gray-300 hover:bg-gray-600">
                     <i class="fas fa-guitar"></i> Genres (<?= count($genresData) ?>)
                 </button>
-                <button onclick="showSubTab('library', 'keys')" id="keysSubTab" class="sub-tab-button px-4 py-2 text-xs font-medium rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600">
+                <button onclick="showSubTab('library', 'keys')" id="keysSubTab" class="sub-tab-button px-3 py-1.5 text-xs font-medium rounded bg-gray-700 text-gray-300 hover:bg-gray-600">
                     <i class="fas fa-key"></i> Keys (<?= count($keysData) ?>)
                 </button>
-                <button onclick="showSubTab('library', 'labels')" id="labelsSubTab" class="sub-tab-button px-4 py-2 text-xs font-medium rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600">
+                <button onclick="showSubTab('library', 'labels')" id="labelsSubTab" class="sub-tab-button px-3 py-1.5 text-xs font-medium rounded bg-gray-700 text-gray-300 hover:bg-gray-600">
                     <i class="fas fa-tag"></i> Labels (<?= count($labelsData) ?>)
                 </button>
-                <button onclick="showSubTab('library', 'colors')" id="colorsSubTab" class="sub-tab-button px-4 py-2 text-xs font-medium rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600">
+                <button onclick="showSubTab('library', 'colors')" id="colorsSubTab" class="sub-tab-button px-3 py-1.5 text-xs font-medium rounded bg-gray-700 text-gray-300 hover:bg-gray-600">
                     <i class="fas fa-palette"></i> Colors (<?= count($colorsData) ?>)
                 </button>
             </div>
         </div>
 
-        <div id="playlistsSubTabs" class="bg-gray-800 border-b border-gray-700 hidden">
-            <div class="px-6 py-3 flex gap-2 flex-wrap">
-                <button onclick="showSubTab('playlists', 'playlists')" id="playlistsSubTab" class="sub-tab-button px-4 py-2 text-xs font-medium rounded-full bg-cyan-600 text-white">
+        <div id="playlistsSubTabs" class="bg-gray-800/50 border-b border-gray-700 hidden">
+            <div class="px-4 py-2 flex gap-1.5 flex-wrap">
+                <button onclick="showSubTab('playlists', 'playlists')" id="playlistsSubTab" class="sub-tab-button px-3 py-1.5 text-xs font-medium rounded bg-cyan-600 text-white">
                     <i class="fas fa-list"></i> Playlists (<?= count($playlists) ?>)
                 </button>
-                <button onclick="showSubTab('playlists', 'entries')" id="entriesSubTab" class="sub-tab-button px-4 py-2 text-xs font-medium rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600">
-                    <i class="fas fa-list-ol"></i> Playlist Entries (<?= count($playlistEntries) ?>)
+                <button onclick="showSubTab('playlists', 'entries')" id="entriesSubTab" class="sub-tab-button px-3 py-1.5 text-xs font-medium rounded bg-gray-700 text-gray-300 hover:bg-gray-600">
+                    <i class="fas fa-list-ol"></i> Entries (<?= count($playlistEntries) ?>)
                 </button>
-                <button onclick="showSubTab('playlists', 'history')" id="historySubTab" class="sub-tab-button px-4 py-2 text-xs font-medium rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600">
+                <button onclick="showSubTab('playlists', 'history')" id="historySubTab" class="sub-tab-button px-3 py-1.5 text-xs font-medium rounded bg-gray-700 text-gray-300 hover:bg-gray-600">
                     <i class="fas fa-clock"></i> History
                 </button>
             </div>
         </div>
 
-        <div id="assetsSubTabs" class="bg-gray-800 border-b border-gray-700 hidden">
-            <div class="px-6 py-3 flex gap-2 flex-wrap">
-                <button onclick="showSubTab('assets', 'artwork')" id="artworkSubTab" class="sub-tab-button px-4 py-2 text-xs font-medium rounded-full bg-cyan-600 text-white">
+        <div id="assetsSubTabs" class="bg-gray-800/50 border-b border-gray-700 hidden">
+            <div class="px-4 py-2 flex gap-1.5 flex-wrap">
+                <button onclick="showSubTab('assets', 'artwork')" id="artworkSubTab" class="sub-tab-button px-3 py-1.5 text-xs font-medium rounded bg-cyan-600 text-white">
                     <i class="fas fa-image"></i> Artwork (<?= count($artworkData) ?>)
                 </button>
-                <button onclick="showSubTab('assets', 'columns')" id="columnsSubTab" class="sub-tab-button px-4 py-2 text-xs font-medium rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600">
+                <button onclick="showSubTab('assets', 'columns')" id="columnsSubTab" class="sub-tab-button px-3 py-1.5 text-xs font-medium rounded bg-gray-700 text-gray-300 hover:bg-gray-600">
                     <i class="fas fa-columns"></i> Columns
                 </button>
             </div>
         </div>
 
-        <!-- Database Overview -->
-        <div id="overviewContent" class="tab-content p-6">
-            <h2 class="text-2xl font-bold deck-title mb-4">Database Overview</h2>
+        <div id="overviewContent" class="tab-content p-4">
+            <h2 class="text-lg font-bold text-white mb-3">Database Overview</h2>
             
-            <div class="bg-gray-900 rounded-lg p-6 border border-gray-700 mb-6">
-                <h3 class="text-xl font-bold text-cyan-400 mb-4"><i class="fas fa-file-alt"></i> PDB Header</h3>
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <div><span class="text-gray-500 text-sm">Page Size:</span><div class="text-white font-mono"><?= $pdbHeader['page_size'] ?? 'N/A' ?> bytes</div></div>
-                    <div><span class="text-gray-500 text-sm">Total Tables:</span><div class="text-cyan-400 font-mono"><?= $pdbHeader['num_tables'] ?? 'N/A' ?></div></div>
-                    <div><span class="text-gray-500 text-sm">Sequence:</span><div class="text-purple-400 font-mono"><?= $pdbHeader['sequence'] ?? 'N/A' ?></div></div>
+            <div class="bg-gray-900 rounded border border-gray-700 p-4 mb-4">
+                <h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-file-alt"></i> PDB Header</h3>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div><span class="text-gray-500 text-xs">Page Size:</span><div class="text-white font-mono text-sm"><?= $pdbHeader['page_size'] ?? 'N/A' ?> bytes</div></div>
+                    <div><span class="text-gray-500 text-xs">Total Tables:</span><div class="text-cyan-400 font-mono text-sm"><?= $pdbHeader['num_tables'] ?? 'N/A' ?></div></div>
+                    <div><span class="text-gray-500 text-xs">Sequence:</span><div class="text-purple-400 font-mono text-sm"><?= $pdbHeader['sequence'] ?? 'N/A' ?></div></div>
                 </div>
             </div>
 
-            <div class="bg-gray-900 rounded-lg p-6 border border-gray-700">
-                <h3 class="text-xl font-bold text-cyan-400 mb-4"><i class="fas fa-table"></i> All Tables</h3>
+            <div class="bg-gray-900 rounded border border-gray-700 p-4">
+                <h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-table"></i> All Tables</h3>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
+                    <table class="w-full text-xs">
                         <thead class="bg-gray-800">
                             <tr>
-                                <th class="py-3 px-3 text-left text-cyan-400">Type</th>
-                                <th class="py-3 px-3 text-left text-cyan-400">Name</th>
-                                <th class="py-3 px-3 text-left text-cyan-400">First</th>
-                                <th class="py-3 px-3 text-left text-cyan-400">Last</th>
-                                <th class="py-3 px-3 text-left text-cyan-400">Pages</th>
+                                <th class="py-2 px-2 text-left text-cyan-400">Type</th>
+                                <th class="py-2 px-2 text-left text-cyan-400">Name</th>
+                                <th class="py-2 px-2 text-left text-cyan-400">First</th>
+                                <th class="py-2 px-2 text-left text-cyan-400">Last</th>
+                                <th class="py-2 px-2 text-left text-cyan-400">Pages</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ($tablesInfo as $table): ?>
                             <tr class="border-b border-gray-800 hover:bg-gray-800">
-                                <td class="py-2 px-3 font-mono text-purple-400"><?= sprintf('0x%02X', $table['type']) ?></td>
-                                <td class="py-2 px-3 text-white font-semibold"><?= htmlspecialchars($table['type_name']) ?></td>
-                                <td class="py-2 px-3 font-mono text-gray-400"><?= $table['first_page'] ?></td>
-                                <td class="py-2 px-3 font-mono text-gray-400"><?= $table['last_page'] ?></td>
-                                <td class="py-2 px-3 text-cyan-400"><?= ($table['last_page'] - $table['first_page'] + 1) ?></td>
+                                <td class="py-1.5 px-2 font-mono text-purple-400"><?= sprintf('0x%02X', $table['type']) ?></td>
+                                <td class="py-1.5 px-2 text-white font-semibold"><?= htmlspecialchars($table['type_name']) ?></td>
+                                <td class="py-1.5 px-2 font-mono text-gray-400"><?= $table['first_page'] ?></td>
+                                <td class="py-1.5 px-2 font-mono text-gray-400"><?= $table['last_page'] ?></td>
+                                <td class="py-1.5 px-2 text-cyan-400"><?= ($table['last_page'] - $table['first_page'] + 1) ?></td>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
