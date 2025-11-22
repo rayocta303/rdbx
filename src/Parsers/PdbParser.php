@@ -148,14 +148,18 @@ class PdbParser {
             return ['', $offset];
         }
 
+        $startOffset = $offset;
+        
         // Read length_and_kind flag byte
         $lengthAndKind = ord($data[$offset]);
         $offset += 1;
 
         // device_sql_short_ascii: length_and_kind is odd (bit 0 is set)
         if (($lengthAndKind & 0x01) == 1) {
-            // Length is (length_and_kind >> 1), text is (length - 1) bytes
+            // Total length of the structure (including length_and_kind byte)
             $totalLength = $lengthAndKind >> 1;
+            
+            // Text length is total - 1 (excludes length_and_kind byte)
             $textLength = $totalLength - 1;
             
             if ($textLength <= 0 || $offset + $textLength > strlen($data)) {
@@ -163,56 +167,66 @@ class PdbParser {
             }
             
             $text = substr($data, $offset, $textLength);
-            return [$text, $offset + $textLength];
+            
+            // Return offset pointing past the entire structure
+            // totalLength includes the length_and_kind byte we already consumed
+            return [$text, $startOffset + $totalLength];
         }
         
         // device_sql_long_ascii: flag is 0x40
         elseif ($lengthAndKind == 0x40) {
-            if ($offset + 3 > strlen($data)) {
+            if ($offset + 2 > strlen($data)) {
+                // Can't read length field, return offset at current position
                 return ['', $offset];
             }
             
-            // Read u2 length
+            // Read u2 length field
             $lengthData = unpack('v', substr($data, $offset, 2));
             $length = $lengthData[1];
-            $offset += 2;
             
-            // Skip u1 padding byte
-            $offset += 1;
-            
-            // Text is (length - 4) bytes
+            // Text is (length - 4) bytes  
+            // The -4 accounts for: length field (2) + padding (1) + flag byte (1)
             $textLength = $length - 4;
-            if ($textLength <= 0 || $offset + $textLength > strlen($data)) {
-                return ['', $offset];
+            if ($textLength < 0 || $offset + 2 + 1 + $textLength > strlen($data)) {
+                // Malformed or truncated string, but still advance offset properly
+                return ['', $startOffset + $length];
             }
             
-            $text = substr($data, $offset, $textLength);
-            return [$text, $offset + $textLength];
+            // Skip to text: +2 for length field, +1 for padding
+            $textOffset = $offset + 2 + 1;
+            $text = substr($data, $textOffset, $textLength);
+            
+            // Return offset pointing past entire structure
+            // length value already includes flag byte
+            return [$text, $startOffset + $length];
         }
         
         // device_sql_long_utf16le: flag is 0x90
         elseif ($lengthAndKind == 0x90) {
-            if ($offset + 3 > strlen($data)) {
+            if ($offset + 2 > strlen($data)) {
+                // Can't read length field, return offset at current position
                 return ['', $offset];
             }
             
-            // Read u2 length
+            // Read u2 length field
             $lengthData = unpack('v', substr($data, $offset, 2));
             $length = $lengthData[1];
-            $offset += 2;
-            
-            // Skip u1 padding byte
-            $offset += 1;
             
             // Text is (length - 4) bytes, UTF-16LE encoded
             $textLength = $length - 4;
-            if ($textLength <= 0 || $offset + $textLength > strlen($data)) {
-                return ['', $offset];
+            if ($textLength < 0 || $offset + 2 + 1 + $textLength > strlen($data)) {
+                // Malformed or truncated string, but still advance offset properly
+                return ['', $startOffset + $length];
             }
             
-            $rawText = substr($data, $offset, $textLength);
+            // Skip to text: +2 for length field, +1 for padding
+            $textOffset = $offset + 2 + 1;
+            $rawText = substr($data, $textOffset, $textLength);
             $text = mb_convert_encoding($rawText, 'UTF-8', 'UTF-16LE');
-            return [$text, $offset + $textLength];
+            
+            // Return offset pointing past entire structure
+            // length value already includes flag byte
+            return [$text, $startOffset + $length];
         }
 
         // Unknown format, return empty string

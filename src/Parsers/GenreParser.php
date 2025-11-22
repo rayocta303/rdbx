@@ -120,6 +120,13 @@ class GenreParser {
                 $rowsInGroup = min(16, $numRows - ($groupIdx * 16));
                 
                 for ($rowIdx = 0; $rowIdx < $rowsInGroup; $rowIdx++) {
+                    // Check presence bit for this row
+                    $presenceBit = 1 << $rowIdx;
+                    if (($presenceFlags & $presenceBit) == 0) {
+                        // Row not present, skip
+                        continue;
+                    }
+                    
                     $rowOffsetPos = $base - (6 + ($rowIdx * 2));
                     
                     if ($rowOffsetPos < 0 || $rowOffsetPos + 2 > $pageSize) {
@@ -155,52 +162,26 @@ class GenreParser {
 
     private function parseRow($pageData, $offset) {
         try {
-            $id = unpack('v', substr($pageData, $offset, 2))[1];
-            
-            $name = '';
-            
-            // Use PdbParser's extractString method for reliable string extraction
-            // Typically the string offset for genre is at offset+4
-            list($str, $newOffset) = $this->pdbParser->extractString($pageData, $offset + 4);
-            
-            if ($str) {
-                $nullPos = strpos($str, "\x00");
-                if ($nullPos !== false) {
-                    $str = substr($str, 0, $nullPos);
-                }
-                
-                $name = trim($str);
+            if ($offset + 8 > strlen($pageData)) {
+                return null;
             }
             
-            // If that didn't work, scan for the string
-            if (empty($name)) {
-                for ($scan = $offset + 2; $scan < $offset + 150; $scan++) {
-                    if ($scan >= strlen($pageData)) break;
-                    
-                    $flags = ord($pageData[$scan]);
-                    if (($flags & 0x40) == 0) {
-                        $len = $flags & 0x7F;
-                        if ($len >= 3 && $len < 100 && ($scan + $len + 1) <= strlen($pageData)) {
-                            $str = substr($pageData, $scan + 1, $len);
-                            
-                            $nullPos = strpos($str, "\x00");
-                            if ($nullPos !== false) {
-                                $str = substr($str, 0, $nullPos);
-                            }
-                            
-                            $str = trim($str);
-                            
-                            if (strlen($str) >= 3 && preg_match('/[A-Za-z]/', $str)) {
-                                $name = $str;
-                                break;
-                            }
-                        }
-                    }
-                }
+            // Genre row structure per Kaitai spec:
+            // 0x00: id (u4)
+            // 0x04: name (device_sql_string)
+            
+            $idData = unpack('V', substr($pageData, $offset, 4));
+            $id = $idData[1];
+            
+            if ($id == 0 || $id > 100000) {
+                return null;
             }
-
-            if ($name && $id > 0) {
-                return ['id' => $id, 'name' => $name];
+            
+            // Extract name at offset+4
+            list($name, $newOffset) = $this->pdbParser->extractString($pageData, $offset + 4);
+            
+            if ($name && strlen(trim($name)) > 0 && $id > 0) {
+                return ['id' => $id, 'name' => trim($name)];
             }
 
             return null;

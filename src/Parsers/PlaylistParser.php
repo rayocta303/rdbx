@@ -89,12 +89,15 @@ class PlaylistParser {
                 substr($pageData, 0, 36)
             );
 
+            // Check if this is a data page
             $isDataPage = ($pageHeader['page_flags'] & 0x40) == 0;
             
             if (!$isDataPage) {
-                if ($this->logger) {
-                    $this->logger->debug("Playlist page {$pageIdx} is not a data page, skipping");
-                }
+                return $playlists;
+            }
+            
+            // Verify this is actually a playlist_tree page (type 7)
+            if ($pageHeader['type'] != 7) {
                 return $playlists;
             }
 
@@ -121,9 +124,21 @@ class PlaylistParser {
                 }
                 
                 $presenceFlags = unpack('v', substr($pageData, $flagsOffset, 2))[1];
+                
+                // Skip group if no rows are present
+                if ($presenceFlags == 0) {
+                    continue;
+                }
+                
                 $rowsInGroup = min(16, $numRows - ($groupIdx * 16));
                 
                 for ($rowIdx = 0; $rowIdx < $rowsInGroup; $rowIdx++) {
+                    // Check if this row is present
+                    $present = (($presenceFlags >> $rowIdx) & 1) != 0;
+                    if (!$present) {
+                        continue;
+                    }
+                    
                     $rowOffsetPos = $base - (6 + ($rowIdx * 2));
                     
                     if ($rowOffsetPos < 0 || $rowOffsetPos + 2 > $pageSize) {
@@ -133,28 +148,22 @@ class PlaylistParser {
                     $rowOffsetData = unpack('v', substr($pageData, $rowOffsetPos, 2));
                     $rowOffset = $rowOffsetData[1];
                     
-                    $present = (($presenceFlags >> $rowIdx) & 1) != 0;
-                    
-                    if (!$present) {
-                        continue;
-                    }
-                    
                     $actualRowOffset = ($rowOffset & 0x1FFF) + $heapPos;
                     
-                    if ($actualRowOffset + 50 > $pageSize) {
+                    if ($actualRowOffset + 24 > $pageSize) {
                         continue;
                     }
                     
                     try {
                         $playlist = $this->parsePlaylistRow($pageData, $actualRowOffset, $entriesTable);
-                        if ($playlist) {
+                        if ($playlist && $playlist['id'] > 0) {
                             $playlists[] = $playlist;
                             $this->validPlaylists++;
                         }
                     } catch (\Exception $e) {
                         $this->corruptPlaylists++;
                         if ($this->logger) {
-                            $this->logger->warning("Corrupt playlist at page {$pageIdx}, row {$rowIdx}: " . $e->getMessage());
+                            $this->logger->debug("Corrupt playlist at page {$pageIdx}, row {$rowIdx}: " . $e->getMessage());
                         }
                     }
                 }
@@ -163,7 +172,7 @@ class PlaylistParser {
         } catch (\Exception $e) {
             $this->corruptPlaylists++;
             if ($this->logger) {
-                $this->logger->warning("Error parsing playlist page {$pageIdx}: " . $e->getMessage());
+                $this->logger->debug("Error parsing playlist page {$pageIdx}: " . $e->getMessage());
             }
         }
 
@@ -215,7 +224,16 @@ class PlaylistParser {
 
         $entries = [];
         if ($entriesTable && $playlistId > 0) {
-            $entries = $this->getPlaylistEntries($playlistId, $entriesTable);
+            $rawEntries = $this->getPlaylistEntries($playlistId, $entriesTable);
+            
+            // Sort entries by position and extract track IDs
+            usort($rawEntries, function($a, $b) {
+                return $a['position'] - $b['position'];
+            });
+            
+            foreach ($rawEntries as $entry) {
+                $entries[] = $entry['track_id'];
+            }
         }
 
         return [
@@ -326,15 +344,23 @@ class PlaylistParser {
                 $actualRowOffset = ($rowOffset & 0x1FFF) + $heapPos;
                 if ($actualRowOffset + 12 > $pageSize) continue;
 
+                // Parse according to Kaitai Struct playlist_entry_row definition
+                // Offset 0x00: entry_index (u4) - position in playlist
+                // Offset 0x04: track_id (u4)
+                // Offset 0x08: playlist_id (u4)
                 $entryData = unpack(
-                    'Ventry_id/' .
+                    'Ventry_index/' .
                     'Vtrack_id/' .
                     'Vplaylist_id',
                     substr($pageData, $actualRowOffset, 12)
                 );
 
-                if ($entryData['playlist_id'] == $targetPlaylistId) {
-                    $entries[] = $entryData['track_id'];
+                // Only include valid track IDs (> 0) for the target playlist
+                if ($entryData['playlist_id'] == $targetPlaylistId && $entryData['track_id'] > 0) {
+                    $entries[] = [
+                        'position' => $entryData['entry_index'],
+                        'track_id' => $entryData['track_id']
+                    ];
                 }
             }
         }

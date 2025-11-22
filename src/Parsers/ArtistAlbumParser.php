@@ -123,6 +123,13 @@ class ArtistAlbumParser {
                 $rowsInGroup = min(16, $numRows - ($groupIdx * 16));
                 
                 for ($rowIdx = 0; $rowIdx < $rowsInGroup; $rowIdx++) {
+                    // Check presence bit for this row
+                    $presenceBit = 1 << $rowIdx;
+                    if (($presenceFlags & $presenceBit) == 0) {
+                        // Row not present, skip
+                        continue;
+                    }
+                    
                     $rowOffsetPos = $base - (6 + ($rowIdx * 2));
                     
                     if ($rowOffsetPos < 0 || $rowOffsetPos + 2 > $pageSize) {
@@ -132,13 +139,18 @@ class ArtistAlbumParser {
                     $rowOffsetData = unpack('v', substr($pageData, $rowOffsetPos, 2));
                     $rowOffset = $rowOffsetData[1];
                     
+                    if ($rowOffset == 0) {
+                        // Invalid offset, skip
+                        continue;
+                    }
+                    
                     $actualRowOffset = ($rowOffset & 0x1FFF) + $heapPos;
                     
                     if ($actualRowOffset >= $pageSize || $actualRowOffset + 20 > $pageSize) {
                         continue;
                     }
 
-                    $row = $this->parseRow($pageData, $actualRowOffset, $type);
+                    $row = $this->parseRow($pageData, $actualRowOffset, $type, $heapPos);
                     if ($row) {
                         $rows[] = $row;
                     }
@@ -154,43 +166,58 @@ class ArtistAlbumParser {
         return $rows;
     }
 
-    private function parseRow($pageData, $offset, $type) {
+    private function parseRow($pageData, $offset, $type, $heapPos) {
         try {
             if ($offset + 10 > strlen($pageData)) {
                 return null;
             }
             
-            $id = unpack('v', substr($pageData, $offset, 2))[1];
+            // Artist/Album row structure per Kaitai spec:
+            // 0x00: subtype (u2) - 0x60/0x80 = short name, 0x64/0x84 = far string heap
+            // 0x02: index_shift (u2)
+            // 0x04: id (u4)
+            // 0x08: u1 (always 0x03)
+            // 0x09: ofs_name_near (u1) - offset from row start
+            // 0x0a: ofs_name_far (u2) - if subtype & 0x04 or subtype & 0x80
+            
+            $fixed = unpack(
+                'vsubtype/' .      // 0x00
+                'vindex_shift/' .  // 0x02
+                'Vid/' .           // 0x04
+                'Cu1/' .           // 0x08
+                'Cofs_name_near',  // 0x09
+                substr($pageData, $offset, 10)
+            );
+            
+            $id = $fixed['id'];
             
             if ($id == 0 || $id > 100000) {
                 return null;
             }
             
-            $name = '';
-            
-            for ($scan = $offset + 4; $scan < min($offset + 100, strlen($pageData)); $scan++) {
-                if ($scan >= strlen($pageData)) break;
-                
-                $byte = ord($pageData[$scan]);
-                
-                if (($byte & 0x01) == 1) {
-                    list($str, $newOffset) = $this->pdbParser->extractString($pageData, $scan);
-                    if ($str && strlen(trim($str)) > 0) {
-                        $name = trim($str);
-                        break;
-                    }
+            // Determine name offset using far-string semantics
+            $nameOffset = 0;
+            if (($fixed['subtype'] & 0x04) == 0x04 || ($fixed['subtype'] & 0x80) == 0x80) {
+                // Far string: read u2 at offset+0x0a, mask with 0x1FFF, add heapPos
+                if ($offset + 12 > strlen($pageData)) {
+                    return null;
                 }
-                elseif ($byte == 0x40 || $byte == 0x90) {
-                    list($str, $newOffset) = $this->pdbParser->extractString($pageData, $scan);
-                    if ($str && strlen(trim($str)) > 0) {
-                        $name = trim($str);
-                        break;
-                    }
-                }
+                $ofsData = unpack('v', substr($pageData, $offset + 0x0a, 2));
+                $nameOffset = ($ofsData[1] & 0x1FFF) + $heapPos;
+            } else {
+                // Near offset: use ofs_name_near relative to row start
+                $nameOffset = $offset + $fixed['ofs_name_near'];
             }
-
-            if ($name && $id > 0) {
-                return ['id' => $id, 'name' => $name];
+            
+            // Extract name string
+            if ($nameOffset >= strlen($pageData)) {
+                return null;
+            }
+            
+            list($name, $newOffset) = $this->pdbParser->extractString($pageData, $nameOffset);
+            
+            if ($name && strlen(trim($name)) > 0 && $id > 0) {
+                return ['id' => $id, 'name' => trim($name)];
             }
 
             return null;
