@@ -853,7 +853,7 @@ class DualPlayer {
         }
         
         // Stroke ALL beat lines at once (single operation!)
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
         ctx.lineWidth = 1;
         ctx.stroke();
     }
