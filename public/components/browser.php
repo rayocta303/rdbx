@@ -75,14 +75,14 @@
             </div>
         </div>
 
-        <div class="flex-1 flex flex-col overflow-hidden bg-gray-900">
+        <div class="flex-1 flex flex-col overflow-hidden bg-gray-900 min-w-0">
             <div class="p-4 border-b-2 border-cyan-600 bg-gradient-to-r from-gray-800 to-gray-900">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-xl font-bold deck-title flex items-center gap-2" id="currentPlaylistTitle">
+                <div class="flex items-center justify-between gap-3">
+                    <h2 class="text-xl font-bold deck-title flex items-center gap-2 flex-shrink-0" id="currentPlaylistTitle">
                         <i class="fas fa-headphones"></i>
                         <span>All Tracks</span>
                     </h2>
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 flex-shrink-0">
                         <button 
                             id="toggleDetailPanel" 
                             onclick="toggleTrackDetailPanel()"
@@ -104,41 +104,43 @@
                 </div>
             </div>
             
-            <div class="flex-1 overflow-y-auto scrollbar-thin">
+            <div class="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar">
                 <?php if (count($data['tracks']) > 0): ?>
-                <table class="min-w-full">
-                    <thead class="table-header">
-                        <tr>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider w-12">#</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider">
-                                <i class="fas fa-music mr-1"></i>Title
-                            </th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider">
-                                <i class="fas fa-user mr-1"></i>Artist
-                            </th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider">
-                                <i class="fas fa-drum mr-1"></i>BPM
-                            </th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider">
-                                <i class="fas fa-key mr-1"></i>Key
-                            </th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider">
-                                <i class="fas fa-tag mr-1"></i>Genre
-                            </th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider">
-                                <i class="fas fa-map-marker-alt mr-1"></i>Cues
-                            </th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider">
-                                <i class="fas fa-clock mr-1"></i>Time
-                            </th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider w-32">
-                                <i class="fas fa-play-circle mr-1"></i>Load
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody id="tracksTable" class="divide-y divide-gray-800">
-                    </tbody>
-                </table>
+                <div class="min-w-max">
+                    <table class="w-full">
+                        <thead class="table-header sticky top-0 z-10">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider w-12">#</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider min-w-[200px]">
+                                    <i class="fas fa-music mr-1"></i>Title
+                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider min-w-[150px]">
+                                    <i class="fas fa-user mr-1"></i>Artist
+                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider min-w-[80px]">
+                                    <i class="fas fa-drum mr-1"></i>BPM
+                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider min-w-[60px]">
+                                    <i class="fas fa-key mr-1"></i>Key
+                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider min-w-[120px]">
+                                    <i class="fas fa-tag mr-1"></i>Genre
+                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider min-w-[80px]">
+                                    <i class="fas fa-map-marker-alt mr-1"></i>Cues
+                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider min-w-[80px]">
+                                    <i class="fas fa-clock mr-1"></i>Time
+                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider w-32">
+                                    <i class="fas fa-play-circle mr-1"></i>Load
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="tracksTable" class="divide-y divide-gray-800">
+                        </tbody>
+                    </table>
+                </div>
                 <?php else: ?>
                 <div class="text-center py-12 text-gray-500">
                     <i class="fas fa-music text-4xl mb-3"></i>
