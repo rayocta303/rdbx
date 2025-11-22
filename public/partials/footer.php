@@ -103,15 +103,15 @@
                 const cueIcon = hotCueLabels ? `<span class="text-orange-400 font-semibold">${hotCueLabels}</span>` : '-';
                 
                 row.innerHTML = `
-                    <td class="px-4 py-3 text-sm text-gray-500">${index + 1}</td>
-                    <td class="px-4 py-3 text-sm font-medium text-white">${escapeHtml(track.title)}</td>
-                    <td class="px-4 py-3 text-sm text-cyan-300">${escapeHtml(track.artist)}</td>
-                    <td class="px-4 py-3 text-sm bpm-indicator">${track.bpm.toFixed(2)}</td>
-                    <td class="px-4 py-3 text-sm font-semibold ${getKeyColor(track.key)}">${escapeHtml(track.key)}</td>
-                    <td class="px-4 py-3 text-sm text-gray-400">${escapeHtml(track.genre)}</td>
-                    <td class="px-4 py-3 text-sm">${cueIcon}</td>
-                    <td class="px-4 py-3 text-sm text-gray-400 font-mono">${formatDuration(track.duration)}</td>
-                    <td class="px-4 py-3 text-sm">
+                    <td class="px-2 py-1 text-sm text-gray-500">${index + 1}</td>
+                    <td class="px-2 py-1 text-sm font-medium text-white">${escapeHtml(track.title)}</td>
+                    <td class="px-2 py-1 text-sm text-cyan-300">${escapeHtml(track.artist)}</td>
+                    <td class="px-2 py-1 text-sm bpm-indicator">${track.bpm.toFixed(2)}</td>
+                    <td class="px-2 py-1 text-sm font-semibold ${getKeyColor(track.key)}">${escapeHtml(track.key)}</td>
+                    <td class="px-2 py-1 text-sm text-gray-400">${escapeHtml(track.genre)}</td>
+                    <td class="px-2 py-1 text-sm">${cueIcon}</td>
+                    <td class="px-2 py-1 text-sm text-gray-400 font-mono">${formatDuration(track.duration)}</td>
+                    <td class="px-2 py-1 text-sm">
                         <div class="flex gap-1">
                             <button onclick="event.stopPropagation(); loadTrackToDeck(${track.id}, 'a')" 
                                     class="load-deck-btn load-deck-a" title="Load to Deck A">

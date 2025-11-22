@@ -14,6 +14,17 @@
                     </button>
                 </div>
                 <div class="notification-area" id="syncNotification"></div>
+                <div class="flex gap-1 items-center">
+                    <a href="/table" class="px-4 py-2 bg-gray-800 text-sm">
+                        <div class="text-sm text-cyan-400 font-mono">v2.1</div>
+                    </a>
+                    <a href="/table" class="px-4 py-2 bg-gray-800 text-sm">
+                        <i class="fas fa-table"></i> Tables
+                    </a>
+                    <a href="/debug" class="px-4 py-2 bg-gray-800 text-sm">
+                        <i class="fas fa-chart-line"></i> Debug
+                    </a>
+                </div>
             </div>
             <div class="waveform-beatmatch-container">
                 <!-- Waveform A -->
@@ -42,7 +53,7 @@
                 <div class="deck-header">
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center gap-2">
-                            <div class="deck-label">DECK A</div>
+                            <div class="deck-label">A</div>
                             <button class="eject-btn" onclick="window.dualPlayer.ejectDeck('a')" title="Eject Track">
                                 <i class="fas fa-eject"></i>
                             </button>
@@ -177,7 +188,7 @@
                 <div class="deck-header">
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center gap-2">
-                            <div class="deck-label deck-label-b">DECK B</div>
+                            <div class="deck-label deck-label-b">B</div>
                             <button class="eject-btn" onclick="window.dualPlayer.ejectDeck('b')" title="Eject Track">
                                 <i class="fas fa-eject"></i>
                             </button>

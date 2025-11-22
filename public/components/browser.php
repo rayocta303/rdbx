@@ -1,8 +1,8 @@
 <?php if ($data): ?>
 <div class="app-container rounded-lg mb-6">
-    <div class="flex gap-0" style="height: 750px;">
+    <div class="flex gap-0" style="height: 330px;">
         <div class="w-64 library-panel overflow-y-auto flex-shrink-0 scrollbar-thin">
-            <div class="p-4 bg-gradient-to-r from-cyan-900 to-cyan-800 border-b border-cyan-600">
+            <div class="flex content-center h-8 px-4 bg-gradient-to-r from-cyan-900 to-cyan-800 border-b border-gray-800">
                 <h3 class="font-semibold text-cyan-100 flex items-center gap-2">
                     <i class="fas fa-list"></i> 
                     <span>Library</span>
@@ -14,7 +14,7 @@
                     onclick="showAllTracks()" 
                     id="playlist_all"
                     class="playlist-item w-full text-left px-3 py-2 rounded mb-1 active">
-                    <i class="fas fa-music mr-2"></i> All Tracks 
+                    <i class="fas fa-list mr-2"></i> All Tracks 
                     <span class="text-xs ml-1 opacity-70">(<?= count($data['tracks']) ?>)</span>
                 </button>
                 
@@ -75,30 +75,30 @@
             </div>
         </div>
 
-        <div class="flex-1 flex flex-col overflow-hidden bg-gray-900 min-w-0">
-            <div class="p-4 border-b-2 border-cyan-600 bg-gradient-to-r from-gray-800 to-gray-900">
-                <div class="flex items-center justify-between gap-3">
-                    <h2 class="text-xl font-bold deck-title flex items-center gap-2 flex-shrink-0" id="currentPlaylistTitle">
+        <div class="flex-1 flex flex-col overflow-hidden bg-black/90 min-w-0">
+            <div class="playlist-panel px-4 border-b-2 border-gray-800">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-sm font-bold deck-title flex items-center gap-2 flex-shrink-0" id="currentPlaylistTitle">
                         <i class="fas fa-headphones"></i>
                         <span>All Tracks</span>
                     </h2>
-                    <div class="flex items-center gap-3 flex-shrink-0">
+                    <div class="flex items-center flex-shrink-0">
                         <button 
                             id="toggleDetailPanel" 
                             onclick="toggleTrackDetailPanel()"
-                            class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition-all flex items-center gap-2"
+                            class="panel-btn px-4 h-8 transition-all flex items-center"
                             title="Toggle Detail Panel">
                             <i class="fas fa-info-circle"></i>
-                            <span id="toggleDetailPanelText">Hide Details</span>
+                            <span id="toggleDetailPanelText" class="hidden">Hide Details</span>
                         </button>
                         <div class="relative w-80">
-                            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
-                            <input 
-                                type="text" 
-                                id="searchTracks" 
-                                placeholder="Search tracks, artists, or genres..."
-                                onkeyup="filterTracks()"
-                                class="pl-10 pr-4 py-2 w-full search-input rounded-lg">
+                          <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"></i>
+                          <input 
+                            type="text" 
+                            id="searchTracks" 
+                            placeholder="Search tracks, artists, or genres..."
+                            onkeyup="filterTracks()"
+                            class="pl-10 pr-4 w-full h-8 search-input">
                         </div>
                     </div>
                 </div>
@@ -110,29 +110,29 @@
                     <table class="w-full">
                         <thead class="table-header sticky top-0 z-10">
                             <tr>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider w-12">#</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider min-w-[200px]">
+                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider w-12">#</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider min-w-[200px]">
                                     <i class="fas fa-music mr-1"></i>Title
                                 </th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider min-w-[150px]">
+                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider min-w-[150px]">
                                     <i class="fas fa-user mr-1"></i>Artist
                                 </th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider min-w-[80px]">
+                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider min-w-[80px]">
                                     <i class="fas fa-drum mr-1"></i>BPM
                                 </th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider min-w-[60px]">
+                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider min-w-[60px]">
                                     <i class="fas fa-key mr-1"></i>Key
                                 </th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider min-w-[120px]">
+                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider min-w-[120px]">
                                     <i class="fas fa-tag mr-1"></i>Genre
                                 </th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider min-w-[80px]">
+                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider min-w-[80px]">
                                     <i class="fas fa-map-marker-alt mr-1"></i>Cues
                                 </th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider min-w-[80px]">
+                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider min-w-[80px]">
                                     <i class="fas fa-clock mr-1"></i>Time
                                 </th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-cyan-400 uppercase tracking-wider w-32">
+                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider w-32">
                                     <i class="fas fa-play-circle mr-1"></i>Load
                                 </th>
                             </tr>
@@ -150,21 +150,21 @@
             </div>
         </div>
 
-        <div id="trackDetailPanel" class="w-2/5 border-l-2 border-cyan-600 overflow-y-auto hidden flex-shrink-0 scrollbar-thin deck-section">
+        <div id="trackDetailPanel" class="w-2/5 border-l-2 overflow-y-auto hidden flex-shrink-0 scrollbar-thin deck-section">
             <div class="p-3 bg-gradient-to-b from-gray-900 to-gray-800">
-                <div class="mb-3 p-3 bg-gradient-to-r from-cyan-900 to-blue-900 rounded-lg border border-cyan-700">
+                <div class="mb-3 px-3 border border-gray-700 bg-gray-800">
                     <h2 id="detailTrackTitle" class="text-lg font-bold text-white mb-1">Track Title</h2>
                     <p id="detailTrackArtist" class="text-sm text-cyan-300">Artist Name</p>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3 mb-3 p-3 bg-gray-800 bg-opacity-50 rounded-lg border border-gray-700">
+                <div class="grid grid-cols-6 gap-3 mb-3 p-3 bg-gray-800 bg-opacity-50 border border-gray-700">
                     <div>
                         <div class="metadata-label">BPM</div>
-                        <div id="detailTrackBPM" class="bpm-indicator text-base">120.00</div>
+                        <div id="detailTrackBPM" class="bpm-indicator text-sm">120.00</div>
                     </div>
                     <div>
                         <div class="metadata-label">Key</div>
-                        <div id="detailTrackKey" class="metadata-value text-base">Am</div>
+                        <div id="detailTrackKey" class="metadata-value">Am</div>
                     </div>
                     <div>
                         <div class="metadata-label">Genre</div>
@@ -183,7 +183,7 @@
                 <div id="audioPlayerContainer" class="mb-3"></div>
 
                 <div class="mb-3">
-                    <h3 class="text-xs font-semibold text-cyan-400 mb-1.5 flex items-center gap-2">
+                    <h3 class="text-xs font-semibold mb-1.5 flex items-center gap-2">
                         <i class="fas fa-chart-area"></i>
                         <span>WAVEFORM OVERVIEW</span>
                     </h3>
@@ -193,7 +193,7 @@
                 </div>
 
                 <div class="mb-3">
-                    <h3 class="text-xs font-semibold text-cyan-400 mb-1.5 flex items-center gap-2">
+                    <h3 class="text-xs font-semibold mb-1.5 flex items-center gap-2">
                         <i class="fas fa-waveform-path"></i>
                         <span>WAVEFORM DETAILED</span>
                     </h3>
@@ -203,11 +203,11 @@
                 </div>
 
                 <div>
-                    <h3 class="text-xs font-semibold text-cyan-400 mb-2 flex items-center gap-2">
+                    <h3 class="text-xs font-semibold mb-2 flex items-center gap-2">
                         <i class="fas fa-map-marker-alt"></i>
                         <span>HOT CUES & MEMORY POINTS</span>
                     </h3>
-                    <div id="cueListContainer" class="bg-gray-900 bg-opacity-50 rounded-lg p-2 border border-gray-700">
+                    <div id="cueListContainer" class="bg-gray-900 bg-opacity-50 p-2 border border-gray-700">
                         <div class="text-center text-gray-500 py-3">
                             <i class="fas fa-map-marker-alt text-xl mb-1"></i>
                             <div class="text-sm">No cue points</div>

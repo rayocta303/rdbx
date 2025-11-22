@@ -27,8 +27,8 @@ try {
 
 require_once 'partials/head.php';
 ?>
-
-<div class="container mx-auto px-2 max-w-full">
+<div class="flex-1 overflow-hidden">
+<div class="container mx-auto px-2 max-w-full h-full">
 
     <?php require_once 'components/player.php'; ?>
 
@@ -43,8 +43,8 @@ require_once 'partials/head.php';
     </div>
     <?php endif; ?>
 
-    <div class="app-container rounded-lg mb-6">
-        <div class="app-header">
+    <!-- <div class="app-container rounded-lg mb-6"> -->
+        <!-- <div class="app-header">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-4">
                     <i class="fas fa-compact-disc text-4xl text-cyan-400 animate-spin" style="animation-duration: 10s;"></i>
@@ -65,8 +65,8 @@ require_once 'partials/head.php';
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
+        </div> -->
+    <!-- </div> -->
 </div>
-
+</div>
 <?php require_once 'partials/footer.php'; ?>
