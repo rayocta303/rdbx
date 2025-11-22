@@ -43,14 +43,44 @@ class KeyParser {
         $firstPage = $table['first_page'];
         $lastPage = $table['last_page'];
 
-        for ($pageIdx = $firstPage; $pageIdx <= $lastPage; $pageIdx++) {
-            $pageData = $this->pdbParser->readPage($pageIdx);
-            if (!$pageData) {
-                continue;
-            }
+        $currentPageIdx = $firstPage;
+        $visitedPages = [];
+        $maxIterations = 1000;
+        $iteration = 0;
 
+        while ($currentPageIdx > 0 && $iteration < $maxIterations) {
+            if (isset($visitedPages[$currentPageIdx])) {
+                break;
+            }
+            $visitedPages[$currentPageIdx] = true;
+            
+            $pageData = $this->pdbParser->readPage($currentPageIdx);
+            if (!$pageData) {
+                // Cannot read page - we can't get next_page pointer without the page header
+                // Abort parsing this table to avoid reading from wrong tables
+                if ($this->logger) {
+                    $this->logger->debug("Could not read page $currentPageIdx, stopping table parsing");
+                }
+                break;
+            }
+            
+            $pageHeader = unpack(
+                'Vgap/' .
+                'Vpage_index/' .
+                'Vtype/' .
+                'Vnext_page',
+                substr($pageData, 0, 16)
+            );
+            
             $pageRows = $this->parsePage($pageData);
             $rows = array_merge($rows, $pageRows);
+            
+            if ($currentPageIdx == $lastPage) {
+                break;
+            }
+            
+            $currentPageIdx = $pageHeader['next_page'];
+            $iteration++;
         }
 
         return $rows;
@@ -136,36 +166,26 @@ class KeyParser {
 
     private function parseRow($pageData, $offset) {
         try {
-            $id = unpack('v', substr($pageData, $offset, 2))[1];
-            
-            $name = '';
-            
-            for ($scan = $offset + 2; $scan < $offset + 150; $scan++) {
-                if ($scan >= strlen($pageData)) break;
-                
-                $flags = ord($pageData[$scan]);
-                if (($flags & 0x40) == 0) {
-                    $len = $flags & 0x7F;
-                    if ($len >= 1 && $len < 100 && ($scan + $len + 1) <= strlen($pageData)) {
-                        $str = substr($pageData, $scan + 1, $len);
-                        
-                        $nullPos = strpos($str, "\x00");
-                        if ($nullPos !== false) {
-                            $str = substr($str, 0, $nullPos);
-                        }
-                        
-                        $str = trim($str);
-                        
-                        if (strlen($str) >= 1 && preg_match('/^[0-9]{1,2}[ABd]$/i', $str)) {
-                            $name = $str;
-                            break;
-                        }
-                    }
-                }
+            if ($offset + 12 > strlen($pageData)) {
+                return null;
             }
-
-            if ($name && $id > 0) {
-                return ['id' => $id, 'name' => $name];
+            
+            // Key row structure per Kaitai spec:
+            // 0x00: id (u4)
+            // 0x04: id2 (u4) - seems to be a second copy of the ID
+            // 0x08: name (device_sql_string)
+            
+            $id = unpack('V', substr($pageData, $offset, 4))[1];
+            
+            if ($id == 0 || $id > 100000) {
+                return null;
+            }
+            
+            // Extract name at offset+8
+            list($name, $newOffset) = $this->pdbParser->extractString($pageData, $offset + 8);
+            
+            if ($name && strlen(trim($name)) > 0 && $id > 0) {
+                return ['id' => $id, 'name' => trim($name)];
             }
 
             return null;

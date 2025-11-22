@@ -35,15 +35,38 @@ class GenreParser {
             $firstPage = $genresTable['first_page'];
             $lastPage = $genresTable['last_page'];
             
-            for ($pageIdx = $firstPage; $pageIdx <= $lastPage; $pageIdx++) {
-                $pageData = $this->pdbParser->readPage($pageIdx);
-                if (!$pageData) continue;
+            $currentPageIdx = $firstPage;
+            $visitedPages = [];
+            $maxIterations = 1000;
+            $iteration = 0;
+
+            while ($currentPageIdx > 0 && $iteration < $maxIterations) {
+                if (isset($visitedPages[$currentPageIdx])) {
+                    break;
+                }
+                $visitedPages[$currentPageIdx] = true;
                 
-                // Check if this is a data page
+                $pageData = $this->pdbParser->readPage($currentPageIdx);
+                if (!$pageData) {
+                    // Cannot read page - we can't get next_page pointer without the page header
+                    // Abort parsing this table to avoid reading from wrong tables
+                    if ($this->logger) {
+                        $this->logger->debug("Could not read page $currentPageIdx, stopping table parsing");
+                    }
+                    break;
+                }
+                
+                $pageHeader = unpack(
+                    'Vgap/' .
+                    'Vpage_index/' .
+                    'Vtype/' .
+                    'Vnext_page',
+                    substr($pageData, 0, 16)
+                );
+                
                 if (strlen($pageData) >= 28) {
                     $flags = ord($pageData[27]);
                     if (($flags & 0x40) == 0) {
-                        // Try direct extraction at known offsets
                         $offset = 40;
                         if ($offset + 10 < strlen($pageData)) {
                             $id = unpack('v', substr($pageData, $offset, 2))[1];
@@ -54,6 +77,13 @@ class GenreParser {
                         }
                     }
                 }
+                
+                if ($currentPageIdx == $lastPage) {
+                    break;
+                }
+                
+                $currentPageIdx = $pageHeader['next_page'];
+                $iteration++;
             }
         }
 
@@ -66,14 +96,44 @@ class GenreParser {
         $firstPage = $table['first_page'];
         $lastPage = $table['last_page'];
 
-        for ($pageIdx = $firstPage; $pageIdx <= $lastPage; $pageIdx++) {
-            $pageData = $this->pdbParser->readPage($pageIdx);
-            if (!$pageData) {
-                continue;
-            }
+        $currentPageIdx = $firstPage;
+        $visitedPages = [];
+        $maxIterations = 1000;
+        $iteration = 0;
 
+        while ($currentPageIdx > 0 && $iteration < $maxIterations) {
+            if (isset($visitedPages[$currentPageIdx])) {
+                break;
+            }
+            $visitedPages[$currentPageIdx] = true;
+            
+            $pageData = $this->pdbParser->readPage($currentPageIdx);
+            if (!$pageData) {
+                // Cannot read page - we can't get next_page pointer without the page header
+                // Abort parsing this table to avoid reading from wrong tables
+                if ($this->logger) {
+                    $this->logger->debug("Could not read page $currentPageIdx, stopping table parsing");
+                }
+                break;
+            }
+            
+            $pageHeader = unpack(
+                'Vgap/' .
+                'Vpage_index/' .
+                'Vtype/' .
+                'Vnext_page',
+                substr($pageData, 0, 16)
+            );
+            
             $pageRows = $this->parsePage($pageData);
             $rows = array_merge($rows, $pageRows);
+            
+            if ($currentPageIdx == $lastPage) {
+                break;
+            }
+            
+            $currentPageIdx = $pageHeader['next_page'];
+            $iteration++;
         }
 
         return $rows;

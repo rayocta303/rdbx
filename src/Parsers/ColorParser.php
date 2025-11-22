@@ -43,14 +43,44 @@ class ColorParser {
         $firstPage = $table['first_page'];
         $lastPage = $table['last_page'];
 
-        for ($pageIdx = $firstPage; $pageIdx <= $lastPage; $pageIdx++) {
-            $pageData = $this->pdbParser->readPage($pageIdx);
-            if (!$pageData) {
-                continue;
-            }
+        $currentPageIdx = $firstPage;
+        $visitedPages = [];
+        $maxIterations = 1000;
+        $iteration = 0;
 
-            $pageRows = $this->parsePage($pageData, $pageIdx);
+        while ($currentPageIdx > 0 && $iteration < $maxIterations) {
+            if (isset($visitedPages[$currentPageIdx])) {
+                break;
+            }
+            $visitedPages[$currentPageIdx] = true;
+            
+            $pageData = $this->pdbParser->readPage($currentPageIdx);
+            if (!$pageData) {
+                // Cannot read page - we can't get next_page pointer without the page header
+                // Abort parsing this table to avoid reading from wrong tables
+                if ($this->logger) {
+                    $this->logger->debug("Could not read page $currentPageIdx, stopping table parsing");
+                }
+                break;
+            }
+            
+            $pageHeader = unpack(
+                'Vgap/' .
+                'Vpage_index/' .
+                'Vtype/' .
+                'Vnext_page',
+                substr($pageData, 0, 16)
+            );
+            
+            $pageRows = $this->parsePage($pageData, $currentPageIdx);
             $rows = array_merge($rows, $pageRows);
+            
+            if ($currentPageIdx == $lastPage) {
+                break;
+            }
+            
+            $currentPageIdx = $pageHeader['next_page'];
+            $iteration++;
         }
 
         return $rows;

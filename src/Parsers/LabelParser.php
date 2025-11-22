@@ -43,14 +43,44 @@ class LabelParser {
         $firstPage = $table['first_page'];
         $lastPage = $table['last_page'];
 
-        for ($pageIdx = $firstPage; $pageIdx <= $lastPage; $pageIdx++) {
-            $pageData = $this->pdbParser->readPage($pageIdx);
-            if (!$pageData) {
-                continue;
-            }
+        $currentPageIdx = $firstPage;
+        $visitedPages = [];
+        $maxIterations = 1000;
+        $iteration = 0;
 
-            $pageRows = $this->parsePage($pageData, $pageIdx);
+        while ($currentPageIdx > 0 && $iteration < $maxIterations) {
+            if (isset($visitedPages[$currentPageIdx])) {
+                break;
+            }
+            $visitedPages[$currentPageIdx] = true;
+            
+            $pageData = $this->pdbParser->readPage($currentPageIdx);
+            if (!$pageData) {
+                // Cannot read page - we can't get next_page pointer without the page header
+                // Abort parsing this table to avoid reading from wrong tables
+                if ($this->logger) {
+                    $this->logger->debug("Could not read page $currentPageIdx, stopping table parsing");
+                }
+                break;
+            }
+            
+            $pageHeader = unpack(
+                'Vgap/' .
+                'Vpage_index/' .
+                'Vtype/' .
+                'Vnext_page',
+                substr($pageData, 0, 16)
+            );
+            
+            $pageRows = $this->parsePage($pageData, $currentPageIdx);
             $rows = array_merge($rows, $pageRows);
+            
+            if ($currentPageIdx == $lastPage) {
+                break;
+            }
+            
+            $currentPageIdx = $pageHeader['next_page'];
+            $iteration++;
         }
 
         return $rows;
@@ -153,9 +183,13 @@ class LabelParser {
 
     private function parseRow($pageData, $offset) {
         try {
-            if ($offset + 10 > strlen($pageData)) {
+            if ($offset + 8 > strlen($pageData)) {
                 return null;
             }
+            
+            // Label row structure per Kaitai spec:
+            // 0x00: id (u4)
+            // 0x04: name (device_sql_string)
             
             $id = unpack('V', substr($pageData, $offset, 4))[1];
             
@@ -163,15 +197,11 @@ class LabelParser {
                 return null;
             }
             
-            $nameOffset = $offset + 4;
-            for ($scan = $nameOffset; $scan < $offset + 20 && $scan < strlen($pageData); $scan++) {
-                $byte = ord($pageData[$scan]);
-                if ($byte == 0x40 || $byte == 0x90 || ($byte > 0 && $byte < 0x80 && ($byte & 1))) {
-                    list($name, $newOffset) = $this->pdbParser->extractString($pageData, $scan);
-                    if ($name && strlen($name) > 0) {
-                        return ['id' => $id, 'name' => trim($name)];
-                    }
-                }
+            // Extract name at offset+4
+            list($name, $newOffset) = $this->pdbParser->extractString($pageData, $offset + 4);
+            
+            if ($name && strlen(trim($name)) > 0 && $id > 0) {
+                return ['id' => $id, 'name' => trim($name)];
             }
 
             return null;
