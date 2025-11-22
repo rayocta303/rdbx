@@ -40,14 +40,42 @@ class ColumnsParser {
         $firstPage = $table['first_page'];
         $lastPage = $table['last_page'];
 
-        for ($pageIdx = $firstPage; $pageIdx <= $lastPage; $pageIdx++) {
-            $pageData = $this->pdbParser->readPage($pageIdx);
-            if (!$pageData) {
-                continue;
-            }
+        $currentPageIdx = $firstPage;
+        $visitedPages = [];
+        $maxIterations = 1000;
+        $iteration = 0;
 
-            $pageRows = $this->parsePage($pageData, $pageIdx);
+        while ($currentPageIdx > 0 && $iteration < $maxIterations) {
+            if (isset($visitedPages[$currentPageIdx])) {
+                break;
+            }
+            $visitedPages[$currentPageIdx] = true;
+            
+            $pageData = $this->pdbParser->readPage($currentPageIdx);
+            if (!$pageData) {
+                if ($this->logger) {
+                    $this->logger->debug("Could not read page $currentPageIdx, stopping table parsing");
+                }
+                break;
+            }
+            
+            $pageHeader = unpack(
+                'Vgap/' .
+                'Vpage_index/' .
+                'Vtype/' .
+                'Vnext_page',
+                substr($pageData, 0, 16)
+            );
+            
+            $pageRows = $this->parsePage($pageData, $currentPageIdx);
             $rows = array_merge($rows, $pageRows);
+            
+            if ($currentPageIdx == $lastPage) {
+                break;
+            }
+            
+            $currentPageIdx = $pageHeader['next_page'];
+            $iteration++;
         }
 
         return $rows;
@@ -191,7 +219,9 @@ class ColumnsParser {
             // Try to extract string data
             // String offset typically at position 4 or 6
             if ($maxLength >= 8) {
-                $stringOffset = unpack('v', substr($rowData, 6, 2))[1] ?? 0;
+                $stringOffsetRaw = unpack('v', substr($rowData, 6, 2))[1] ?? 0;
+                // Mask out high-bit flag (like in other parsers)
+                $stringOffset = $stringOffsetRaw & 0x1FFF;
                 
                 if ($stringOffset > 0 && $stringOffset < $maxLength) {
                     $absOffset = $offset + $stringOffset;

@@ -25,20 +25,16 @@ class ArtworkParser {
 
         $artworks = $this->extractRows($artworkTable);
         
-        // Store both simple mapping and full artwork data
         $this->artworks = [];
-        $fullArtworkData = [];
-        
         foreach ($artworks as $artwork) {
             $this->artworks[$artwork['id']] = $artwork['path'];
-            $fullArtworkData[] = $artwork;
         }
 
         if ($this->logger) {
             $this->logger->info("Parsed " . count($this->artworks) . " artworks from database");
         }
 
-        return $fullArtworkData;
+        return $this->artworks;
     }
 
     private function extractRows($table) {
