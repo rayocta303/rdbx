@@ -1018,11 +1018,11 @@ class DualPlayer {
         const viewEnd = viewStart + viewDuration;
 
         // Beatgrid config (matching Waveform.html)
-        const DENSITY = 0.4;        // Mengontrol jumlah gelombang
-        const HEIGHT_RATIO = 0.48;  // Mengontrol tinggi gelombang
-        const CONE_CURVE = 2.8;
+        const DENSITY = 0.4; // Mengontrol jumlah gelombang
+        const HEIGHT_RATIO = 0.48; // Mengontrol tinggi gelombang
+        const CONE_CURVE = 1.8;
         const CONE_BOOST = 1.15;
-        const DECAY = 4.5;          // Sama dengan Waveform.html
+        const DECAY = 4.5; // Sama dengan Waveform.html
         const FLAT_ZONE = 0;
         const TRANSIENT_ZONE = 0.0;
 
@@ -1050,119 +1050,70 @@ class DualPlayer {
             Array.isArray(deck.beatgridData) &&
             deck.beatgridData.length > 0
         ) {
-            ctx.save();
-
+            // Separate paths for bars (downbeat) and regular beats
+            ctx.beginPath();
+            const barPath = new Path2D();
+            const beatPath = new Path2D();
             deck.beatgridData.forEach((beat) => {
                 const beatTime = beat.time;
-
-                // Only render beats within visible view
-                if (beatTime >= viewStart && beatTime < viewEnd) {
-                    const effectiveBPM = deck.track.bpm * pitchMultiplier;
-                    const beatInterval = 60 / effectiveBPM;
-                    
-                    // Calculate subdivisions based on DENSITY (sama seperti Waveform.html)
-                    const pointsPerBeat = Math.round(90 * DENSITY);
-
-                    // Draw sub-divisions
-                    for (let i = 0; i < pointsPerBeat; i++) {
-                        const subTime = beatTime + (i / pointsPerBeat) * beatInterval;
-
-                        if (subTime >= viewStart && subTime < viewEnd) {
-                            const relativePosition = (subTime - viewStart) / viewDuration;
-                            const x = Math.floor(relativePosition * width) + 0.5;
-
-                            // Calculate progress within beat (0 to 1)
-                            const progress = i / pointsPerBeat;
-                            const amplitude = getAmplitude(progress);
-
-                            // Scale amplitude by HEIGHT_RATIO
-                            const scaledHeight = height * HEIGHT_RATIO;
-
-                            // Different styling for bar vs beat
-                            if (beat.beat === 1 && i === 0) {
-                                // Bar line (merah) - first subdivision of downbeat
-                                ctx.globalAlpha = amplitude;
-                                ctx.strokeStyle = "rgba(255, 0, 0, 1)";
-                                ctx.lineWidth = 2;
-                            } else {
-                                // Regular subdivision line (putih)
-                                ctx.globalAlpha = amplitude * 0.5;
-                                ctx.strokeStyle = "rgba(255, 255, 255, 1)";
-                                ctx.lineWidth = 1;
-                            }
-
-                            const lineHeight = amplitude * scaledHeight;
-                            const centerY = height / 2;
-
-                            ctx.beginPath();
-                            ctx.moveTo(x, centerY - lineHeight);
-                            ctx.lineTo(x, centerY + lineHeight);
-                            ctx.stroke();
-                        }
-                    }
+                const relativePosition = (beatTime - viewStart) / viewDuration;
+                const x = Math.floor(relativePosition * width) + 0.5; // +0.5 for crisp pixels
+                // beat.beat == 1 means downbeat (first beat of bar)
+                if (beat.beat === 1) {
+                    // Bar line (merah)
+                    barPath.moveTo(x, 0);
+                    barPath.lineTo(x, height);
+                } else {
+                    // Regular beat line (putih)
+                    beatPath.moveTo(x, 0);
+                    beatPath.lineTo(x, height);
                 }
             });
-
-            ctx.restore();
+            // Draw bar lines (merah)
+            ctx.strokeStyle = "rgba(255, 0, 0, 1)";
+            ctx.lineWidth = 4;
+            ctx.stroke(barPath);
+            // Draw beat lines (putih)
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+            ctx.lineWidth = 3;
+            ctx.stroke(beatPath);
         } else {
             // Fallback: Use simple BPM calculation when no beat grid data available
             const effectiveBPM = deck.track.bpm * pitchMultiplier;
             const beatInterval = 60 / effectiveBPM;
-
-            const firstBeat = Math.ceil(viewStart / beatInterval) * beatInterval;
-
-            // Calculate subdivisions based on DENSITY
-            const pointsPerBeat = Math.round(90 * DENSITY);
-
-            ctx.save();
-
+            const barInterval = beatInterval * 4; // 1 bar = 4 beats
+            // Separate paths for bars and beats
+            const barPath = new Path2D();
+            const beatPath = new Path2D();
+            const firstBeat =
+                Math.ceil(viewStart / beatInterval) * beatInterval;
             for (
                 let beatTime = firstBeat;
                 beatTime < viewEnd;
                 beatTime += beatInterval
             ) {
+                const relativePosition = (beatTime - viewStart) / viewDuration;
+                const x = Math.floor(relativePosition * width) + 0.5;
+                // Check if this is a bar (downbeat) - every 4 beats
                 const beatNumber = Math.round(beatTime / beatInterval) % 4;
-
-                // Draw sub-divisions
-                for (let i = 0; i < pointsPerBeat; i++) {
-                    const subTime = beatTime + (i / pointsPerBeat) * beatInterval;
-
-                    if (subTime >= viewStart && subTime < viewEnd) {
-                        const relativePosition = (subTime - viewStart) / viewDuration;
-                        const x = Math.floor(relativePosition * width) + 0.5;
-
-                        // Calculate progress within beat (0 to 1)
-                        const progress = i / pointsPerBeat;
-                        const amplitude = getAmplitude(progress);
-
-                        // Scale amplitude by HEIGHT_RATIO
-                        const scaledHeight = height * HEIGHT_RATIO;
-
-                        // Different styling for bar vs beat
-                        if (beatNumber === 0 && i === 0) {
-                            // Bar line (merah) - first subdivision of downbeat
-                            ctx.globalAlpha = amplitude;
-                            ctx.strokeStyle = "rgba(255, 0, 0, 1)";
-                            ctx.lineWidth = 2;
-                        } else {
-                            // Regular subdivision line (putih)
-                            ctx.globalAlpha = amplitude * 0.5;
-                            ctx.strokeStyle = "rgba(255, 255, 255, 1)";
-                            ctx.lineWidth = 1;
-                        }
-
-                        const lineHeight = amplitude * scaledHeight;
-                        const centerY = height / 2;
-
-                        ctx.beginPath();
-                        ctx.moveTo(x, centerY - lineHeight);
-                        ctx.lineTo(x, centerY + lineHeight);
-                        ctx.stroke();
-                    }
+                if (beatNumber === 0) {
+                    // Bar line (merah)
+                    barPath.moveTo(x, 0);
+                    barPath.lineTo(x, height);
+                } else {
+                    // Regular beat line (putih)
+                    beatPath.moveTo(x, 0);
+                    beatPath.lineTo(x, height);
                 }
             }
-
-            ctx.restore();
+            // Draw bar lines (merah)
+            ctx.strokeStyle = "rgba(255, 0, 0, 0.5)";
+            ctx.lineWidth = 2;
+            ctx.stroke(barPath);
+            // Draw beat lines (putih)
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+            ctx.lineWidth = 1;
+            ctx.stroke(beatPath);
         }
     }
 
