@@ -1,0 +1,18 @@
+RewriteEngine On
+RewriteBase /
+
+# Remove .php extension from URLs
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}\.php -f
+RewriteRule ^(.*)$ $1.php [L]
+
+# Route /stats to /pages/stats.php
+RewriteRule ^stats$ pages/stats.php [L]
+
+# Route /debug to /pages/debug.php
+RewriteRule ^debug$ pages/debug.php [L]
+
+# Prevent direct access to .php files (optional security)
+RewriteCond %{THE_REQUEST} \.php [NC]
+RewriteCond %{REQUEST_URI} !^/pages/
+RewriteRule ^(.*)\.php$ /$1 [R=301,L]
