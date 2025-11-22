@@ -126,7 +126,7 @@
                     </div>
                 </div>
             </div>
-            <div class="flex items-center justify-center gap-6 col-span-2">   
+            <div class="flex items-center justify-center gap-4 col-span-2">   
                 <!-- Volume Fader A -->
                 <div class="volume-fader-wrapper">
                     <div class="volume-fader-control">
@@ -137,6 +137,37 @@
                                oninput="window.dualPlayer.setVolume('a', this.value)">
                     </div>
                 </div>
+                
+                <!-- VU Meter A -->
+                <div class="vu-meter-wrapper">
+                    <div class="vu-meter-label">A</div>
+                    <div class="vu-meter" id="vuMeterA">
+                        <div class="vu-meter-bar vu-red"></div>
+                        <div class="vu-meter-bar vu-yellow"></div>
+                        <div class="vu-meter-bar vu-yellow"></div>
+                        <div class="vu-meter-bar vu-green"></div>
+                        <div class="vu-meter-bar vu-green"></div>
+                        <div class="vu-meter-bar vu-green"></div>
+                        <div class="vu-meter-bar vu-green"></div>
+                        <div class="vu-meter-bar vu-green"></div>
+                    </div>
+                </div>
+                
+                <!-- VU Meter B -->
+                <div class="vu-meter-wrapper">
+                    <div class="vu-meter-label">B</div>
+                    <div class="vu-meter" id="vuMeterB">
+                        <div class="vu-meter-bar vu-red"></div>
+                        <div class="vu-meter-bar vu-yellow"></div>
+                        <div class="vu-meter-bar vu-yellow"></div>
+                        <div class="vu-meter-bar vu-green"></div>
+                        <div class="vu-meter-bar vu-green"></div>
+                        <div class="vu-meter-bar vu-green"></div>
+                        <div class="vu-meter-bar vu-green"></div>
+                        <div class="vu-meter-bar vu-green"></div>
+                    </div>
+                </div>
+                
                 <!-- Volume Fader B -->
                 <div class="volume-fader-wrapper">
                     <div class="volume-fader-control">

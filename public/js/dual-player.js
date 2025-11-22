@@ -581,6 +581,7 @@ class DualPlayer {
             if (deck.animationFrame) {
                 cancelAnimationFrame(deck.animationFrame);
             }
+            this.updateVUMeter(deckId);
         } else {
             console.log(
                 `[Deck ${deckLabel}] Starting playback from ${deck.audio.currentTime.toFixed(2)}s`,
@@ -638,6 +639,7 @@ class DualPlayer {
             if (!deck.isPlaying) return;
 
             this.updatePlayhead(deckId);
+            this.updateVUMeter(deckId);
 
             deck.animationFrame = requestAnimationFrame(animate);
         };
@@ -1907,6 +1909,28 @@ class DualPlayer {
         if (volumeValueEl) {
             volumeValueEl.textContent = `${Math.round(deck.volume)}%`;
         }
+        
+        this.updateVUMeter(deckId);
+    }
+    
+    updateVUMeter(deckId) {
+        const deck = this.decks[deckId];
+        const deckLabel = deckId.toUpperCase();
+        const vuMeter = document.getElementById(`vuMeter${deckLabel}`);
+        
+        if (!vuMeter) return;
+        
+        const bars = vuMeter.querySelectorAll('.vu-meter-bar');
+        const level = deck.isPlaying ? deck.volume : 0;
+        const activeBars = Math.floor((level / 100) * bars.length);
+        
+        bars.forEach((bar, index) => {
+            if (index < activeBars) {
+                bar.classList.add('active');
+            } else {
+                bar.classList.remove('active');
+            }
+        });
     }
 
     toggleBPMSync(deckId) {
