@@ -343,10 +343,17 @@ Result: Jump tepat di beat → No phase slip
 ## Toggle States
 
 ### Beat Sync
-- **Type**: Momentary button
-- **Behavior**: One-time sync saat ditekan
-- **Visual**: Notification + console log
-- **Effect**: Global alignment
+- **Type**: Latching toggle with continuous phase-lock
+- **Behavior**: 
+  - Click → ON: Initial sync + continuous phase monitoring starts
+  - Click → OFF: Phase monitoring stops
+  - Auto-starts both decks when activated
+- **Visual**: Button highlight saat aktif + notifications
+- **Effect**: 
+  - Initial: Global alignment (BPM sync + beat grid snap)
+  - Continuous: Phase monitoring with auto-correction
+    - Micro playbackRate adjustments (±0.1%) for errors >3ms
+    - Slip corrections for large errors >10ms
 
 ### Quantize
 - **Type**: Latching toggle

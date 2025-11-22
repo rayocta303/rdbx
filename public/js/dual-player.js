@@ -58,6 +58,9 @@ class DualPlayer {
             beatSyncLocked: false,
             beatSyncAnimationFrame: null,
             beatSyncTargetDeck: null,
+            beatSyncFilteredError: 0,
+            beatSyncErrorIntegral: 0,
+            beatSyncSlipCounter: 0,
         };
     }
 
@@ -1619,6 +1622,19 @@ class DualPlayer {
             return;
         }
 
+        sourceDeck.beatSyncFilteredError = 0;
+        sourceDeck.beatSyncErrorIntegral = 0;
+        sourceDeck.beatSyncSlipCounter = 0;
+
+        const FILTER_ALPHA = 0.15;
+        const KP = 0.35;
+        const KI = 0.15;
+        const INTEGRAL_CLAMP = 0.04;
+        const INTEGRAL_DECAY = 0.98;
+        const RATE_CLAMP = 0.004;
+        const SLIP_THRESHOLD_MS = 40;
+        const SLIP_CONSECUTIVE_FRAMES = 3;
+
         const phaseMonitor = () => {
             if (!sourceDeck.beatSyncLocked || sourceDeck.beatSyncTargetDeck !== targetDeckId) {
                 return;
@@ -1631,15 +1647,6 @@ class DualPlayer {
 
             const sourceBPM = sourceDeck.originalBPM * (1 + sourceDeck.pitchValue / 100);
             const targetBPM = targetDeck.originalBPM * (1 + targetDeck.pitchValue / 100);
-
-            if (Math.abs(sourceBPM - targetBPM) > 0.01) {
-                const requiredPitchPercent = (sourceBPM / targetDeck.originalBPM - 1) * 100;
-                targetDeck.pitchValue = requiredPitchPercent;
-                targetDeck.audio.playbackRate = 1 + requiredPitchPercent / 100;
-                targetDeck.audio.preservesPitch = targetDeck.masterTempo;
-            }
-
-            const sourceBeatLength = 60 / sourceBPM;
             const targetBeatLength = 60 / targetBPM;
 
             const sourceFirstBeatOffset = sourceDeck.beatgridData[0].time || 0;
@@ -1651,6 +1658,7 @@ class DualPlayer {
             const sourceTimeFromFirstBeat = sourceCenterPoint - sourceFirstBeatOffset;
             const targetTimeFromFirstBeat = targetCenterPoint - targetFirstBeatOffset;
 
+            const sourceBeatLength = 60 / sourceBPM;
             const sourceBeatPhase = (sourceTimeFromFirstBeat % sourceBeatLength) / sourceBeatLength;
             const targetBeatPhase = (targetTimeFromFirstBeat % targetBeatLength) / targetBeatLength;
 
@@ -1662,39 +1670,69 @@ class DualPlayer {
                 phaseError += 1;
             }
 
-            const phaseErrorMs = phaseError * targetBeatLength * 1000;
+            const phaseErrorSeconds = phaseError * targetBeatLength;
+            const phaseErrorMs = phaseErrorSeconds * 1000;
 
-            const PHASE_ERROR_THRESHOLD_MS = 10;
-            const MICRO_ADJUST_THRESHOLD_MS = 3;
+            sourceDeck.beatSyncFilteredError = 
+                FILTER_ALPHA * phaseErrorSeconds + 
+                (1 - FILTER_ALPHA) * sourceDeck.beatSyncFilteredError;
 
-            if (Math.abs(phaseErrorMs) > PHASE_ERROR_THRESHOLD_MS) {
-                const slipAmount = phaseError * targetBeatLength;
-                const newTargetTime = targetCenterPoint + slipAmount;
-                const clampedTime = Math.max(0, Math.min(newTargetTime, targetDeck.duration - 0.1));
+            sourceDeck.beatSyncErrorIntegral = 
+                (sourceDeck.beatSyncErrorIntegral + sourceDeck.beatSyncFilteredError) * INTEGRAL_DECAY;
 
-                targetDeck.audio.currentTime = clampedTime;
-                this.updatePlayhead(targetDeckId);
+            sourceDeck.beatSyncErrorIntegral = Math.max(
+                -INTEGRAL_CLAMP, 
+                Math.min(INTEGRAL_CLAMP, sourceDeck.beatSyncErrorIntegral)
+            );
 
-                console.log(
-                    `[Beat Sync Loop] Large phase error detected: ${phaseErrorMs.toFixed(1)}ms → Slip correction: ${(slipAmount * 1000).toFixed(1)}ms`,
-                );
-            } else if (Math.abs(phaseErrorMs) > MICRO_ADJUST_THRESHOLD_MS) {
-                const microAdjust = phaseError * 0.1;
-                const adjustedRate = 1 + (targetDeck.pitchValue / 100) + microAdjust;
+            if (Math.abs(phaseErrorMs) >= SLIP_THRESHOLD_MS) {
+                sourceDeck.beatSyncSlipCounter++;
+                
+                if (sourceDeck.beatSyncSlipCounter >= SLIP_CONSECUTIVE_FRAMES) {
+                    const slipAmount = phaseErrorSeconds;
+                    const newTargetTime = targetCenterPoint + slipAmount;
+                    const clampedTime = Math.max(0, Math.min(newTargetTime, targetDeck.duration - 0.1));
+
+                    targetDeck.audio.currentTime = clampedTime;
+                    this.updatePlayhead(targetDeckId);
+
+                    sourceDeck.beatSyncFilteredError = 0;
+                    sourceDeck.beatSyncErrorIntegral = 0;
+                    sourceDeck.beatSyncSlipCounter = 0;
+
+                    console.log(
+                        `[Beat Sync PI] Slip correction: ${phaseErrorMs.toFixed(1)}ms → Jump ${(slipAmount * 1000).toFixed(1)}ms | Reset PI state`,
+                    );
+                }
+            } else {
+                sourceDeck.beatSyncSlipCounter = 0;
+            }
+
+            if (Math.abs(phaseErrorMs) < SLIP_THRESHOLD_MS) {
+                const rateDelta = 
+                    KP * sourceDeck.beatSyncFilteredError + 
+                    KI * sourceDeck.beatSyncErrorIntegral;
+
+                const clampedDelta = Math.max(-RATE_CLAMP, Math.min(RATE_CLAMP, rateDelta));
+
+                const baseRate = 1 + targetDeck.pitchValue / 100;
+                const adjustedRate = baseRate + clampedDelta;
 
                 targetDeck.audio.playbackRate = adjustedRate;
                 targetDeck.audio.preservesPitch = targetDeck.masterTempo;
 
-                console.log(
-                    `[Beat Sync Loop] Micro-adjustment: Phase error ${phaseErrorMs.toFixed(1)}ms → Rate nudge ${(microAdjust * 100).toFixed(3)}%`,
-                );
+                if (Math.abs(phaseErrorMs) > 2) {
+                    console.log(
+                        `[Beat Sync PI] Error: ${phaseErrorMs.toFixed(1)}ms | Filtered: ${(sourceDeck.beatSyncFilteredError * 1000).toFixed(1)}ms | Integral: ${(sourceDeck.beatSyncErrorIntegral * 1000).toFixed(1)}ms | Rate Δ: ${(clampedDelta * 100).toFixed(3)}%`,
+                    );
+                }
             }
 
             sourceDeck.beatSyncAnimationFrame = requestAnimationFrame(phaseMonitor);
         };
 
         console.log(
-            `[Beat Sync Loop] Starting continuous phase monitoring: ${sourceDeckId.toUpperCase()} → ${targetDeckId.toUpperCase()}`,
+            `[Beat Sync PI] Starting PI controller: ${sourceDeckId.toUpperCase()} → ${targetDeckId.toUpperCase()} | Kp=${KP}, Ki=${KI}, α=${FILTER_ALPHA}`,
         );
 
         sourceDeck.beatSyncAnimationFrame = requestAnimationFrame(phaseMonitor);
