@@ -4,6 +4,12 @@
 This project is a PHP-based web GUI tool designed to read and display Rekordbox USB/SD export databases. It's a re-implementation of a Python tool into a pure PHP, modular structure. The primary goal is to provide a modern web interface for DJ-specific functionalities, including dual-deck playback, waveform visualization, beat grid analysis, hot cue management, and advanced synchronization features, mirroring the professional experience of Rekordbox.
 
 ## Recent Changes (November 2025)
+- **Comprehensive Table View Page (November 22)**: Membuat halaman /table untuk menampilkan semua data export.pdb:
+  - Database Overview tab: PDB header dan metadata semua tabel
+  - Tracks tab: Menampilkan SEMUA 24 field termasuk raw IDs (artist_id, album_id, genre_id, key_id, color_id, artwork_id, track_number, bitrate, sample_rate, play_count, file_size, comment, analyze_path, dll)
+  - Complete coverage: Playlists, Playlist Entries, Artists, Albums, Genres, Keys
+  - Partial coverage: Colors, Labels, Artwork (parser sederhana, perlu improvement untuk binary structure parsing yang kompleks)
+  - History dan Columns: Ditandai sebagai "Not Implemented" (memerlukan advanced parser development)
 - **Page Structure Refactoring (November 22)**: Reorganisasi struktur halaman untuk modularitas yang lebih baik:
   - Created `pages/` directory untuk halaman standalone (debug dan stats)
   - Implemented clean URL router tanpa ekstensi `.php` (menggunakan `router.php`)
