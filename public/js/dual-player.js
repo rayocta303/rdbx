@@ -4,6 +4,15 @@ class DualPlayer {
         this.masterDeck = null;
         this.notificationTimeout = null;
 
+        // VU Meter Configuration
+        this.vuMeterConfig = {
+            smoothingTimeConstant: 0.8,  // 0.0 (fast response) - 1.0 (slow response)
+            fftSize: 256,                 // FFT size: 32, 64, 128, 256, 512, 1024, 2048
+            gainCurve: 0.6,               // 0.3 (subtle) - 1.0 (linear response)
+            updateInterval: 50,           // Update interval in milliseconds (lower = more frequent)
+            rmsBoost: 1.0                 // RMS multiplier: 0.5 (quiet) - 2.0 (loud)
+        };
+
         this.decks = {
             a: this.createDeck("a"),
             b: this.createDeck("b"),
@@ -87,8 +96,8 @@ class DualPlayer {
                         
                         // Create analyser node for VU meter
                         deck.analyserNode = this.audioContext.createAnalyser();
-                        deck.analyserNode.fftSize = 256;
-                        deck.analyserNode.smoothingTimeConstant = 0.8;
+                        deck.analyserNode.fftSize = this.vuMeterConfig.fftSize;
+                        deck.analyserNode.smoothingTimeConstant = this.vuMeterConfig.smoothingTimeConstant;
                         
                         const bufferLength = deck.analyserNode.frequencyBinCount;
                         deck.audioDataArray = new Uint8Array(bufferLength);
@@ -1949,11 +1958,11 @@ class DualPlayer {
             }
             const rms = Math.sqrt(sum / deck.audioDataArray.length);
             
-            // Apply volume scaling and convert to percentage (0-100)
-            level = rms * (deck.volume / 100) * 100;
+            // Apply RMS boost and volume scaling
+            level = rms * this.vuMeterConfig.rmsBoost * (deck.volume / 100) * 100;
             
             // Apply gain curve for better visual response
-            level = Math.pow(level / 100, 0.6) * 100;
+            level = Math.pow(level / 100, this.vuMeterConfig.gainCurve) * 100;
         }
         
         const activeBars = Math.floor((level / 100) * bars.length);
