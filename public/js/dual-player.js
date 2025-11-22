@@ -1488,7 +1488,7 @@ class DualPlayer {
         );
     }
 
-    getActualBPM(deckId) {
+    getTrueBPM(deckId) {
         const deck = this.decks[deckId];
         if (!deck.originalBPM || deck.originalBPM === 0) {
             return 0;
@@ -1497,14 +1497,24 @@ class DualPlayer {
         return deck.originalBPM * playbackRate;
     }
 
-    determineBPMMultiplier(targetOriginalBPM, sourceActualBPM) {
-        if (!targetOriginalBPM || !sourceActualBPM || targetOriginalBPM === 0 || sourceActualBPM === 0) {
+    getActualBPM(deckId) {
+        const deck = this.decks[deckId];
+        if (!deck.originalBPM || deck.originalBPM === 0) {
+            return 0;
+        }
+        const playbackRate = deck.audio.playbackRate || 1.0;
+        const multiplier = deck.bpmMultiplier || 1.0;
+        return deck.originalBPM * multiplier * playbackRate;
+    }
+
+    determineBPMMultiplier(targetOriginalBPM, sourceTrueBPM) {
+        if (!targetOriginalBPM || !sourceTrueBPM || targetOriginalBPM === 0 || sourceTrueBPM === 0) {
             return 1.0;
         }
         
-        const delta0_5 = Math.abs(sourceActualBPM - (targetOriginalBPM * 0.5));
-        const delta1_0 = Math.abs(sourceActualBPM - (targetOriginalBPM * 1.0));
-        const delta2_0 = Math.abs(sourceActualBPM - (targetOriginalBPM * 2.0));
+        const delta0_5 = Math.abs(sourceTrueBPM - (targetOriginalBPM * 0.5));
+        const delta1_0 = Math.abs(sourceTrueBPM - (targetOriginalBPM * 1.0));
+        const delta2_0 = Math.abs(sourceTrueBPM - (targetOriginalBPM * 2.0));
         
         if (delta0_5 < delta1_0 && delta0_5 < delta2_0) {
             return 0.5;
@@ -1529,20 +1539,27 @@ class DualPlayer {
             return;
         }
 
+        const sourceTrueBPM = this.getTrueBPM(sourceDeckId);
         const sourceActualBPM = this.getActualBPM(sourceDeckId);
         const targetOriginalBPM = targetDeck.originalBPM;
 
-        if (!targetDeck.bpmMultiplier) {
-            targetDeck.bpmMultiplier = this.determineBPMMultiplier(targetOriginalBPM, sourceActualBPM);
+        const newMultiplier = this.determineBPMMultiplier(targetOriginalBPM, sourceTrueBPM);
+        
+        const targetDeckLabel = targetDeckId.toUpperCase();
+        const slider = document.getElementById(`pitchSlider${targetDeckLabel}`);
+        
+        if (slider) {
+            slider.value = 0;
+            this.setPitch(targetDeckId, 0);
         }
+        
+        targetDeck.bpmMultiplier = newMultiplier;
 
         const targetEffectiveBPM = targetOriginalBPM * targetDeck.bpmMultiplier;
         const requiredPlaybackRate = sourceActualBPM / targetEffectiveBPM;
 
         const requiredPitchPercent = (requiredPlaybackRate - 1) * 100;
 
-        const targetDeckLabel = targetDeckId.toUpperCase();
-        const slider = document.getElementById(`pitchSlider${targetDeckLabel}`);
         if (slider) {
             slider.value = requiredPitchPercent;
             this.setPitch(targetDeckId, requiredPitchPercent);
@@ -1554,8 +1571,10 @@ class DualPlayer {
 
         const finalBPM = targetEffectiveBPM * requiredPlaybackRate;
         console.log(
-            `[Beat Sync] Synced ${targetDeckId.toUpperCase()} (${targetOriginalBPM} BPM) to ${sourceDeckId.toUpperCase()} (${sourceActualBPM.toFixed(2)} BPM)\n` +
-            `  → Multiplier: ${targetDeck.bpmMultiplier}x | Target Effective: ${targetEffectiveBPM.toFixed(2)} BPM | Final BPM: ${finalBPM.toFixed(2)} | Playback Rate: ${requiredPlaybackRate.toFixed(4)}${snapBeats ? " + Beat Grid Aligned" : ""}`,
+            `[Beat Sync] Synced ${targetDeckId.toUpperCase()} (${targetOriginalBPM} BPM) to ${sourceDeckId.toUpperCase()}\n` +
+            `  Source True BPM: ${sourceTrueBPM.toFixed(2)} | Source Effective BPM: ${sourceActualBPM.toFixed(2)}\n` +
+            `  → Multiplier: ${targetDeck.bpmMultiplier}x | Target Effective: ${targetEffectiveBPM.toFixed(2)} BPM\n` +
+            `  → Final BPM: ${finalBPM.toFixed(2)} | Playback Rate: ${requiredPlaybackRate.toFixed(4)}${snapBeats ? " + Beat Grid Aligned" : ""}`,
         );
     }
 
