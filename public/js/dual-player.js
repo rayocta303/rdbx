@@ -6,11 +6,11 @@ class DualPlayer {
 
         // VU Meter Configuration
         this.vuMeterConfig = {
-            smoothingTimeConstant: 0.8,  // 0.0 (fast response) - 1.0 (slow response)
-            fftSize: 256,                 // FFT size: 32, 64, 128, 256, 512, 1024, 2048
-            gainCurve: 0.6,               // 0.3 (subtle) - 1.0 (linear response)
-            updateInterval: 50,           // Update interval in milliseconds (lower = more frequent)
-            rmsBoost: 1.0                 // RMS multiplier: 0.5 (quiet) - 2.0 (loud)
+            smoothingTimeConstant: 0.1, // 0.0 (fast response) - 1.0 (slow response)
+            fftSize: 256, // FFT size: 32, 64, 128, 256, 512, 1024, 2048
+            gainCurve: 0.8, // 0.3 (subtle) - 1.0 (linear response)
+            updateInterval: 10, // Update interval in milliseconds (lower = more frequent)
+            rmsBoost: 1.7, // RMS multiplier: 0.5 (quiet) - 2.0 (loud)
         };
 
         this.decks = {
@@ -93,19 +93,21 @@ class DualPlayer {
                             this.audioContext.createMediaElementSource(
                                 deck.audio,
                             );
-                        
+
                         // Create analyser node for VU meter
                         deck.analyserNode = this.audioContext.createAnalyser();
                         deck.analyserNode.fftSize = this.vuMeterConfig.fftSize;
-                        deck.analyserNode.smoothingTimeConstant = this.vuMeterConfig.smoothingTimeConstant;
-                        
-                        const bufferLength = deck.analyserNode.frequencyBinCount;
+                        deck.analyserNode.smoothingTimeConstant =
+                            this.vuMeterConfig.smoothingTimeConstant;
+
+                        const bufferLength =
+                            deck.analyserNode.frequencyBinCount;
                         deck.audioDataArray = new Uint8Array(bufferLength);
-                        
+
                         // Connect: source -> analyser -> gain -> destination
                         deck.source.connect(deck.analyserNode);
                         deck.analyserNode.connect(deck.gainNode);
-                        
+
                         console.log(
                             `[Deck ${deckId.toUpperCase()}] Audio source connected with analyser node`,
                         );
@@ -1470,16 +1472,15 @@ class DualPlayer {
         const sourceDeck = this.decks[sourceDeckId];
         const targetDeck = this.decks[targetDeckId];
 
-        if (sourceDeck.beatSyncLocked && sourceDeck.beatSyncTargetDeck === targetDeckId) {
+        if (
+            sourceDeck.beatSyncLocked &&
+            sourceDeck.beatSyncTargetDeck === targetDeckId
+        ) {
             this.stopBeatSyncLoop(sourceDeckId);
             console.log(
                 `[Beat Sync] Locked sync OFF for ${sourceDeckId.toUpperCase()} → ${targetDeckId.toUpperCase()}`,
             );
-            this.showNotification(
-                `Beat Sync UNLOCKED`,
-                "info",
-                2000,
-            );
+            this.showNotification(`Beat Sync UNLOCKED`, "info", 2000);
             return;
         }
 
@@ -1533,20 +1534,25 @@ class DualPlayer {
     }
 
     determineBPMMultiplier(targetOriginalBPM, sourceTrueBPM) {
-        if (!targetOriginalBPM || !sourceTrueBPM || targetOriginalBPM === 0 || sourceTrueBPM === 0) {
+        if (
+            !targetOriginalBPM ||
+            !sourceTrueBPM ||
+            targetOriginalBPM === 0 ||
+            sourceTrueBPM === 0
+        ) {
             return 1.0;
         }
-        
-        const delta0_5 = Math.abs(sourceTrueBPM - (targetOriginalBPM * 0.5));
-        const delta1_0 = Math.abs(sourceTrueBPM - (targetOriginalBPM * 1.0));
-        const delta2_0 = Math.abs(sourceTrueBPM - (targetOriginalBPM * 2.0));
-        
+
+        const delta0_5 = Math.abs(sourceTrueBPM - targetOriginalBPM * 0.5);
+        const delta1_0 = Math.abs(sourceTrueBPM - targetOriginalBPM * 1.0);
+        const delta2_0 = Math.abs(sourceTrueBPM - targetOriginalBPM * 2.0);
+
         if (delta0_5 < delta1_0 && delta0_5 < delta2_0) {
             return 0.5;
         } else if (delta2_0 < delta1_0 && delta2_0 < delta0_5) {
             return 2.0;
         }
-        
+
         return 1.0;
     }
 
@@ -1568,16 +1574,19 @@ class DualPlayer {
         const sourceActualBPM = this.getActualBPM(sourceDeckId);
         const targetOriginalBPM = targetDeck.originalBPM;
 
-        const newMultiplier = this.determineBPMMultiplier(targetOriginalBPM, sourceTrueBPM);
-        
+        const newMultiplier = this.determineBPMMultiplier(
+            targetOriginalBPM,
+            sourceTrueBPM,
+        );
+
         const targetDeckLabel = targetDeckId.toUpperCase();
         const slider = document.getElementById(`pitchSlider${targetDeckLabel}`);
-        
+
         if (slider) {
             slider.value = 0;
             this.setPitch(targetDeckId, 0);
         }
-        
+
         targetDeck.bpmMultiplier = newMultiplier;
 
         const targetEffectiveBPM = targetOriginalBPM * targetDeck.bpmMultiplier;
@@ -1597,9 +1606,9 @@ class DualPlayer {
         const finalBPM = targetEffectiveBPM * requiredPlaybackRate;
         console.log(
             `[Beat Sync] Synced ${targetDeckId.toUpperCase()} (${targetOriginalBPM} BPM) to ${sourceDeckId.toUpperCase()}\n` +
-            `  Source True BPM: ${sourceTrueBPM.toFixed(2)} | Source Effective BPM: ${sourceActualBPM.toFixed(2)}\n` +
-            `  → Multiplier: ${targetDeck.bpmMultiplier}x | Target Effective: ${targetEffectiveBPM.toFixed(2)} BPM\n` +
-            `  → Final BPM: ${finalBPM.toFixed(2)} | Playback Rate: ${requiredPlaybackRate.toFixed(4)}${snapBeats ? " + Beat Grid Aligned" : ""}`,
+                `  Source True BPM: ${sourceTrueBPM.toFixed(2)} | Source Effective BPM: ${sourceActualBPM.toFixed(2)}\n` +
+                `  → Multiplier: ${targetDeck.bpmMultiplier}x | Target Effective: ${targetEffectiveBPM.toFixed(2)} BPM\n` +
+                `  → Final BPM: ${finalBPM.toFixed(2)} | Playback Rate: ${requiredPlaybackRate.toFixed(4)}${snapBeats ? " + Beat Grid Aligned" : ""}`,
         );
     }
 
@@ -1641,7 +1650,7 @@ class DualPlayer {
 
         const sourceActualBPM = this.getActualBPM(sourceDeckId);
         const targetActualBPM = this.getActualBPM(targetDeckId);
-        
+
         const sourceBeatLength = 60 / sourceActualBPM;
         const targetBeatLength = 60 / targetActualBPM;
 
@@ -1651,19 +1660,30 @@ class DualPlayer {
         const sourceCenterPoint = sourceDeck.audio.currentTime;
         const targetCenterPoint = targetDeck.audio.currentTime;
 
-        const sourceTimeFromFirstBeat = sourceCenterPoint - sourceFirstBeatOffset;
-        const targetTimeFromFirstBeat = targetCenterPoint - targetFirstBeatOffset;
+        const sourceTimeFromFirstBeat =
+            sourceCenterPoint - sourceFirstBeatOffset;
+        const targetTimeFromFirstBeat =
+            targetCenterPoint - targetFirstBeatOffset;
 
-        const sourceNearestBeatNumber = Math.round(sourceTimeFromFirstBeat / sourceBeatLength);
-        const targetNearestBeatNumber = Math.round(targetTimeFromFirstBeat / targetBeatLength);
+        const sourceNearestBeatNumber = Math.round(
+            sourceTimeFromFirstBeat / sourceBeatLength,
+        );
+        const targetNearestBeatNumber = Math.round(
+            targetTimeFromFirstBeat / targetBeatLength,
+        );
 
-        const sourceNearestBeatTime = sourceFirstBeatOffset + (sourceNearestBeatNumber * sourceBeatLength);
-        const targetNearestBeatTime = targetFirstBeatOffset + (targetNearestBeatNumber * targetBeatLength);
+        const sourceNearestBeatTime =
+            sourceFirstBeatOffset + sourceNearestBeatNumber * sourceBeatLength;
+        const targetNearestBeatTime =
+            targetFirstBeatOffset + targetNearestBeatNumber * targetBeatLength;
 
-        const sourceBeatOffsetFromCenter = sourceNearestBeatTime - sourceCenterPoint;
-        const targetBeatOffsetFromCenter = targetNearestBeatTime - targetCenterPoint;
+        const sourceBeatOffsetFromCenter =
+            sourceNearestBeatTime - sourceCenterPoint;
+        const targetBeatOffsetFromCenter =
+            targetNearestBeatTime - targetCenterPoint;
 
-        const offsetDifference = sourceBeatOffsetFromCenter - targetBeatOffsetFromCenter;
+        const offsetDifference =
+            sourceBeatOffsetFromCenter - targetBeatOffsetFromCenter;
 
         let newTargetTime = targetCenterPoint + offsetDifference;
 
@@ -1678,15 +1698,19 @@ class DualPlayer {
         }
 
         const adjustmentMs = Math.round(offsetDifference * 1000);
-        const sourceBeatOffsetMs = Math.round(sourceBeatOffsetFromCenter * 1000);
-        const targetBeatOffsetMs = Math.round(targetBeatOffsetFromCenter * 1000);
+        const sourceBeatOffsetMs = Math.round(
+            sourceBeatOffsetFromCenter * 1000,
+        );
+        const targetBeatOffsetMs = Math.round(
+            targetBeatOffsetFromCenter * 1000,
+        );
 
         console.log(
             `[Beat Sync - Grid Center Alignment]\n` +
-            `  Master ${sourceDeckId.toUpperCase()}: Center=${sourceCenterPoint.toFixed(3)}s | Nearest Beat=${sourceNearestBeatTime.toFixed(3)}s | Offset=${sourceBeatOffsetMs}ms\n` +
-            `  Target ${targetDeckId.toUpperCase()}: Center=${targetCenterPoint.toFixed(3)}s | Nearest Beat=${targetNearestBeatTime.toFixed(3)}s (before) | Offset=${targetBeatOffsetMs}ms\n` +
-            `  → Adjustment: ${adjustmentMs}ms | New Target Time: ${newTargetTime.toFixed(3)}s\n` +
-            `  ✓ Beats aligned at center point | Phase locked`
+                `  Master ${sourceDeckId.toUpperCase()}: Center=${sourceCenterPoint.toFixed(3)}s | Nearest Beat=${sourceNearestBeatTime.toFixed(3)}s | Offset=${sourceBeatOffsetMs}ms\n` +
+                `  Target ${targetDeckId.toUpperCase()}: Center=${targetCenterPoint.toFixed(3)}s | Nearest Beat=${targetNearestBeatTime.toFixed(3)}s (before) | Offset=${targetBeatOffsetMs}ms\n` +
+                `  → Adjustment: ${adjustmentMs}ms | New Target Time: ${newTargetTime.toFixed(3)}s\n` +
+                `  ✓ Beats aligned at center point | Phase locked`,
         );
 
         this.showNotification(
@@ -1719,12 +1743,16 @@ class DualPlayer {
         const SLIP_CONSECUTIVE_FRAMES = 3;
 
         const phaseMonitor = () => {
-            if (!sourceDeck.beatSyncLocked || sourceDeck.beatSyncTargetDeck !== targetDeckId) {
+            if (
+                !sourceDeck.beatSyncLocked ||
+                sourceDeck.beatSyncTargetDeck !== targetDeckId
+            ) {
                 return;
             }
 
             if (!sourceDeck.isPlaying || !targetDeck.isPlaying) {
-                sourceDeck.beatSyncAnimationFrame = requestAnimationFrame(phaseMonitor);
+                sourceDeck.beatSyncAnimationFrame =
+                    requestAnimationFrame(phaseMonitor);
                 return;
             }
 
@@ -1739,11 +1767,15 @@ class DualPlayer {
             const sourceCenterPoint = sourceDeck.audio.currentTime;
             const targetCenterPoint = targetDeck.audio.currentTime;
 
-            const sourceTimeFromFirstBeat = sourceCenterPoint - sourceFirstBeatOffset;
-            const targetTimeFromFirstBeat = targetCenterPoint - targetFirstBeatOffset;
+            const sourceTimeFromFirstBeat =
+                sourceCenterPoint - sourceFirstBeatOffset;
+            const targetTimeFromFirstBeat =
+                targetCenterPoint - targetFirstBeatOffset;
 
-            const sourceBeatPhase = (sourceTimeFromFirstBeat % sourceBeatLength) / sourceBeatLength;
-            const targetBeatPhase = (targetTimeFromFirstBeat % targetBeatLength) / targetBeatLength;
+            const sourceBeatPhase =
+                (sourceTimeFromFirstBeat % sourceBeatLength) / sourceBeatLength;
+            const targetBeatPhase =
+                (targetTimeFromFirstBeat % targetBeatLength) / targetBeatLength;
 
             let phaseError = sourceBeatPhase - targetBeatPhase;
 
@@ -1756,25 +1788,30 @@ class DualPlayer {
             const phaseErrorSeconds = phaseError * targetBeatLength;
             const phaseErrorMs = phaseErrorSeconds * 1000;
 
-            sourceDeck.beatSyncFilteredError = 
-                FILTER_ALPHA * phaseErrorSeconds + 
+            sourceDeck.beatSyncFilteredError =
+                FILTER_ALPHA * phaseErrorSeconds +
                 (1 - FILTER_ALPHA) * sourceDeck.beatSyncFilteredError;
 
-            sourceDeck.beatSyncErrorIntegral = 
-                (sourceDeck.beatSyncErrorIntegral + sourceDeck.beatSyncFilteredError) * INTEGRAL_DECAY;
+            sourceDeck.beatSyncErrorIntegral =
+                (sourceDeck.beatSyncErrorIntegral +
+                    sourceDeck.beatSyncFilteredError) *
+                INTEGRAL_DECAY;
 
             sourceDeck.beatSyncErrorIntegral = Math.max(
-                -INTEGRAL_CLAMP, 
-                Math.min(INTEGRAL_CLAMP, sourceDeck.beatSyncErrorIntegral)
+                -INTEGRAL_CLAMP,
+                Math.min(INTEGRAL_CLAMP, sourceDeck.beatSyncErrorIntegral),
             );
 
             if (Math.abs(phaseErrorMs) >= SLIP_THRESHOLD_MS) {
                 sourceDeck.beatSyncSlipCounter++;
-                
+
                 if (sourceDeck.beatSyncSlipCounter >= SLIP_CONSECUTIVE_FRAMES) {
                     const slipAmount = phaseErrorSeconds;
                     const newTargetTime = targetCenterPoint + slipAmount;
-                    const clampedTime = Math.max(0, Math.min(newTargetTime, targetDeck.duration - 0.1));
+                    const clampedTime = Math.max(
+                        0,
+                        Math.min(newTargetTime, targetDeck.duration - 0.1),
+                    );
 
                     targetDeck.audio.currentTime = clampedTime;
                     this.updatePlayhead(targetDeckId);
@@ -1792,13 +1829,18 @@ class DualPlayer {
             }
 
             if (Math.abs(phaseErrorMs) < SLIP_THRESHOLD_MS) {
-                const rateDelta = 
-                    KP * sourceDeck.beatSyncFilteredError + 
+                const rateDelta =
+                    KP * sourceDeck.beatSyncFilteredError +
                     KI * sourceDeck.beatSyncErrorIntegral;
 
-                const clampedDelta = Math.max(-RATE_CLAMP, Math.min(RATE_CLAMP, rateDelta));
+                const clampedDelta = Math.max(
+                    -RATE_CLAMP,
+                    Math.min(RATE_CLAMP, rateDelta),
+                );
 
-                const baseRate = targetDeck.audio.playbackRate || (1 + targetDeck.pitchValue / 100);
+                const baseRate =
+                    targetDeck.audio.playbackRate ||
+                    1 + targetDeck.pitchValue / 100;
                 const adjustedRate = baseRate + clampedDelta;
 
                 targetDeck.audio.playbackRate = adjustedRate;
@@ -1811,7 +1853,8 @@ class DualPlayer {
                 }
             }
 
-            sourceDeck.beatSyncAnimationFrame = requestAnimationFrame(phaseMonitor);
+            sourceDeck.beatSyncAnimationFrame =
+                requestAnimationFrame(phaseMonitor);
         };
 
         console.log(
@@ -1932,24 +1975,24 @@ class DualPlayer {
         if (volumeValueEl) {
             volumeValueEl.textContent = `${Math.round(deck.volume)}%`;
         }
-        
+
         this.updateVUMeter(deckId);
     }
-    
+
     updateVUMeter(deckId) {
         const deck = this.decks[deckId];
         const deckLabel = deckId.toUpperCase();
         const vuMeter = document.getElementById(`vuMeter${deckLabel}`);
-        
+
         if (!vuMeter) return;
-        
-        const bars = vuMeter.querySelectorAll('.vu-meter-bar');
+
+        const bars = vuMeter.querySelectorAll(".vu-meter-bar");
         let level = 0;
-        
+
         if (deck.isPlaying && deck.analyserNode && deck.audioDataArray) {
             // Get real-time audio level from analyser
             deck.analyserNode.getByteFrequencyData(deck.audioDataArray);
-            
+
             // Calculate RMS (Root Mean Square) for accurate level
             let sum = 0;
             for (let i = 0; i < deck.audioDataArray.length; i++) {
@@ -1957,21 +2000,22 @@ class DualPlayer {
                 sum += normalized * normalized;
             }
             const rms = Math.sqrt(sum / deck.audioDataArray.length);
-            
+
             // Apply RMS boost and volume scaling
-            level = rms * this.vuMeterConfig.rmsBoost * (deck.volume / 100) * 100;
-            
+            level =
+                rms * this.vuMeterConfig.rmsBoost * (deck.volume / 100) * 100;
+
             // Apply gain curve for better visual response
             level = Math.pow(level / 100, this.vuMeterConfig.gainCurve) * 100;
         }
-        
+
         const activeBars = Math.floor((level / 100) * bars.length);
-        
+
         bars.forEach((bar, index) => {
             if (index < activeBars) {
-                bar.classList.add('active');
+                bar.classList.add("active");
             } else {
-                bar.classList.remove('active');
+                bar.classList.remove("active");
             }
         });
     }
