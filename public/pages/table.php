@@ -656,35 +656,75 @@ require_once __DIR__ . '/../partials/head.php';
                         <table class="w-full text-sm">
                             <thead class="sticky top-0 bg-gray-800">
                                 <tr>
-                                    <th class="py-3 px-3 text-left text-cyan-400">ID / Subtype</th>
-                                    <th class="py-3 px-3 text-left text-cyan-400">Column Type</th>
-                                    <th class="py-3 px-3 text-left text-cyan-400">Name</th>
-                                    <th class="py-3 px-3 text-left text-cyan-400">Offset</th>
-                                    <th class="py-3 px-3 text-left text-cyan-400">Raw Data</th>
+                                    <th class="py-3 px-4 text-left text-cyan-400 w-20">
+                                        <i class="fas fa-hashtag mr-1"></i>Index
+                                    </th>
+                                    <th class="py-3 px-4 text-left text-cyan-400">
+                                        <i class="fas fa-tag mr-1"></i>Category Type
+                                    </th>
+                                    <th class="py-3 px-4 text-left text-cyan-400">
+                                        <i class="fas fa-align-left mr-1"></i>Name
+                                    </th>
+                                    <th class="py-3 px-4 text-left text-cyan-400 w-24">
+                                        <i class="fas fa-cube mr-1"></i>Subtype
+                                    </th>
+                                    <th class="py-3 px-4 text-left text-cyan-400">
+                                        <i class="fas fa-code mr-1"></i>Raw Data
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($columnsData as $column): ?>
-                                <tr class="border-b border-gray-800 hover:bg-gray-800">
-                                    <td class="py-2 px-3 font-mono text-purple-400">
-                                        <?= isset($column['data']['subtype']) ? $column['data']['subtype'] : ($column['data']['id'] ?? 'N/A') ?>
+                                <tr class="border-b border-gray-800 hover:bg-gray-800 transition-colors">
+                                    <td class="py-3 px-4 font-mono text-purple-400 font-bold">
+                                        <?= isset($column['data']['index_shift']) ? $column['data']['index_shift'] : ($column['data']['id'] ?? 'N/A') ?>
                                     </td>
-                                    <td class="py-2 px-3 text-gray-300">
-                                        <?= isset($column['data']['column_type']) ? htmlspecialchars($column['data']['column_type']) : 'Unknown' ?>
+                                    <td class="py-3 px-4">
+                                        <?php
+                                        $type = isset($column['data']['column_type']) ? $column['data']['column_type'] : 'Unknown';
+                                        $colorClass = 'text-gray-400';
+                                        $icon = 'question';
+                                        
+                                        if (strpos($type, 'Unknown') === false) {
+                                            if (in_array($type, ['Artist', 'Album', 'Genre'])) {
+                                                $colorClass = 'text-green-400';
+                                            } elseif (in_array($type, ['BPM', 'Key', 'Rating'])) {
+                                                $colorClass = 'text-blue-400';
+                                            } elseif (in_array($type, ['Color', 'Label'])) {
+                                                $colorClass = 'text-pink-400';
+                                            } else {
+                                                $colorClass = 'text-yellow-400';
+                                            }
+                                            
+                                            if ($type == 'Track') $icon = 'music';
+                                            elseif ($type == 'Artist') $icon = 'user';
+                                            elseif ($type == 'Album') $icon = 'record-vinyl';
+                                            elseif ($type == 'Genre') $icon = 'list';
+                                            elseif ($type == 'BPM') $icon = 'drum';
+                                            elseif ($type == 'Key') $icon = 'key';
+                                            elseif ($type == 'Rating') $icon = 'star';
+                                            elseif ($type == 'Color') $icon = 'palette';
+                                            elseif ($type == 'Time') $icon = 'clock';
+                                        }
+                                        ?>
+                                        <span class="inline-block px-3 py-1 bg-gray-700 rounded-full text-sm font-medium <?= $colorClass ?>">
+                                            <i class="fas fa-<?= $icon ?> mr-1"></i>
+                                            <?= htmlspecialchars($type) ?>
+                                        </span>
                                     </td>
-                                    <td class="py-2 px-3 text-white">
-                                        <?= isset($column['data']['name']) && !empty($column['data']['name']) ? htmlspecialchars($column['data']['name']) : '<span class="text-gray-500">-</span>' ?>
+                                    <td class="py-3 px-4 text-green-400 font-medium">
+                                        <?= isset($column['data']['name']) && !empty($column['data']['name']) ? htmlspecialchars($column['data']['name']) : '<span class="text-gray-500 italic">Not specified</span>' ?>
                                     </td>
-                                    <td class="py-2 px-3 font-mono text-gray-500 text-xs">
-                                        <?= $column['offset'] ?>
+                                    <td class="py-3 px-4 font-mono text-sm text-purple-300">
+                                        0x<?= isset($column['data']['subtype']) ? str_pad(dechex($column['data']['subtype']), 4, '0', STR_PAD_LEFT) : 'N/A' ?>
                                     </td>
-                                    <td class="py-2 px-3">
-                                        <details class="inline">
-                                            <summary class="cursor-pointer text-cyan-400 hover:text-cyan-300 text-xs">
-                                                <i class="fas fa-code"></i> View Hex
+                                    <td class="py-3 px-4 font-mono text-xs">
+                                        <details class="cursor-pointer">
+                                            <summary class="text-gray-500 hover:text-gray-300 transition-colors">
+                                                <?= substr($column['raw_hex'], 0, 24) ?>... <i class="fas fa-chevron-down ml-1 text-xs"></i>
                                             </summary>
-                                            <div class="mt-2 p-2 bg-gray-950 rounded border border-gray-700 font-mono text-xs text-gray-400 break-all">
-                                                <?= htmlspecialchars($column['raw_hex']) ?>
+                                            <div class="mt-2 p-2 bg-black rounded text-gray-400 break-all">
+                                                <?= chunk_split($column['raw_hex'], 32, '<br>') ?>
                                             </div>
                                         </details>
                                     </td>
