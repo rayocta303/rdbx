@@ -112,26 +112,33 @@
                 <div class="hot-cue-pads">
                     <div class="flex items-center justify-between mb-2">
                         <div class="hot-cue-label">HOT CUES</div>
-                        <div class="flex items-center gap-2">
-                            <button class="control-btn play-btn" onclick="window.dualPlayer.togglePlay('a')" title="Play/Pause">
-                                <i class="fas fa-play" id="playIconA"></i>
-                            </button>
-                            <button class="control-btn cue-btn" onclick="window.dualPlayer.setCuePoint('a')" title="Set/Return to Cue Point">
-                                <i class="fas fa-step-backward"></i>
-                            </button>
-                        </div>
                     </div>
                     <div class="hot-cue-grid">
-                        <?php for ($i = 0; $i < 8; $i++): ?>
+                        <?php for ($i = 0; $i < 4; $i++): ?>
                         <button class="hot-cue-pad" data-deck="a" data-cue="<?= $i ?>" onclick="window.dualPlayer.triggerHotCue('a', <?= $i ?>)">
                             <div class="cue-number"><?= chr(65 + $i) ?></div>
                             <div class="cue-time" id="cueTimeA<?= $i ?>">--:--</div>
                         </button>
                         <?php endfor; ?>
+                        
+                        <button class="control-btn play-btn" onclick="window.dualPlayer.togglePlay('a')" title="Play/Pause">
+                            <i class="fas fa-play" id="playIconA"></i>
+                        </button>
+                        
+                        <?php for ($i = 4; $i < 8; $i++): ?>
+                            <button class="hot-cue-pad" data-deck="a" data-cue="<?= $i ?>" onclick="window.dualPlayer.triggerHotCue('a', <?= $i ?>)">
+                                <div class="cue-number"><?= chr(65 + $i) ?></div>
+                                <div class="cue-time" id="cueTimeA<?= $i ?>">--:--</div>
+                            </button>
+                        <?php endfor; ?>
+                        
+                        <button class="control-btn cue-btn" onclick="window.dualPlayer.setCuePoint('a')" title="Set/Return to Cue Point">
+                            <i class="fas fa-step-forward"></i>
+                        </button>
                     </div>
                 </div>
             </div>
-            <div class="flex items-center justify-center gap-4 col-span-2">   
+            <div class="mixer-container flex items-end justify-center col-span-2 grid grid-cols-4">   
                 <!-- Volume Fader A -->
                 <div class="volume-fader-wrapper">
                     <div class="volume-fader-control">
@@ -241,22 +248,27 @@
                 <div class="hot-cue-pads">
                     <div class="flex items-center justify-between mb-2">
                         <div class="hot-cue-label">HOT CUES</div>
-                        <div class="flex items-center gap-2">
-                            <button class="control-btn play-btn" onclick="window.dualPlayer.togglePlay('b')" title="Play/Pause">
-                                <i class="fas fa-play" id="playIconB"></i>
-                            </button>
-                            <button class="control-btn cue-btn" onclick="window.dualPlayer.setCuePoint('b')" title="Set/Return to Cue Point">
-                                <i class="fas fa-step-backward"></i>
-                            </button>
-                        </div>
                     </div>
                     <div class="hot-cue-grid">
-                        <?php for ($i = 0; $i < 8; $i++): ?>
+                        <button class="control-btn play-btn" onclick="window.dualPlayer.togglePlay('b')" title="Play/Pause">
+                            <i class="fas fa-play" id="playIconB"></i>
+                        </button>
+                        <?php for ($i = 0; $i < 4; $i++): ?>
                         <button class="hot-cue-pad" data-deck="b" data-cue="<?= $i ?>" onclick="window.dualPlayer.triggerHotCue('b', <?= $i ?>)">
                             <div class="cue-number"><?= chr(65 + $i) ?></div>
                             <div class="cue-time" id="cueTimeB<?= $i ?>">--:--</div>
                         </button>
                         <?php endfor; ?>
+                        <button class="control-btn cue-btn" onclick="window.dualPlayer.setCuePoint('b')" title="Set/Return to Cue Point">
+                            <i class="fas fa-step-forward"></i>
+                        </button>
+                        <?php for ($i = 4; $i < 8; $i++): ?>
+                            <button class="hot-cue-pad" data-deck="b" data-cue="<?= $i ?>" onclick="window.dualPlayer.triggerHotCue('b', <?= $i ?>)">
+                                <div class="cue-number"><?= chr(65 + $i) ?></div>
+                                <div class="cue-time" id="cueTimeB<?= $i ?>">--:--</div>
+                            </button>
+                        <?php endfor; ?>
+                        
                     </div>
                 </div>
             </div>
