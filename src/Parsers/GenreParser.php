@@ -23,11 +23,8 @@ class GenreParser {
         $genres = $this->extractRows($genresTable);
         
         $this->genres = [];
-        $index = 1;
         foreach ($genres as $genre) {
-            $this->genres[$index] = $genre['name'];
             $this->genres[$genre['id']] = $genre['name'];
-            $index++;
         }
         
         // Direct extraction fallback if extractRows fails

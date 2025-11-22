@@ -25,11 +25,8 @@ class ArtistAlbumParser {
         $artists = $this->extractRows($artistsTable, 'artist');
         
         $this->artists = [];
-        $index = 1;
         foreach ($artists as $artist) {
-            $this->artists[$index] = $artist['name'];
             $this->artists[$artist['id']] = $artist['name'];
-            $index++;
         }
 
         return $this->artists;
@@ -45,11 +42,8 @@ class ArtistAlbumParser {
         $albums = $this->extractRows($albumsTable, 'album');
         
         $this->albums = [];
-        $index = 1;
         foreach ($albums as $album) {
-            $this->albums[$index] = $album['name'];
             $this->albums[$album['id']] = $album['name'];
-            $index++;
         }
 
         return $this->albums;
