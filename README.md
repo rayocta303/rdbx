@@ -175,8 +175,8 @@ row_group:
 | `playlist_entries` | 0x08 | Track assignments to playlists |
 | `history_playlists` | 0x0B | Play history metadata |
 | `history_entries` | 0x0C | History track entries |
-| `artwork` | 0x0D | Album artwork metadata |
-| `columns` | 0x10 | Column layout settings |
+| `artwork` | 0x0D | Album artwork paths |
+| `columns` | 0x10 | Browse category definitions |
 
 #### String Encoding
 
@@ -424,7 +424,8 @@ waveform_entry:
 │   │   ├── ColorParser.php         # Color classifications
 │   │   ├── LabelParser.php         # Record labels
 │   │   ├── HistoryParser.php       # Play history
-│   │   └── ColumnsParser.php       # Column settings
+│   │   ├── ColumnsParser.php       # Browse category metadata
+│   │   └── ArtworkParser.php       # Album artwork metadata
 │   ├── Utils/
 │   │   └── Logger.php              # Logging system
 │   └── RekordboxReader.php         # Main orchestrator class
@@ -661,6 +662,89 @@ private function extractCuePoints() {
     return $cues;
 }
 ```
+
+#### ArtworkParser - Album Artwork Metadata
+**File**: `src/Parsers/ArtworkParser.php`
+
+Parses artwork table (type 0x0D) to extract album art paths:
+
+**Row Structure** (based on rekordcrate spec):
+```php
+artwork_row:
+  - id: subtype         # Always 0x03 for artwork rows
+    type: u2
+  - id: index_shift     # Row index
+    type: u2
+  - id: artwork_id      # Artwork ID (referenced by tracks)
+    type: u4
+  - id: path            # Path to artwork file (DeviceSQL string)
+    type: device_sql_string
+```
+
+**Key Features**:
+- Validates subtype (must be 0x03)
+- Creates ID-to-path mapping for track integration
+- Returns both simple mapping and full artwork data
+- Artwork IDs referenced in track records (offset 0x1C)
+
+**Integration with Tracks**:
+```php
+// Track row references artwork
+$track['artwork_id'] = 123;
+
+// ArtworkParser resolves path
+$artworkPath = $artworkParser->getArtworkPath(123);
+// Returns: "AlbumArt/artwork_123.jpg"
+
+// TrackParser integrates
+$track['artwork_path'] = $artworkPath;
+```
+
+#### ColumnsParser - Browse Category Metadata
+**File**: `src/Parsers/ColumnsParser.php`
+
+Parses columns table (type 0x10) that defines browsing categories used by CDJs:
+
+**Row Structure** (based on rekordcrate spec):
+```php
+column_row:
+  - id: subtype         # Always 0x06 for column rows
+    type: u2
+  - id: index_shift     # Category index (0x00-0x12)
+    type: u2
+  - id: unknown         # Unknown field
+    type: u2
+  - id: name            # Category name (optional string)
+    type: device_sql_string
+```
+
+**Column Type Mapping**:
+| Index | Type | Description | CDJ Usage |
+|-------|------|-------------|-----------|
+| 0x00 | Track | Track name | Main browsing |
+| 0x01 | Genre | Genre category | Genre filter |
+| 0x02 | Artist | Artist name | Artist browsing |
+| 0x03 | Album | Album name | Album view |
+| 0x04 | Label | Record label | Label filter |
+| 0x05 | Key | Musical key | Harmonic mixing |
+| 0x06 | Rating | Star rating | Quality filter |
+| 0x07 | Color | Color classification | Color sorting |
+| 0x08 | Time | Duration | Time-based sorting |
+| 0x09 | Bit Rate | Audio bitrate | Quality sorting |
+| 0x0A | BPM | Tempo | BPM range filtering |
+| 0x0B | Year | Release year | Year sorting |
+| 0x0C | Comment | User comments | Notes browsing |
+| 0x0D | Date Added | Import date | Recently added |
+| 0x0E | Original Artist | Original artist | Remix filtering |
+| 0x0F | Remixer | Remixer name | Remix browsing |
+| 0x10 | Composer | Composer name | Composer filter |
+| 0x11 | Album Artist | Album artist | Compilation handling |
+| 0x12 | DJ Play Count | Play statistics | Popular tracks |
+
+**Purpose**:
+- Defines which metadata fields are available on CDJs/XDJs
+- Controls sorting and filtering options on hardware
+- Determines browse menu structure on Pioneer equipment
 
 ---
 
