@@ -4,6 +4,13 @@
 This project is a PHP-based web GUI tool designed to read and display Rekordbox USB/SD export databases. It's a re-implementation of a Python tool into a pure PHP, modular structure. The primary goal is to provide a modern web interface for DJ-specific functionalities, including dual-deck playback, waveform visualization, beat grid analysis, hot cue management, and advanced synchronization features, mirroring the professional experience of Rekordbox.
 
 ## Recent Changes (November 2025)
+- **Page Structure Refactoring (November 22)**: Reorganisasi struktur halaman untuk modularitas yang lebih baik:
+  - Created `pages/` directory untuk halaman standalone (debug dan stats)
+  - Implemented clean URL router tanpa ekstensi `.php` (menggunakan `router.php`)
+  - Separated stats dan debug dari index.php menjadi independent pages
+  - Setiap halaman sekarang self-contained tanpa dependency ke dual-player.js
+  - Router handles trailing slashes untuk URL yang lebih fleksibel
+  - Added navigation buttons di homepage untuk akses ke stats dan debug pages
 - **Waveform Rendering Rebuild (November 21)**: Complete rebuild dari scratch untuk maksimum efisiensi:
   - Simplified architecture tanpa caching overhead - rendering on-demand saja
   - Single-path rendering per band untuk minimal canvas operations
@@ -66,7 +73,11 @@ This project is a PHP-based web GUI tool designed to read and display Rekordbox 
     - **Beat Sync**: Aligns beat grids and phases for perfect beat matching using Rekordbox beat grid offsets.
     - **Quantize**: Snaps hot cue triggers and playback to the nearest beat using Rekordbox beat grid data.
 - **Master Deck Selection**: Rekordbox-style MASTER button on each deck for push/pull sync logic.
-- **Modular Frontend**: `index.php` acts as the entry point, orchestrating smaller PHP components for statistics, browser, player, and debug panels.
+- **Modular Frontend**: 
+    - `index.php`: Main entry point dengan dual-deck player dan library browser
+    - `pages/stats.php`: Standalone statistics page (`/stats`)
+    - `pages/debug.php`: Standalone debug panel (`/debug`)
+    - `router.php`: Clean URL router untuk navigasi tanpa ekstensi file
 
 ### System Design Choices
 - **Pure PHP 8.2**: No external PHP frameworks are used for core logic.
