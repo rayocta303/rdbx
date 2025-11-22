@@ -1486,6 +1486,32 @@ class DualPlayer {
         );
     }
 
+    getActualBPM(deckId) {
+        const deck = this.decks[deckId];
+        if (!deck.originalBPM || deck.originalBPM === 0) {
+            return 0;
+        }
+        const playbackRate = deck.audio.playbackRate || 1.0;
+        return deck.originalBPM * playbackRate;
+    }
+
+    determineBPMMultiplier(myBPM, targetBPM) {
+        if (!myBPM || !targetBPM || myBPM === 0 || targetBPM === 0) {
+            return 1.0;
+        }
+        
+        const unityRatio = myBPM / targetBPM;
+        const unityRatioSquare = unityRatio * unityRatio;
+        
+        if (unityRatioSquare > 2.0) {
+            return 2.0;
+        } else if (unityRatioSquare < 0.5) {
+            return 0.5;
+        }
+        
+        return 1.0;
+    }
+
     syncBPM(sourceDeckId, targetDeckId, snapBeats = false) {
         const sourceDeck = this.decks[sourceDeckId];
         const targetDeck = this.decks[targetDeckId];
@@ -1500,10 +1526,17 @@ class DualPlayer {
             return;
         }
 
-        const targetBPM =
-            sourceDeck.originalBPM * (1 + sourceDeck.pitchValue / 100);
-        const requiredPitchPercent =
-            (targetBPM / targetDeck.originalBPM - 1) * 100;
+        const sourceActualBPM = this.getActualBPM(sourceDeckId);
+        const targetOriginalBPM = targetDeck.originalBPM;
+
+        if (!targetDeck.bpmMultiplier) {
+            targetDeck.bpmMultiplier = this.determineBPMMultiplier(targetOriginalBPM, sourceActualBPM);
+        }
+
+        const adjustedTargetBPM = sourceActualBPM * targetDeck.bpmMultiplier;
+        const requiredPlaybackRate = adjustedTargetBPM / targetOriginalBPM;
+
+        const requiredPitchPercent = (requiredPlaybackRate - 1) * 100;
 
         const targetDeckLabel = targetDeckId.toUpperCase();
         const slider = document.getElementById(`pitchSlider${targetDeckLabel}`);
@@ -1513,15 +1546,16 @@ class DualPlayer {
         }
 
         if (snapBeats) {
-            this.snapBeatsToGrid(sourceDeckId, targetDeckId, targetBPM);
+            this.snapBeatsToGrid(sourceDeckId, targetDeckId);
         }
 
         console.log(
-            `Synced ${targetDeckId.toUpperCase()} (${targetDeck.originalBPM} BPM) to ${sourceDeckId.toUpperCase()} (${targetBPM.toFixed(2)} BPM)${snapBeats ? " + Beat Grid" : ""}`,
+            `[Beat Sync] Synced ${targetDeckId.toUpperCase()} (${targetOriginalBPM} BPM) to ${sourceDeckId.toUpperCase()} (${sourceActualBPM.toFixed(2)} BPM)\n` +
+            `  → Multiplier: ${targetDeck.bpmMultiplier}x | Target BPM: ${adjustedTargetBPM.toFixed(2)} | Playback Rate: ${requiredPlaybackRate.toFixed(4)}${snapBeats ? " + Beat Grid Aligned" : ""}`,
         );
     }
 
-    snapBeatsToGrid(sourceDeckId, targetDeckId, targetBPM) {
+    snapBeatsToGrid(sourceDeckId, targetDeckId) {
         const sourceDeck = this.decks[sourceDeckId];
         const targetDeck = this.decks[targetDeckId];
 
@@ -1557,10 +1591,11 @@ class DualPlayer {
             return;
         }
 
-        const sourceBPM =
-            sourceDeck.originalBPM * (1 + sourceDeck.pitchValue / 100);
-        const targetBeatLength = 60 / targetBPM;
-        const sourceBeatLength = 60 / sourceBPM;
+        const sourceActualBPM = this.getActualBPM(sourceDeckId);
+        const targetActualBPM = this.getActualBPM(targetDeckId);
+        
+        const sourceBeatLength = 60 / sourceActualBPM;
+        const targetBeatLength = 60 / targetActualBPM;
 
         const sourceFirstBeatOffset = sourceDeck.beatgridData[0].time || 0;
         const targetFirstBeatOffset = targetDeck.beatgridData[0].time || 0;
@@ -1645,9 +1680,10 @@ class DualPlayer {
                 return;
             }
 
-            const sourceBPM = sourceDeck.originalBPM * (1 + sourceDeck.pitchValue / 100);
-            const targetBPM = targetDeck.originalBPM * (1 + targetDeck.pitchValue / 100);
-            const targetBeatLength = 60 / targetBPM;
+            const sourceActualBPM = this.getActualBPM(sourceDeckId);
+            const targetActualBPM = this.getActualBPM(targetDeckId);
+            const sourceBeatLength = 60 / sourceActualBPM;
+            const targetBeatLength = 60 / targetActualBPM;
 
             const sourceFirstBeatOffset = sourceDeck.beatgridData[0].time || 0;
             const targetFirstBeatOffset = targetDeck.beatgridData[0].time || 0;
@@ -1658,7 +1694,6 @@ class DualPlayer {
             const sourceTimeFromFirstBeat = sourceCenterPoint - sourceFirstBeatOffset;
             const targetTimeFromFirstBeat = targetCenterPoint - targetFirstBeatOffset;
 
-            const sourceBeatLength = 60 / sourceBPM;
             const sourceBeatPhase = (sourceTimeFromFirstBeat % sourceBeatLength) / sourceBeatLength;
             const targetBeatPhase = (targetTimeFromFirstBeat % targetBeatLength) / targetBeatLength;
 
@@ -1715,7 +1750,7 @@ class DualPlayer {
 
                 const clampedDelta = Math.max(-RATE_CLAMP, Math.min(RATE_CLAMP, rateDelta));
 
-                const baseRate = 1 + targetDeck.pitchValue / 100;
+                const baseRate = targetDeck.audio.playbackRate || (1 + targetDeck.pitchValue / 100);
                 const adjustedRate = baseRate + clampedDelta;
 
                 targetDeck.audio.playbackRate = adjustedRate;
