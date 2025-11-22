@@ -4,14 +4,19 @@
 This project is a PHP-based web GUI tool designed to read and display Rekordbox USB/SD export databases. It's a re-implementation of a Python tool into a pure PHP, modular structure. The primary goal is to provide a modern web interface for DJ-specific functionalities, including dual-deck playback, waveform visualization, beat grid analysis, hot cue management, and advanced synchronization features, mirroring the professional experience of Rekordbox.
 
 ## Recent Changes (November 2025)
+- **Documentation Merge & Parser Fix (November 22)**: Comprehensive documentation update dan critical parser fixes:
+  - **Merged DOCUMENTATION.md into README.md**: Single comprehensive documentation file
+  - **Added Kaitai Struct Specifications**: Complete PDB and ANLZ format documentation dengan binary structure diagrams
+  - **Fixed Linked-List Page Traversal**: Parser sekarang mengikuti next_page field (bukan sequential iteration)
+  - **Result**: 14 tracks terbaca (sebelumnya 2), playlist counts sesuai dengan expected data
+  - **No Page Limits**: Supports unlimited pages dengan visited page tracking untuk prevent infinite loops
+  - **References**: Included all references (Deep Symmetry, Holzhaus, Mixxx, Henry Betts)
 - **CSS and UI Refactoring (November 22)**: Complete refactoring untuk styling yang lebih clean dan professional:
   - Renamed all CSS classes dari `mixxx-*` ke `app-*` (app-container, app-header)
   - Merged stats.php dan debug.php menjadi satu debug.php dengan tabbed interface (Statistics, Database Metadata)
   - Applied industrial, clean, minimalist design dengan no glow effects
   - Updated .app-container dengan proper padding (1.25rem), gradient background, subtle box-shadow
   - Consistent Tailwind color usage (gray-800, slate-700, cyan-400) untuk professional look
-  - Updated README.md untuk remove "MIXXX Edition" references dan reduce emoji
-  - Created comprehensive DOCUMENTATION.md untuk semua parsers dan utilities
   - Removed /stats route dari router.php
 - **Comprehensive Table View Page (November 22)**: Membuat halaman /table untuk menampilkan semua data export.pdb:
   - Database Overview tab: PDB header dan metadata semua tabel
