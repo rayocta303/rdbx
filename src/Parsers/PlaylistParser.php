@@ -49,15 +49,45 @@ class PlaylistParser {
         
         $firstPage = $treeTable['first_page'];
         $lastPage = $treeTable['last_page'];
+        $expectedType = $treeTable['type'];
 
-        for ($pageIdx = $firstPage; $pageIdx <= $lastPage; $pageIdx++) {
-            $pageData = $this->pdbParser->readPage($pageIdx);
+        $currentPage = $firstPage;
+        $visitedPages = [];
+
+        while ($currentPage > 0 && $currentPage <= $lastPage) {
+            if (isset($visitedPages[$currentPage])) {
+                if ($this->logger) {
+                    $this->logger->warning("Circular reference detected at page {$currentPage}, stopping to prevent infinite loop");
+                }
+                break;
+            }
+            
+            $visitedPages[$currentPage] = true;
+            
+            $pageData = $this->pdbParser->readPage($currentPage);
             if (!$pageData) {
-                continue;
+                break;
             }
 
-            $pagePlaylists = $this->parsePlaylistPage($pageData, $entriesTable, $pageIdx);
+            $pageHeader = unpack(
+                'Vgap/' .
+                'Vpage_index/' .
+                'Vtype/' .
+                'Vnext_page',
+                substr($pageData, 0, 16)
+            );
+
+            if ($pageHeader['type'] != $expectedType) {
+                if ($this->logger) {
+                    $this->logger->debug("Page {$currentPage} has type {$pageHeader['type']}, expected {$expectedType}, stopping");
+                }
+                break;
+            }
+
+            $pagePlaylists = $this->parsePlaylistPage($pageData, $entriesTable, $currentPage);
             $playlists = array_merge($playlists, $pagePlaylists);
+
+            $currentPage = $pageHeader['next_page'];
         }
 
         return $playlists;
@@ -253,15 +283,42 @@ class PlaylistParser {
         try {
             $firstPage = $entriesTable['first_page'];
             $lastPage = $entriesTable['last_page'];
+            $expectedType = $entriesTable['type'];
 
-            for ($pageIdx = $firstPage; $pageIdx <= $lastPage; $pageIdx++) {
-                $pageData = $this->pdbParser->readPage($pageIdx);
+            $currentPage = $firstPage;
+            $visitedPages = [];
+
+            while ($currentPage > 0 && $currentPage <= $lastPage) {
+                if (isset($visitedPages[$currentPage])) {
+                    if ($this->logger) {
+                        $this->logger->warning("Circular reference detected at page {$currentPage}, stopping to prevent infinite loop");
+                    }
+                    break;
+                }
+                
+                $visitedPages[$currentPage] = true;
+                
+                $pageData = $this->pdbParser->readPage($currentPage);
                 if (!$pageData) {
-                    continue;
+                    break;
+                }
+
+                $pageHeader = unpack(
+                    'Vgap/' .
+                    'Vpage_index/' .
+                    'Vtype/' .
+                    'Vnext_page',
+                    substr($pageData, 0, 16)
+                );
+
+                if ($pageHeader['type'] != $expectedType) {
+                    break;
                 }
 
                 $pageEntries = $this->parseEntriesPage($pageData, $playlistId);
                 $entries = array_merge($entries, $pageEntries);
+
+                $currentPage = $pageHeader['next_page'];
             }
         } catch (\Exception $e) {
             if ($this->logger) {

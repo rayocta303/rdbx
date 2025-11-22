@@ -71,15 +71,45 @@ class TrackParser {
         
         $firstPage = $table['first_page'];
         $lastPage = $table['last_page'];
+        $expectedType = $table['type'];
 
-        for ($pageIdx = $firstPage; $pageIdx <= $lastPage; $pageIdx++) {
-            $pageData = $this->pdbParser->readPage($pageIdx);
+        $currentPage = $firstPage;
+        $visitedPages = [];
+
+        while ($currentPage > 0 && $currentPage <= $lastPage) {
+            if (isset($visitedPages[$currentPage])) {
+                if ($this->logger) {
+                    $this->logger->warning("Circular reference detected at page {$currentPage}, stopping to prevent infinite loop");
+                }
+                break;
+            }
+            
+            $visitedPages[$currentPage] = true;
+            
+            $pageData = $this->pdbParser->readPage($currentPage);
             if (!$pageData) {
-                continue;
+                break;
             }
 
-            $trackRows = $this->parseTrackPage($pageData, $pageIdx);
+            $pageHeader = unpack(
+                'Vgap/' .
+                'Vpage_index/' .
+                'Vtype/' .
+                'Vnext_page',
+                substr($pageData, 0, 16)
+            );
+
+            if ($pageHeader['type'] != $expectedType) {
+                if ($this->logger) {
+                    $this->logger->debug("Page {$currentPage} has type {$pageHeader['type']}, expected {$expectedType}, stopping");
+                }
+                break;
+            }
+
+            $trackRows = $this->parseTrackPage($pageData, $currentPage);
             $tracks = array_merge($tracks, $trackRows);
+
+            $currentPage = $pageHeader['next_page'];
         }
 
         return $tracks;
