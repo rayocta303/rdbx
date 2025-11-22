@@ -1051,22 +1051,22 @@ class DualPlayer {
             });
 
             // Draw bar lines (merah)
-            ctx.strokeStyle = "rgba(255, 0, 0, 0.5)";
-            ctx.lineWidth = 2;
+            ctx.strokeStyle = "rgba(255, 0, 0, 1)";
+            ctx.lineWidth = 3;
             ctx.stroke(barPath);
 
             // Draw beat lines (putih)
-            ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
-            ctx.lineWidth = 1;
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+            ctx.lineWidth = 3;
             ctx.stroke(beatPath);
-
         } else {
             // Fallback: Use simple BPM calculation when no beat grid data available
             const effectiveBPM = deck.track.bpm * pitchMultiplier;
             const beatInterval = 60 / effectiveBPM;
             const barInterval = beatInterval * 4; // 1 bar = 4 beats
-            
-            const firstBeat = Math.ceil(viewStart / beatInterval) * beatInterval;
+
+            const firstBeat =
+                Math.ceil(viewStart / beatInterval) * beatInterval;
 
             // Separate paths for bars and beats
             const barPath = new Path2D();
@@ -1082,7 +1082,7 @@ class DualPlayer {
 
                 // Check if this is a bar (downbeat) - every 4 beats
                 const beatNumber = Math.round(beatTime / beatInterval) % 4;
-                
+
                 if (beatNumber === 0) {
                     // Bar line (merah)
                     barPath.moveTo(x, 0);
