@@ -156,30 +156,35 @@ class ArtistAlbumParser {
 
     private function parseRow($pageData, $offset, $type) {
         try {
+            if ($offset + 10 > strlen($pageData)) {
+                return null;
+            }
+            
             $id = unpack('v', substr($pageData, $offset, 2))[1];
+            
+            if ($id == 0 || $id > 100000) {
+                return null;
+            }
             
             $name = '';
             
-            for ($scan = $offset + 8; $scan < $offset + 150; $scan++) {
+            for ($scan = $offset + 4; $scan < min($offset + 100, strlen($pageData)); $scan++) {
                 if ($scan >= strlen($pageData)) break;
                 
-                $flags = ord($pageData[$scan]);
-                if (($flags & 0x40) == 0) {
-                    $len = $flags & 0x7F;
-                    if ($len >= 2 && $len < 100 && ($scan + $len + 1) <= strlen($pageData)) {
-                        $str = substr($pageData, $scan + 1, $len);
-                        
-                        $nullPos = strpos($str, "\x00");
-                        if ($nullPos !== false) {
-                            $str = substr($str, 0, $nullPos);
-                        }
-                        
-                        $str = trim($str);
-                        
-                        if (strlen($str) >= 2 && preg_match('/[A-Za-z0-9]/', $str)) {
-                            $name = $str;
-                            break;
-                        }
+                $byte = ord($pageData[$scan]);
+                
+                if (($byte & 0x01) == 1) {
+                    list($str, $newOffset) = $this->pdbParser->extractString($pageData, $scan);
+                    if ($str && strlen(trim($str)) > 0) {
+                        $name = trim($str);
+                        break;
+                    }
+                }
+                elseif ($byte == 0x40 || $byte == 0x90) {
+                    list($str, $newOffset) = $this->pdbParser->extractString($pageData, $scan);
+                    if ($str && strlen(trim($str)) > 0) {
+                        $name = trim($str);
+                        break;
                     }
                 }
             }
