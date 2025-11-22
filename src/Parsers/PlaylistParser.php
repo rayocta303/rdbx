@@ -253,8 +253,10 @@ class PlaylistParser {
         $name = trim($name);
 
         $entries = [];
+        $rawTrackCount = 0;
         if ($entriesTable && $playlistId > 0) {
             $rawEntries = $this->getPlaylistEntries($playlistId, $entriesTable);
+            $rawTrackCount = count($rawEntries);
             
             // Sort entries by position and extract track IDs
             usort($rawEntries, function($a, $b) {
@@ -273,7 +275,8 @@ class PlaylistParser {
             'sort_order' => $sortOrder,
             'is_folder' => $isFolder,
             'entries' => $entries,
-            'track_count' => count($entries)
+            'track_count' => count($entries),  // Jumlah entries (termasuk yang mungkin invalid)
+            'raw_track_count' => $rawTrackCount  // Untuk debugging
         ];
     }
 
@@ -373,6 +376,8 @@ class PlaylistParser {
         $heapPos = 40;
         $pageSize = strlen($pageData);
         $numGroups = intval(($numRows - 1) / 16) + 1;
+        
+        $debugCount = 0;
 
         for ($groupIdx = 0; $groupIdx < $numGroups; $groupIdx++) {
             $base = $pageSize - ($groupIdx * 0x24);
@@ -411,6 +416,8 @@ class PlaylistParser {
                     'Vplaylist_id',
                     substr($pageData, $actualRowOffset, 12)
                 );
+                
+                $debugCount++;
 
                 // Only include valid track IDs (> 0) for the target playlist
                 if ($entryData['playlist_id'] == $targetPlaylistId && $entryData['track_id'] > 0) {
@@ -418,6 +425,11 @@ class PlaylistParser {
                         'position' => $entryData['entry_index'],
                         'track_id' => $entryData['track_id']
                     ];
+                } else if ($entryData['playlist_id'] == $targetPlaylistId) {
+                    // DEBUG: Track yang invalid (track_id = 0)
+                    if ($this->logger) {
+                        $this->logger->warning("DEBUG ENTRIES: Playlist ID {$targetPlaylistId} - Found INVALID entry with track_id=0 at position={$entryData['entry_index']}");
+                    }
                 }
             }
         }

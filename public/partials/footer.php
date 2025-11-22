@@ -20,6 +20,24 @@
         window.addEventListener('DOMContentLoaded', function() {
             trackDetailPanel = new TrackDetailPanel();
             window.trackDetailPanel = trackDetailPanel;
+            
+            // Update playlist counters to show only valid tracks
+            document.querySelectorAll('.playlist-counter').forEach(counter => {
+                const btn = counter.closest('button[data-track-ids]');
+                if (btn) {
+                    const trackIds = JSON.parse(btn.getAttribute('data-track-ids'));
+                    const validTracks = trackIds.filter(id => tracksData.find(t => t.id === id));
+                    const validCount = validTracks.length;
+                    const totalCount = trackIds.length;
+                    
+                    if (validCount < totalCount) {
+                        counter.innerHTML = validCount + ' <span class="text-orange-400 text-xs" title="' + (totalCount - validCount) + ' track tidak ditemukan">⚠</span>';
+                    } else {
+                        counter.textContent = validCount;
+                    }
+                }
+            });
+            
             showAllTracks();
         });
         
@@ -57,7 +75,21 @@
             const playlist = playlistsData.find(p => p.id == playlistId);
             if (!playlist) return;
             
-            document.getElementById('currentPlaylistTitle').innerHTML = '<i class="fas fa-list"></i><span>' + escapeHtml(playlist.name) + '</span>';
+            const trackIds = playlist.entries || [];
+            const playlistTracks = tracksData.filter(t => trackIds.includes(t.id));
+            
+            // Update jumlah track yang valid
+            const validCount = playlistTracks.length;
+            const totalCount = trackIds.length;
+            
+            // Tampilkan peringatan jika ada track yang hilang
+            const countDisplay = validCount < totalCount 
+                ? `${validCount} <span class="text-orange-400 text-xs" title="${totalCount - validCount} track tidak ditemukan di database">⚠</span>` 
+                : validCount;
+            
+            document.getElementById('currentPlaylistTitle').innerHTML = 
+                '<i class="fas fa-list"></i><span>' + escapeHtml(playlist.name) + 
+                ' <span class="text-xs text-gray-500">(' + countDisplay + ')</span></span>';
             
             document.querySelectorAll('.playlist-item').forEach(btn => {
                 btn.classList.remove('active');
@@ -67,9 +99,6 @@
             if (btn) {
                 btn.classList.add('active');
             }
-            
-            const trackIds = playlist.entries || [];
-            const playlistTracks = tracksData.filter(t => trackIds.includes(t.id));
             
             renderTracks(playlistTracks);
         }

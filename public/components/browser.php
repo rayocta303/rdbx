@@ -58,10 +58,11 @@
                             } else {
                                 echo '<button onclick="showPlaylist(' . $playlist['id'] . ')" ';
                                 echo 'id="playlist_' . $playlist['id'] . '" ';
-                                echo 'class="playlist-item w-full text-left px-3 py-2 rounded mb-1">';
+                                echo 'class="playlist-item w-full text-left px-3 py-2 rounded mb-1" ';
+                                echo 'data-track-ids="' . htmlspecialchars(json_encode($playlist['entries'])) . '">';
                                 echo '<div class="flex items-center justify-between">';
                                 echo '<span class="truncate">' . $indent . '<i class="fas fa-music mr-2"></i> ' . htmlspecialchars($playlist['name']) . '</span>';
-                                echo '<span class="text-xs opacity-60 ml-2">' . $playlist['track_count'] . '</span>';
+                                echo '<span class="text-xs opacity-60 ml-2 playlist-counter" data-count="' . $playlist['track_count'] . '">' . $playlist['track_count'] . '</span>';
                                 echo '</div>';
                                 echo '</button>';
                             }
