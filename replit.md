@@ -4,6 +4,15 @@
 This project is a PHP-based web GUI tool designed to read and display Rekordbox USB/SD export databases. It's a re-implementation of a Python tool into a pure PHP, modular structure. The primary goal is to provide a modern web interface for DJ-specific functionalities, including dual-deck playback, waveform visualization, beat grid analysis, hot cue management, and advanced synchronization features, mirroring the professional experience of Rekordbox.
 
 ## Recent Changes (November 2025)
+- **CSS and UI Refactoring (November 22)**: Complete refactoring untuk styling yang lebih clean dan professional:
+  - Renamed all CSS classes dari `mixxx-*` ke `app-*` (app-container, app-header)
+  - Merged stats.php dan debug.php menjadi satu debug.php dengan tabbed interface (Statistics, Database Metadata)
+  - Applied industrial, clean, minimalist design dengan no glow effects
+  - Updated .app-container dengan proper padding (1.25rem), gradient background, subtle box-shadow
+  - Consistent Tailwind color usage (gray-800, slate-700, cyan-400) untuk professional look
+  - Updated README.md untuk remove "MIXXX Edition" references dan reduce emoji
+  - Created comprehensive DOCUMENTATION.md untuk semua parsers dan utilities
+  - Removed /stats route dari router.php
 - **Comprehensive Table View Page (November 22)**: Membuat halaman /table untuk menampilkan semua data export.pdb:
   - Database Overview tab: PDB header dan metadata semua tabel
   - Tracks tab: Menampilkan SEMUA 24 field termasuk raw IDs (artist_id, album_id, genre_id, key_id, color_id, artwork_id, track_number, bitrate, sample_rate, play_count, file_size, comment, analyze_path, dll)
@@ -11,12 +20,11 @@ This project is a PHP-based web GUI tool designed to read and display Rekordbox 
   - Partial coverage: Colors, Labels, Artwork (parser sederhana, perlu improvement untuk binary structure parsing yang kompleks)
   - History dan Columns: Ditandai sebagai "Not Implemented" (memerlukan advanced parser development)
 - **Page Structure Refactoring (November 22)**: Reorganisasi struktur halaman untuk modularitas yang lebih baik:
-  - Created `pages/` directory untuk halaman standalone (debug dan stats)
+  - Created `pages/` directory untuk halaman standalone (debug)
   - Implemented clean URL router tanpa ekstensi `.php` (menggunakan `router.php`)
-  - Separated stats dan debug dari index.php menjadi independent pages
   - Setiap halaman sekarang self-contained tanpa dependency ke dual-player.js
   - Router handles trailing slashes untuk URL yang lebih fleksibel
-  - Added navigation buttons di homepage untuk akses ke stats dan debug pages
+  - Added navigation buttons di homepage untuk akses ke debug dan table pages
 - **Waveform Rendering Rebuild (November 21)**: Complete rebuild dari scratch untuk maksimum efisiensi:
   - Simplified architecture tanpa caching overhead - rendering on-demand saja
   - Single-path rendering per band untuk minimal canvas operations
