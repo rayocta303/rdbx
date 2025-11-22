@@ -945,7 +945,7 @@ class DualPlayer {
         const container = canvas.parentElement;
         const dpr = window.devicePixelRatio || 1;
         const displayWidth = container.clientWidth;
-        const displayHeight = 120;
+        const displayHeight = 64;
 
         canvas.width = displayWidth * dpr;
         canvas.height = displayHeight * dpr;

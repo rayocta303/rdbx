@@ -37,8 +37,8 @@ class WaveformRenderer {
             CORE_BOOST: 1.7,
 
             // Beat grid rendering (matching Waveform.html)
-            DENSITY: 0.4,        // Mengontrol jumlah gelombang per beat
-            DECAY: 4.5,          // Decay rate untuk envelope
+            DENSITY: 0.4, // Mengontrol jumlah gelombang per beat
+            DECAY: 4.5, // Decay rate untuk envelope
             NOISE: 0,
             FLAT_ZONE: 0,
             TRANSIENT_ZONE: 0.0,
@@ -56,14 +56,14 @@ class WaveformRenderer {
 
     initCanvases() {
         if (this.overviewCanvas) {
-            this.setupCanvas(this.overviewCanvas, 120);
+            this.setupCanvas(this.overviewCanvas, 32);
             this.overviewCanvas.addEventListener("click", (e) =>
                 this.handleOverviewClick(e),
             );
         }
 
         if (this.detailedCanvas) {
-            this.setupCanvas(this.detailedCanvas, 240);
+            this.setupCanvas(this.detailedCanvas, 64);
             this.detailedCanvas.addEventListener("click", (e) =>
                 this.handleDetailedClick(e),
             );
@@ -72,24 +72,29 @@ class WaveformRenderer {
 
     setupCanvas(canvas, height) {
         const W =
-            canvas.clientWidth || canvas.parentElement?.clientWidth || 800;
+            canvas.parentElement?.clientWidth || canvas.clientWidth || 800;
         const H = height;
 
         canvas.width = W * this.DPR;
         canvas.height = H * this.DPR;
-        canvas.style.width = W + "px";
+        canvas.style.width = "100%";
         canvas.style.height = H + "px";
 
-        const ctx = canvas.getContext("2d", { 
+        const ctx = canvas.getContext("2d", {
             alpha: false,
             desynchronized: true,
-            willReadFrequently: false
+            willReadFrequently: false,
         });
         ctx.setTransform(this.DPR, 0, 0, this.DPR, 0, 0);
+
+        // Memastikan canvas di-render ulang setelah ukuran diubah
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#0b0b0b"; // Warna background default
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
     handleResize() {
-        if (this.overviewCanvas) this.setupCanvas(this.overviewCanvas, 120);
+        if (this.overviewCanvas) this.setupCanvas(this.overviewCanvas, 64);
         if (this.detailedCanvas) this.setupCanvas(this.detailedCanvas, 240);
 
         if (this.waveformData) {
@@ -114,7 +119,7 @@ class WaveformRenderer {
         const ctx = this.overviewCanvas.getContext("2d", {
             alpha: false,
             desynchronized: true,
-            willReadFrequently: false
+            willReadFrequently: false,
         });
         const W = this.overviewCanvas.width / this.DPR;
         const H = this.overviewCanvas.height / this.DPR;
@@ -154,7 +159,7 @@ class WaveformRenderer {
         const ctx = this.detailedCanvas.getContext("2d", {
             alpha: false,
             desynchronized: true,
-            willReadFrequently: false
+            willReadFrequently: false,
         });
         const W = this.detailedCanvas.width / this.DPR;
         const H = this.detailedCanvas.height / this.DPR;

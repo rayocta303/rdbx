@@ -60,12 +60,11 @@
                             </button>
                             <button class="quantize-btn" id="quantizeA" onclick="window.dualPlayer.toggleQuantize('a')" title="Quantize (Snap to Beat)">
                                 <i class="fas fa-magnet"></i>
-                                <span>Q</span>
                             </button>
                         </div>
                         </div>
                     
-                    <div class="track-info-compact" id="trackInfoA">
+                    <div class="track-info-compact flex justify-between" id="trackInfoA">
                         <div class="track-title-compact">No Track Loaded</div>
                         <div class="track-meta-compact">
                             <span class="bpm-display">--.- BPM</span>
@@ -152,13 +151,13 @@
                 
                 <!-- VU Meter A -->
                 <div class="vu-meter-wrapper">
-                    <div class="vu-meter-label">A</div>
+                    <!-- <div class="vu-meter-label">A</div> -->
                     <div class="vu-meter" id="vuMeterA"></div>
                 </div>
                 
                 <!-- VU Meter B -->
                 <div class="vu-meter-wrapper">
-                    <div class="vu-meter-label">B</div>
+                    <!-- <div class="vu-meter-label">B</div> -->
                     <div class="vu-meter" id="vuMeterB"></div>
                 </div>
                 
@@ -196,12 +195,11 @@
                             </button>
                             <button class="quantize-btn" id="quantizeB" onclick="window.dualPlayer.toggleQuantize('b')" title="Quantize (Snap to Beat)">
                                 <i class="fas fa-magnet"></i>
-                                <span>Q</span>
                             </button>
                         </div>
                         </div>
                     
-                    <div class="track-info-compact" id="trackInfoB">
+                    <div class="track-info-compact flex justify-between" id="trackInfoB">
                         <div class="track-title-compact">No Track Loaded</div>
                         <div class="track-meta-compact">
                             <span class="bpm-display">--.- BPM</span>

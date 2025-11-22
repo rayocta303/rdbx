@@ -147,7 +147,7 @@ canvas {
 }
 
 .scrollbar-thin::-webkit-scrollbar {
-    width: 8px;
+    width: 2px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-track {
@@ -165,7 +165,7 @@ canvas {
 
 /* Global Custom Scrollbar - Minimalist & Transparent */
 .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
+    width: 2px;
     height: 6px;
 }
 
@@ -192,6 +192,34 @@ canvas {
     scrollbar-color: rgba(58, 58, 58, 0.5) transparent;
 }
 
+/* Style body scrollbar */
+body::-webkit-scrollbar,
+html::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+
+body::-webkit-scrollbar-track,
+html::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+body::-webkit-scrollbar-thumb,
+html::-webkit-scrollbar-thumb {
+    background: rgba(58, 58, 58, 0.3);
+    border-radius: 2px;
+}
+
+body::-webkit-scrollbar-thumb:hover,
+html::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 212, 255, 0.4);
+}
+
+body,
+html {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(58, 58, 58, 0.3) transparent;
+}
 .deck-title {
     color: #00d4ff;
     text-shadow: none;
@@ -469,7 +497,7 @@ canvas {
 .waveform-container-player {
     position: relative;
     background: #0b0b0b;
-    height: 120px;
+    height: 64px;
     overflow: hidden;
     cursor: grab;
 
@@ -496,24 +524,23 @@ canvas {
     left: 50%;
     width: 2px;
     background: #00ff00;
-    box-shadow: 0 0 10px rgba(0, 255, 0, 0.8);
     z-index: 10;
     pointer-events: none;
 }
 
 .playhead-time {
     position: absolute;
-    top: 4px;
-    left: 6px;
+    top: 0px;
+    left: 2px;
     background: rgba(0, 0, 0, 0.85);
     color: #00ff00;
     font-family: 'Courier New', monospace;
     font-weight: 700;
     font-size: 0.75rem;
     padding: 4px 8px;
-    border-radius: 4px;
-    border: 1px solid #00ff00;
-    box-shadow: 0 0 8px rgba(0, 255, 0, 0.6);
+    /* border-radius: 4px; */
+    /* border: 1px solid #00ff00; */
+    /* box-shadow: 0 0 8px rgba(0, 255, 0, 0.6); */
     white-space: nowrap;
 }
 
@@ -908,7 +935,7 @@ canvas {
 }
 
 .waveform-beatmatch-section {
-    margin-top: 20px;
+    margin-top: 0.5rem;
     background: #0d0d0d;
 }
 
@@ -1093,7 +1120,7 @@ canvas {
     background: linear-gradient(to bottom, #1a1a1a, #0d0d0d);
     border: 1px solid #2a2a2a;
     /* border-radius: 12px; */
-    min-height: 280px;
+    min-height: 180px;
 }
 
 .volume-fader-control {
@@ -1105,13 +1132,13 @@ canvas {
 }
 
 .volume-value-vertical {
-    font-size: 13px;
+    font-size: 8px;
     font-weight: bold;
     color: #fff;
     font-family: 'Courier New', monospace;
-    padding: 4px 8px;
+    padding: 2px 8px;
     background: #0d0d0d;
-    border-radius: 4px;
+    /* border-radius: 4px; */
     border: 1px solid #333;
     min-width: 50px;
     text-align: center;
@@ -1121,7 +1148,7 @@ canvas {
     -webkit-appearance: slider-vertical;
     writing-mode: bt-lr;
     width: 10px;
-    height: 200px;
+    height: 120px;
     background: linear-gradient(to top, #333 0%, #00d4ff 100%);
     border-radius: 5px;
     outline: none;
@@ -1172,7 +1199,7 @@ canvas {
     background: linear-gradient(to bottom, #1a1a1a, #0d0d0d);
     border: 2px solid #2a2a2a;
     /* border-radius: 12px; */
-    min-height: 280px;
+    /* min-height: 280px; */
 }
 
 .vu-meter-label {
@@ -1189,7 +1216,7 @@ canvas {
 
 .vu-meter {
     position: relative;
-    width: 24px;
+    width: 6px;
     height: 200px;
     background: #1a1a1a;
     border-radius: 4px;

@@ -188,7 +188,7 @@
                         <span>WAVEFORM OVERVIEW</span>
                     </h3>
                     <div class="waveform-container">
-                        <canvas id="waveformOverview" class="cursor-pointer"></canvas>
+                        <canvas id="waveformOverview" class="cursor-pointer w-full"></canvas>
                     </div>
                 </div>
 
@@ -198,7 +198,7 @@
                         <span>WAVEFORM DETAILED</span>
                     </h3>
                     <div class="waveform-container">
-                        <canvas id="waveformDetailed" class="cursor-pointer"></canvas>
+                        <canvas id="waveformDetailed" class="cursor-pointer w-full"></canvas>
                     </div>
                 </div>
 
