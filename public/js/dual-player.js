@@ -1017,13 +1017,14 @@ class DualPlayer {
         const pitchMultiplier = 1 + deck.pitchValue / 100;
         const viewEnd = viewStart + viewDuration;
 
-        // Smooth beatgrid config (matching Waveform.html)
+        // Beatgrid config (matching Waveform.html)
+        const DENSITY = 0.4;        // Mengontrol jumlah gelombang
+        const HEIGHT_RATIO = 0.48;  // Mengontrol tinggi gelombang
         const CONE_CURVE = 2.8;
         const CONE_BOOST = 1.15;
-        const DECAY = 1.5;
+        const DECAY = 4.5;          // Sama dengan Waveform.html
         const FLAT_ZONE = 0;
         const TRANSIENT_ZONE = 0.0;
-        const SUB_DIVISIONS = 4; // 1 beat = 4 gelombang
 
         // Amplitude envelope function
         function getAmplitude(progress) {
@@ -1058,21 +1059,24 @@ class DualPlayer {
                 if (beatTime >= viewStart && beatTime < viewEnd) {
                     const effectiveBPM = deck.track.bpm * pitchMultiplier;
                     const beatInterval = 60 / effectiveBPM;
-                    const subInterval = beatInterval / SUB_DIVISIONS;
+                    
+                    // Calculate subdivisions based on DENSITY (sama seperti Waveform.html)
+                    const pointsPerBeat = Math.round(90 * DENSITY);
 
-                    // Draw sub-divisions (4 gelombang per beat)
-                    for (let i = 0; i < SUB_DIVISIONS; i++) {
-                        const subTime = beatTime + i * subInterval;
+                    // Draw sub-divisions
+                    for (let i = 0; i < pointsPerBeat; i++) {
+                        const subTime = beatTime + (i / pointsPerBeat) * beatInterval;
 
                         if (subTime >= viewStart && subTime < viewEnd) {
-                            const relativePosition =
-                                (subTime - viewStart) / viewDuration;
-                            const x =
-                                Math.floor(relativePosition * width) + 0.5;
+                            const relativePosition = (subTime - viewStart) / viewDuration;
+                            const x = Math.floor(relativePosition * width) + 0.5;
 
                             // Calculate progress within beat (0 to 1)
-                            const progress = i / SUB_DIVISIONS;
+                            const progress = i / pointsPerBeat;
                             const amplitude = getAmplitude(progress);
+
+                            // Scale amplitude by HEIGHT_RATIO
+                            const scaledHeight = height * HEIGHT_RATIO;
 
                             // Different styling for bar vs beat
                             if (beat.beat === 1 && i === 0) {
@@ -1087,9 +1091,12 @@ class DualPlayer {
                                 ctx.lineWidth = 1;
                             }
 
+                            const lineHeight = amplitude * scaledHeight;
+                            const centerY = height / 2;
+
                             ctx.beginPath();
-                            ctx.moveTo(x, 0);
-                            ctx.lineTo(x, height);
+                            ctx.moveTo(x, centerY - lineHeight);
+                            ctx.lineTo(x, centerY + lineHeight);
                             ctx.stroke();
                         }
                     }
@@ -1101,10 +1108,11 @@ class DualPlayer {
             // Fallback: Use simple BPM calculation when no beat grid data available
             const effectiveBPM = deck.track.bpm * pitchMultiplier;
             const beatInterval = 60 / effectiveBPM;
-            const subInterval = beatInterval / SUB_DIVISIONS;
 
-            const firstBeat =
-                Math.ceil(viewStart / beatInterval) * beatInterval;
+            const firstBeat = Math.ceil(viewStart / beatInterval) * beatInterval;
+
+            // Calculate subdivisions based on DENSITY
+            const pointsPerBeat = Math.round(90 * DENSITY);
 
             ctx.save();
 
@@ -1115,18 +1123,20 @@ class DualPlayer {
             ) {
                 const beatNumber = Math.round(beatTime / beatInterval) % 4;
 
-                // Draw sub-divisions (4 gelombang per beat)
-                for (let i = 0; i < SUB_DIVISIONS; i++) {
-                    const subTime = beatTime + i * subInterval;
+                // Draw sub-divisions
+                for (let i = 0; i < pointsPerBeat; i++) {
+                    const subTime = beatTime + (i / pointsPerBeat) * beatInterval;
 
                     if (subTime >= viewStart && subTime < viewEnd) {
-                        const relativePosition =
-                            (subTime - viewStart) / viewDuration;
+                        const relativePosition = (subTime - viewStart) / viewDuration;
                         const x = Math.floor(relativePosition * width) + 0.5;
 
                         // Calculate progress within beat (0 to 1)
-                        const progress = i / SUB_DIVISIONS;
+                        const progress = i / pointsPerBeat;
                         const amplitude = getAmplitude(progress);
+
+                        // Scale amplitude by HEIGHT_RATIO
+                        const scaledHeight = height * HEIGHT_RATIO;
 
                         // Different styling for bar vs beat
                         if (beatNumber === 0 && i === 0) {
@@ -1141,9 +1151,12 @@ class DualPlayer {
                             ctx.lineWidth = 1;
                         }
 
+                        const lineHeight = amplitude * scaledHeight;
+                        const centerY = height / 2;
+
                         ctx.beginPath();
-                        ctx.moveTo(x, 0);
-                        ctx.lineTo(x, height);
+                        ctx.moveTo(x, centerY - lineHeight);
+                        ctx.lineTo(x, centerY + lineHeight);
                         ctx.stroke();
                     }
                 }

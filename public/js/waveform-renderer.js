@@ -26,7 +26,7 @@ class WaveformRenderer {
 
         this.DPR = window.devicePixelRatio || 1;
 
-        // Konfigurasi waveform yang dapat disesuaikan
+        // Konfigurasi waveform yang dapat disesuaikan (sama dengan Waveform.html)
         this.config = {
             // Waveform rendering
             HEIGHT_RATIO: 0.48,
@@ -36,9 +36,9 @@ class WaveformRenderer {
             SCALE_CORE: 0.3,
             CORE_BOOST: 1.7,
 
-            // Beat-related (jika diperlukan untuk fitur masa depan)
-            DENSITY: 0.4,
-            DECAY: 4.5,
+            // Beat grid rendering (matching Waveform.html)
+            DENSITY: 0.4,        // Mengontrol jumlah gelombang per beat
+            DECAY: 4.5,          // Decay rate untuk envelope
             NOISE: 0,
             FLAT_ZONE: 0,
             TRANSIENT_ZONE: 0.0,
