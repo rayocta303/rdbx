@@ -171,53 +171,47 @@ class PlaylistParser {
     }
 
     private function parsePlaylistRow($pageData, $offset, $entriesTable) {
-        if ($offset + 60 > strlen($pageData)) {
+        if ($offset + 24 > strlen($pageData)) {
             return null;
         }
 
+        // Parse according to Kaitai Struct playlist_tree_row definition
+        // Offset 0x00: parent_id (u4)
+        // Offset 0x04: unknown (u4) 
+        // Offset 0x08: sort_order (u4)
+        // Offset 0x0C: id (u4)
+        // Offset 0x10: raw_is_folder (u4)
+        // Offset 0x14: name (device_sql_string)
+        
         $fixedData = unpack(
             'Vparent_id/' .
-            'Vu1/' .
-            'Vu2/' .
-            'Vplaylist_id',
-            substr($pageData, $offset, 16)
+            'Vunknown/' .
+            'Vsort_order/' .
+            'Vid/' .
+            'Vraw_is_folder',
+            substr($pageData, $offset, 20)
         );
 
-        $playlistId = $fixedData['playlist_id'] ?? 0;
+        $playlistId = $fixedData['id'] ?? 0;
         $parentId = $fixedData['parent_id'] ?? 0;
-        
-        $isFolder = false;
-        if ($offset + 16 < strlen($pageData)) {
-            $flagByte = ord($pageData[$offset + 16]);
-            $isFolder = ($flagByte & 0x01) != 0;
-        }
+        $sortOrder = $fixedData['sort_order'] ?? 0;
+        $isFolder = ($fixedData['raw_is_folder'] ?? 0) != 0;
 
-        $name = '';
+        // Extract name using device_sql_string at offset 0x14 (20 bytes from start)
+        $nameOffset = $offset + 20;
+        list($name, $newOffset) = $this->pdbParser->extractString($pageData, $nameOffset);
         
-        for ($scanOffset = $offset + 17; $scanOffset < $offset + 150; $scanOffset++) {
-            if ($scanOffset >= strlen($pageData)) break;
-            
-            $flags = ord($pageData[$scanOffset]);
-            
-            if (($flags & 0x40) == 0) {
-                $len = $flags & 0x7F;
-                if ($len >= 2 && $len < 50 && ($scanOffset + $len + 1) <= strlen($pageData)) {
-                    $str = substr($pageData, $scanOffset + 1, $len);
-                    
-                    $nullPos = strpos($str, "\x00");
-                    if ($nullPos !== false) {
-                        $str = substr($str, 0, $nullPos);
-                    }
-                    
-                    $str = trim($str);
-                    
-                    if (strlen($str) >= 2 && preg_match('/[A-Za-z0-9]/', $str) && !ctype_digit($str)) {
-                        $name = $str;
-                        break;
-                    }
-                }
-            }
+        // Clean the extracted name
+        $name = trim($name);
+        
+        // Remove any null bytes
+        $nullPos = strpos($name, "\x00");
+        if ($nullPos !== false) {
+            $name = substr($name, 0, $nullPos);
         }
+        
+        // Final cleanup
+        $name = trim($name);
 
         $entries = [];
         if ($entriesTable && $playlistId > 0) {
@@ -226,8 +220,9 @@ class PlaylistParser {
 
         return [
             'id' => $playlistId,
-            'name' => $name ?: 'Unnamed Playlist',
+            'name' => !empty($name) ? $name : 'Unnamed Playlist',
             'parent_id' => $parentId,
+            'sort_order' => $sortOrder,
             'is_folder' => $isFolder,
             'entries' => $entries,
             'track_count' => count($entries)

@@ -148,51 +148,74 @@ class PdbParser {
             return ['', $offset];
         }
 
-        $flags = ord($data[$offset]);
+        // Read length_and_kind flag byte
+        $lengthAndKind = ord($data[$offset]);
         $offset += 1;
 
-        if (($flags & 0x01) == 1) {
-            $totalLength = $flags >> 1;
-            $dataLength = $totalLength - 1;
+        // device_sql_short_ascii: length_and_kind is odd (bit 0 is set)
+        if (($lengthAndKind & 0x01) == 1) {
+            // Length is (length_and_kind >> 1), text is (length - 1) bytes
+            $totalLength = $lengthAndKind >> 1;
+            $textLength = $totalLength - 1;
             
-            if ($dataLength <= 0 || $offset + $dataLength > strlen($data)) {
+            if ($textLength <= 0 || $offset + $textLength > strlen($data)) {
                 return ['', $offset];
             }
             
-            $text = substr($data, $offset, $dataLength);
-            return [$text, $offset + $dataLength];
+            $text = substr($data, $offset, $textLength);
+            return [$text, $offset + $textLength];
         }
-
-        elseif ($flags == 0x40) {
-            if ($offset + 1 >= strlen($data)) {
+        
+        // device_sql_long_ascii: flag is 0x40
+        elseif ($lengthAndKind == 0x40) {
+            if ($offset + 3 > strlen($data)) {
                 return ['', $offset];
             }
+            
+            // Read u2 length
             $lengthData = unpack('v', substr($data, $offset, 2));
             $length = $lengthData[1];
             $offset += 2;
-            if ($offset + $length > strlen($data)) {
+            
+            // Skip u1 padding byte
+            $offset += 1;
+            
+            // Text is (length - 4) bytes
+            $textLength = $length - 4;
+            if ($textLength <= 0 || $offset + $textLength > strlen($data)) {
                 return ['', $offset];
             }
-            $text = substr($data, $offset, $length);
-            return [$text, $offset + $length];
+            
+            $text = substr($data, $offset, $textLength);
+            return [$text, $offset + $textLength];
         }
-
-        elseif ($flags == 0x90) {
-            if ($offset + 1 >= strlen($data)) {
+        
+        // device_sql_long_utf16le: flag is 0x90
+        elseif ($lengthAndKind == 0x90) {
+            if ($offset + 3 > strlen($data)) {
                 return ['', $offset];
             }
+            
+            // Read u2 length
             $lengthData = unpack('v', substr($data, $offset, 2));
             $length = $lengthData[1];
             $offset += 2;
-            $byteLength = $length * 2;
-            if ($offset + $byteLength > strlen($data)) {
+            
+            // Skip u1 padding byte
+            $offset += 1;
+            
+            // Text is (length - 4) bytes, UTF-16LE encoded
+            $textLength = $length - 4;
+            if ($textLength <= 0 || $offset + $textLength > strlen($data)) {
                 return ['', $offset];
             }
-            $rawText = substr($data, $offset, $byteLength);
+            
+            $rawText = substr($data, $offset, $textLength);
             $text = mb_convert_encoding($rawText, 'UTF-8', 'UTF-16LE');
-            return [$text, $offset + $byteLength];
+            return [$text, $offset + $textLength];
         }
 
+        // Unknown format, return empty string
         return ['', $offset];
     }
 
