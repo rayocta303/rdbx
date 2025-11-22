@@ -34,6 +34,8 @@ class DualPlayer {
             audio: audio,
             source: null,
             gainNode: null,
+            analyserNode: null,
+            audioDataArray: null,
             isPlaying: false,
             currentTime: 0,
             duration: 0,
@@ -82,9 +84,21 @@ class DualPlayer {
                             this.audioContext.createMediaElementSource(
                                 deck.audio,
                             );
-                        deck.source.connect(deck.gainNode);
+                        
+                        // Create analyser node for VU meter
+                        deck.analyserNode = this.audioContext.createAnalyser();
+                        deck.analyserNode.fftSize = 256;
+                        deck.analyserNode.smoothingTimeConstant = 0.8;
+                        
+                        const bufferLength = deck.analyserNode.frequencyBinCount;
+                        deck.audioDataArray = new Uint8Array(bufferLength);
+                        
+                        // Connect: source -> analyser -> gain -> destination
+                        deck.source.connect(deck.analyserNode);
+                        deck.analyserNode.connect(deck.gainNode);
+                        
                         console.log(
-                            `[Deck ${deckId.toUpperCase()}] Audio source connected to gain node`,
+                            `[Deck ${deckId.toUpperCase()}] Audio source connected with analyser node`,
                         );
                     } catch (e) {
                         console.warn(
@@ -1921,7 +1935,27 @@ class DualPlayer {
         if (!vuMeter) return;
         
         const bars = vuMeter.querySelectorAll('.vu-meter-bar');
-        const level = deck.isPlaying ? deck.volume : 0;
+        let level = 0;
+        
+        if (deck.isPlaying && deck.analyserNode && deck.audioDataArray) {
+            // Get real-time audio level from analyser
+            deck.analyserNode.getByteFrequencyData(deck.audioDataArray);
+            
+            // Calculate RMS (Root Mean Square) for accurate level
+            let sum = 0;
+            for (let i = 0; i < deck.audioDataArray.length; i++) {
+                const normalized = deck.audioDataArray[i] / 255;
+                sum += normalized * normalized;
+            }
+            const rms = Math.sqrt(sum / deck.audioDataArray.length);
+            
+            // Apply volume scaling and convert to percentage (0-100)
+            level = rms * (deck.volume / 100) * 100;
+            
+            // Apply gain curve for better visual response
+            level = Math.pow(level / 100, 0.6) * 100;
+        }
+        
         const activeBars = Math.floor((level / 100) * bars.length);
         
         bars.forEach((bar, index) => {
