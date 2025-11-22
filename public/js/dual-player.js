@@ -1457,59 +1457,57 @@ class DualPlayer {
 
         const sourceBPM =
             sourceDeck.originalBPM * (1 + sourceDeck.pitchValue / 100);
-        const sourceCurrentTime = sourceDeck.audio.currentTime;
-        const targetCurrentTime = targetDeck.audio.currentTime;
-
-        const sourceBeatLength = 60 / sourceBPM;
         const targetBeatLength = 60 / targetBPM;
+        const sourceBeatLength = 60 / sourceBPM;
 
-        let sourceFirstBeatOffset = 0;
-        let targetFirstBeatOffset = 0;
+        const sourceFirstBeatOffset = sourceDeck.beatgridData[0].time || 0;
+        const targetFirstBeatOffset = targetDeck.beatgridData[0].time || 0;
 
-        const firstBeat = sourceDeck.beatgridData[0];
-        sourceFirstBeatOffset = firstBeat.time || 0;
+        const sourceCenterPoint = sourceDeck.audio.currentTime;
+        const targetCenterPoint = targetDeck.audio.currentTime;
 
-        const targetFirstBeat = targetDeck.beatgridData[0];
-        targetFirstBeatOffset = targetFirstBeat.time || 0;
+        const sourceTimeFromFirstBeat = sourceCenterPoint - sourceFirstBeatOffset;
+        const targetTimeFromFirstBeat = targetCenterPoint - targetFirstBeatOffset;
 
-        const sourceTimeFromFirstBeat =
-            sourceCurrentTime - sourceFirstBeatOffset;
-        const targetTimeFromFirstBeat =
-            targetCurrentTime - targetFirstBeatOffset;
+        const sourceNearestBeatNumber = Math.round(sourceTimeFromFirstBeat / sourceBeatLength);
+        const targetNearestBeatNumber = Math.round(targetTimeFromFirstBeat / targetBeatLength);
 
-        const sourceBeatPhase =
-            (sourceTimeFromFirstBeat / sourceBeatLength) % 1;
-        const targetBeatPhase =
-            (targetTimeFromFirstBeat / targetBeatLength) % 1;
+        const sourceNearestBeatTime = sourceFirstBeatOffset + (sourceNearestBeatNumber * sourceBeatLength);
+        const targetNearestBeatTime = targetFirstBeatOffset + (targetNearestBeatNumber * targetBeatLength);
 
-        let phaseDifference = sourceBeatPhase - targetBeatPhase;
+        const sourceBeatOffsetFromCenter = sourceNearestBeatTime - sourceCenterPoint;
+        const targetBeatOffsetFromCenter = targetNearestBeatTime - targetCenterPoint;
 
-        if (phaseDifference > 0.5) {
-            phaseDifference -= 1;
-        } else if (phaseDifference < -0.5) {
-            phaseDifference += 1;
-        }
+        const offsetDifference = sourceBeatOffsetFromCenter - targetBeatOffsetFromCenter;
 
-        const timeAdjustment = phaseDifference * targetBeatLength;
-
-        let newTargetTime = targetCurrentTime + timeAdjustment;
+        let newTargetTime = targetCenterPoint + offsetDifference;
 
         newTargetTime = Math.max(
             0,
             Math.min(newTargetTime, targetDeck.duration - 0.1),
         );
 
-        if (Math.abs(timeAdjustment) > 0.001) {
+        if (Math.abs(offsetDifference) > 0.001) {
             targetDeck.audio.currentTime = newTargetTime;
             this.updatePlayhead(targetDeckId);
         }
 
-        const adjustmentMs = Math.round(timeAdjustment * 1000);
-        const sourcePhasePercent = Math.round(sourceBeatPhase * 100);
-        const targetPhasePercent = Math.round(targetBeatPhase * 100);
+        const adjustmentMs = Math.round(offsetDifference * 1000);
+        const sourceBeatOffsetMs = Math.round(sourceBeatOffsetFromCenter * 1000);
+        const targetBeatOffsetMs = Math.round(targetBeatOffsetFromCenter * 1000);
 
         console.log(
-            `[Beat Sync] Master: ${sourceDeckId.toUpperCase()} (phase: ${sourcePhasePercent}%) → Target: ${targetDeckId.toUpperCase()} (phase: ${targetPhasePercent}%) | Adjustment: ${adjustmentMs}ms | First beats: Source=${sourceFirstBeatOffset.toFixed(3)}s, Target=${targetFirstBeatOffset.toFixed(3)}s`,
+            `[Beat Sync - Grid Center Alignment]\n` +
+            `  Master ${sourceDeckId.toUpperCase()}: Center=${sourceCenterPoint.toFixed(3)}s | Nearest Beat=${sourceNearestBeatTime.toFixed(3)}s | Offset=${sourceBeatOffsetMs}ms\n` +
+            `  Target ${targetDeckId.toUpperCase()}: Center=${targetCenterPoint.toFixed(3)}s | Nearest Beat=${targetNearestBeatTime.toFixed(3)}s (before) | Offset=${targetBeatOffsetMs}ms\n` +
+            `  → Adjustment: ${adjustmentMs}ms | New Target Time: ${newTargetTime.toFixed(3)}s\n` +
+            `  ✓ Beats aligned at center point | Phase locked`
+        );
+
+        this.showNotification(
+            `Beat Sync: ${Math.abs(adjustmentMs)}ms adjustment | Beats aligned to center`,
+            "success",
+            2000,
         );
     }
 

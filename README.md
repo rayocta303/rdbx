@@ -15,10 +15,16 @@ Professional DJ Library Manager dengan Dual Deck Player untuk membaca dan memain
   - Saat aktif, pitch slider master deck otomatis sync ke slave deck
   - Auto-enable master deck jika belum di-set (saat kedua deck memiliki track)
   - Active state indication dengan highlight button
-- **Beat Sync**: Sync tempo + snap beat grid phase untuk perfect alignment
+- **Beat Sync (Grid Center Alignment)**: Sync tempo + snap beat grid phase untuk perfect alignment
+  - **Center Point Alignment**: Beats dari kedua track disinkronkan ke center point (playhead)
+  - **5-Step Logic**:
+    1. Tentukan Center Point - Posisi playback saat ini (center pointer)
+    2. Deteksi Beat Grid Aktif - Cari beat terdekat ke center point pada kedua track
+    3. Hitung Offset Beat - `offset = posisi_beat_target - posisi_center`
+    4. Geser Track yang di-Sync - Align beats ke center point
+    5. Lock Phase - BPM disamakan, phase beat dipertahankan sejajar
   - Uses actual Rekordbox beat grid offsets (PQTZ section dari ANLZ files)
-  - Calculates phase difference dan adjust playback position
-  - Momentary button untuk one-time sync
+  - Momentary button untuk one-time sync dengan visual feedback
 - **Quantize**: Snap to nearest beat functionality
   - Toggle per deck
   - Applies to hot cue triggers
@@ -363,7 +369,7 @@ Special thanks kepada seluruh komunitas yang berkontribusi dalam reverse-enginee
 | **Tempo Nudge** | Temporary ±4% speed adjustment |
 | **Volume** | Independent 0-100% control per deck |
 | **BPM Sync** | Latching toggle - auto-sync pitch slider saat ON |
-| **Beat Sync** | Momentary - tempo + beat grid phase alignment |
+| **Beat Sync** | Momentary - center-point aligned beat grid sync |
 | **Quantize** | Snap to beat untuk hot cues |
 | **Hot Cues** | 8 pads per deck dengan instant jump |
 | **Waveform** | Color RGB dengan beatgrid overlay |
