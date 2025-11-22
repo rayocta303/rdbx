@@ -191,46 +191,70 @@ require_once __DIR__ . '/../partials/head.php';
         
         <div class="border-b-2 border-cyan-600">
             <nav class="flex -mb-px overflow-x-auto">
-                <button onclick="showTab('overview')" id="overviewTab" class="tab-button px-4 py-3 text-xs font-medium border-b-2 border-cyan-500 text-cyan-400 bg-gray-800 whitespace-nowrap">
+                <button onclick="showParentTab('overview')" id="overviewParentTab" class="parent-tab-button px-5 py-3 text-sm font-medium border-b-2 border-cyan-500 text-cyan-400 bg-gray-800 whitespace-nowrap">
                     <i class="fas fa-info"></i> Overview
                 </button>
-                <button onclick="showTab('tracks')" id="tracksTab" class="tab-button px-4 py-3 text-xs font-medium border-b-2 border-transparent text-gray-500 hover:text-cyan-400 whitespace-nowrap">
-                    <i class="fas fa-music"></i> Tracks (<?= count($tracks) ?>)
+                <button onclick="showParentTab('library')" id="libraryParentTab" class="parent-tab-button px-5 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-cyan-400 whitespace-nowrap">
+                    <i class="fas fa-database"></i> Library
                 </button>
-                <button onclick="showTab('playlists')" id="playlistsTab" class="tab-button px-4 py-3 text-xs font-medium border-b-2 border-transparent text-gray-500 hover:text-cyan-400 whitespace-nowrap">
-                    <i class="fas fa-list"></i> Playlists (<?= count($playlists) ?>)
+                <button onclick="showParentTab('playlists')" id="playlistsParentTab" class="parent-tab-button px-5 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-cyan-400 whitespace-nowrap">
+                    <i class="fas fa-list"></i> Playlists
                 </button>
-                <button onclick="showTab('entries')" id="entriesTab" class="tab-button px-4 py-3 text-xs font-medium border-b-2 border-transparent text-gray-500 hover:text-cyan-400 whitespace-nowrap">
-                    <i class="fas fa-list-ol"></i> Playlist Entries (<?= count($playlistEntries) ?>)
-                </button>
-                <button onclick="showTab('artists')" id="artistsTab" class="tab-button px-4 py-3 text-xs font-medium border-b-2 border-transparent text-gray-500 hover:text-cyan-400 whitespace-nowrap">
-                    <i class="fas fa-user"></i> Artists (<?= count($artistsData) ?>)
-                </button>
-                <button onclick="showTab('albums')" id="albumsTab" class="tab-button px-4 py-3 text-xs font-medium border-b-2 border-transparent text-gray-500 hover:text-cyan-400 whitespace-nowrap">
-                    <i class="fas fa-compact-disc"></i> Albums (<?= count($albumsData) ?>)
-                </button>
-                <button onclick="showTab('genres')" id="genresTab" class="tab-button px-4 py-3 text-xs font-medium border-b-2 border-transparent text-gray-500 hover:text-cyan-400 whitespace-nowrap">
-                    <i class="fas fa-guitar"></i> Genres (<?= count($genresData) ?>)
-                </button>
-                <button onclick="showTab('keys')" id="keysTab" class="tab-button px-4 py-3 text-xs font-medium border-b-2 border-transparent text-gray-500 hover:text-cyan-400 whitespace-nowrap">
-                    <i class="fas fa-key"></i> Keys (<?= count($keysData) ?>)
-                </button>
-                <button onclick="showTab('colors')" id="colorsTab" class="tab-button px-4 py-3 text-xs font-medium border-b-2 border-transparent text-gray-500 hover:text-cyan-400 whitespace-nowrap">
-                    <i class="fas fa-palette"></i> Colors (<?= count($colorsData) ?>)
-                </button>
-                <button onclick="showTab('labels')" id="labelsTab" class="tab-button px-4 py-3 text-xs font-medium border-b-2 border-transparent text-gray-500 hover:text-cyan-400 whitespace-nowrap">
-                    <i class="fas fa-tag"></i> Labels (<?= count($labelsData) ?>)
-                </button>
-                <button onclick="showTab('artwork')" id="artworkTab" class="tab-button px-4 py-3 text-xs font-medium border-b-2 border-transparent text-gray-500 hover:text-cyan-400 whitespace-nowrap">
-                    <i class="fas fa-image"></i> Artwork (<?= count($artworkData) ?>)
-                </button>
-                <button onclick="showTab('history')" id="historyTab" class="tab-button px-4 py-3 text-xs font-medium border-b-2 border-transparent text-gray-500 hover:text-cyan-400 whitespace-nowrap">
-                    <i class="fas fa-clock"></i> History
-                </button>
-                <button onclick="showTab('columns')" id="columnsTab" class="tab-button px-4 py-3 text-xs font-medium border-b-2 border-transparent text-gray-500 hover:text-cyan-400 whitespace-nowrap">
-                    <i class="fas fa-columns"></i> Columns
+                <button onclick="showParentTab('assets')" id="assetsParentTab" class="parent-tab-button px-5 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-cyan-400 whitespace-nowrap">
+                    <i class="fas fa-folder"></i> Assets
                 </button>
             </nav>
+        </div>
+
+        <div id="librarySubTabs" class="bg-gray-800 border-b border-gray-700 hidden">
+            <div class="px-6 py-3 flex gap-2 flex-wrap">
+                <button onclick="showSubTab('library', 'tracks')" id="tracksSubTab" class="sub-tab-button px-4 py-2 text-xs font-medium rounded-full bg-cyan-600 text-white">
+                    <i class="fas fa-music"></i> Tracks (<?= count($tracks) ?>)
+                </button>
+                <button onclick="showSubTab('library', 'artists')" id="artistsSubTab" class="sub-tab-button px-4 py-2 text-xs font-medium rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600">
+                    <i class="fas fa-user"></i> Artists (<?= count($artistsData) ?>)
+                </button>
+                <button onclick="showSubTab('library', 'albums')" id="albumsSubTab" class="sub-tab-button px-4 py-2 text-xs font-medium rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600">
+                    <i class="fas fa-compact-disc"></i> Albums (<?= count($albumsData) ?>)
+                </button>
+                <button onclick="showSubTab('library', 'genres')" id="genresSubTab" class="sub-tab-button px-4 py-2 text-xs font-medium rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600">
+                    <i class="fas fa-guitar"></i> Genres (<?= count($genresData) ?>)
+                </button>
+                <button onclick="showSubTab('library', 'keys')" id="keysSubTab" class="sub-tab-button px-4 py-2 text-xs font-medium rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600">
+                    <i class="fas fa-key"></i> Keys (<?= count($keysData) ?>)
+                </button>
+                <button onclick="showSubTab('library', 'labels')" id="labelsSubTab" class="sub-tab-button px-4 py-2 text-xs font-medium rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600">
+                    <i class="fas fa-tag"></i> Labels (<?= count($labelsData) ?>)
+                </button>
+                <button onclick="showSubTab('library', 'colors')" id="colorsSubTab" class="sub-tab-button px-4 py-2 text-xs font-medium rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600">
+                    <i class="fas fa-palette"></i> Colors (<?= count($colorsData) ?>)
+                </button>
+            </div>
+        </div>
+
+        <div id="playlistsSubTabs" class="bg-gray-800 border-b border-gray-700 hidden">
+            <div class="px-6 py-3 flex gap-2 flex-wrap">
+                <button onclick="showSubTab('playlists', 'playlists')" id="playlistsSubTab" class="sub-tab-button px-4 py-2 text-xs font-medium rounded-full bg-cyan-600 text-white">
+                    <i class="fas fa-list"></i> Playlists (<?= count($playlists) ?>)
+                </button>
+                <button onclick="showSubTab('playlists', 'entries')" id="entriesSubTab" class="sub-tab-button px-4 py-2 text-xs font-medium rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600">
+                    <i class="fas fa-list-ol"></i> Playlist Entries (<?= count($playlistEntries) ?>)
+                </button>
+                <button onclick="showSubTab('playlists', 'history')" id="historySubTab" class="sub-tab-button px-4 py-2 text-xs font-medium rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600">
+                    <i class="fas fa-clock"></i> History
+                </button>
+            </div>
+        </div>
+
+        <div id="assetsSubTabs" class="bg-gray-800 border-b border-gray-700 hidden">
+            <div class="px-6 py-3 flex gap-2 flex-wrap">
+                <button onclick="showSubTab('assets', 'artwork')" id="artworkSubTab" class="sub-tab-button px-4 py-2 text-xs font-medium rounded-full bg-cyan-600 text-white">
+                    <i class="fas fa-image"></i> Artwork (<?= count($artworkData) ?>)
+                </button>
+                <button onclick="showSubTab('assets', 'columns')" id="columnsSubTab" class="sub-tab-button px-4 py-2 text-xs font-medium rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600">
+                    <i class="fas fa-columns"></i> Columns
+                </button>
+            </div>
         </div>
 
         <!-- Database Overview -->
@@ -679,19 +703,63 @@ require_once __DIR__ . '/../partials/head.php';
 </div>
 
 <script>
-function showTab(tabName) {
+const defaultSubTabs = {
+    'library': 'tracks',
+    'playlists': 'playlists',
+    'assets': 'artwork'
+};
+
+function showParentTab(parentName) {
+    document.querySelectorAll('.parent-tab-button').forEach(button => {
+        button.classList.remove('border-cyan-500', 'text-cyan-400', 'bg-gray-800');
+        button.classList.add('border-transparent', 'text-gray-500');
+    });
+    
+    document.getElementById(parentName + 'ParentTab').classList.remove('border-transparent', 'text-gray-500');
+    document.getElementById(parentName + 'ParentTab').classList.add('border-cyan-500', 'text-cyan-400', 'bg-gray-800');
+    
+    document.querySelectorAll('[id$="SubTabs"]').forEach(subTabsContainer => {
+        subTabsContainer.classList.add('hidden');
+    });
+    
+    if (parentName === 'overview') {
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.add('hidden');
+        });
+        document.getElementById('overviewContent').classList.remove('hidden');
+    } else {
+        const subTabsContainer = document.getElementById(parentName + 'SubTabs');
+        if (subTabsContainer) {
+            subTabsContainer.classList.remove('hidden');
+        }
+        
+        const defaultSubTab = defaultSubTabs[parentName];
+        if (defaultSubTab) {
+            showSubTab(parentName, defaultSubTab);
+        }
+    }
+}
+
+function showSubTab(parentName, subTabName) {
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.add('hidden');
     });
     
-    document.querySelectorAll('.tab-button').forEach(button => {
-        button.classList.remove('border-cyan-500', 'text-cyan-400', 'bg-gray-800');
-        button.classList.add('border-transparent', 'text-gray-500');
-    });
-
-    document.getElementById(tabName + 'Content').classList.remove('hidden');
-    document.getElementById(tabName + 'Tab').classList.remove('border-transparent', 'text-gray-500');
-    document.getElementById(tabName + 'Tab').classList.add('border-cyan-500', 'text-cyan-400', 'bg-gray-800');
+    const parentSubTabs = document.getElementById(parentName + 'SubTabs');
+    if (parentSubTabs) {
+        parentSubTabs.querySelectorAll('.sub-tab-button').forEach(button => {
+            button.classList.remove('bg-cyan-600', 'text-white');
+            button.classList.add('bg-gray-700', 'text-gray-300');
+        });
+        
+        const activeSubTab = document.getElementById(subTabName + 'SubTab');
+        if (activeSubTab) {
+            activeSubTab.classList.remove('bg-gray-700', 'text-gray-300');
+            activeSubTab.classList.add('bg-cyan-600', 'text-white');
+        }
+    }
+    
+    document.getElementById(subTabName + 'Content').classList.remove('hidden');
 }
 </script>
 </body>
