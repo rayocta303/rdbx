@@ -56,7 +56,7 @@
             document.getElementById(tabName + 'Tab').classList.add('border-cyan-500', 'text-cyan-400', 'bg-gray-800');
         }
 
-        function showAllTracks() {
+        window.showAllTracks = function() {
             currentPlaylistId = 'all';
             document.getElementById('currentPlaylistTitle').innerHTML = '<i class="fas fa-headphones"></i><span>All Tracks</span>';
             
@@ -69,7 +69,7 @@
             renderTracks(tracksData);
         }
         
-        function showPlaylist(playlistId) {
+        window.showPlaylist = function(playlistId) {
             currentPlaylistId = playlistId;
             
             const playlist = playlistsData.find(p => p.id == playlistId);
@@ -177,7 +177,7 @@
             return div.innerHTML;
         }
 
-        function filterTracks() {
+        window.filterTracks = function() {
             const searchTerm = document.getElementById('searchTracks').value.toLowerCase();
             const rows = document.querySelectorAll('.track-row');
             
@@ -191,7 +191,7 @@
             });
         }
 
-        function toggleTrackDetailPanel() {
+        window.toggleTrackDetailPanel = function() {
             const panel = document.getElementById('trackDetailPanel');
             const toggleBtn = document.getElementById('toggleDetailPanel');
             const toggleText = document.getElementById('toggleDetailPanelText');
@@ -205,7 +205,7 @@
             }
         }
 
-        function loadTrackToDeck(trackId, deckId) {
+        window.loadTrackToDeck = function(trackId, deckId) {
             const track = tracksData.find(t => t.id === trackId);
             if (track && window.dualPlayer) {
                 window.dualPlayer.loadTrack(track, deckId);

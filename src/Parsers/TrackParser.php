@@ -59,21 +59,15 @@ class TrackParser {
             return [];
         }
 
-        if ($this->logger) {
-            $this->logger->info("Parsing tracks dari database...");
-        }
 
         $this->tracks = $this->extractTrackRows($tracksTable);
 
-        if ($this->logger) {
-            $this->logger->info("Total " . count($this->tracks) . " tracks berhasil di-parse");
-        }
 
         return $this->tracks;
     }
 
     private function extractTrackRows($table) {
-        $tracks = [];
+        $allTracks = [];
         
         $firstPage = $table['first_page'];
         $lastPage = $table['last_page'];
@@ -81,6 +75,7 @@ class TrackParser {
 
         $currentPage = $firstPage;
         $visitedPages = [];
+        $pageCount = 0;
 
         while ($currentPage > 0 && $currentPage <= $lastPage) {
             if (isset($visitedPages[$currentPage])) {
@@ -91,6 +86,7 @@ class TrackParser {
             }
             
             $visitedPages[$currentPage] = true;
+            $pageCount++;
             
             $pageData = $this->pdbParser->readPage($currentPage);
             if (!$pageData) {
@@ -113,12 +109,22 @@ class TrackParser {
             }
 
             $trackRows = $this->parseTrackPage($pageData, $currentPage);
-            $tracks = array_merge($tracks, $trackRows);
+            $allTracks = array_merge($allTracks, $trackRows);
 
             $currentPage = $pageHeader['next_page'];
         }
 
-        return $tracks;
+
+        $tracksByIdMap = [];
+        foreach ($allTracks as $track) {
+            $trackId = $track['id'];
+            $tracksByIdMap[$trackId] = $track;
+        }
+
+        $uniqueTracks = array_values($tracksByIdMap);
+        
+
+        return $uniqueTracks;
     }
 
     private function parseTrackPage($pageData, $pageIdx) {
@@ -169,8 +175,6 @@ class TrackParser {
             $pageSize = strlen($pageData);
             $numGroups = intval(($numRows - 1) / 16) + 1;
             
-            $seenTrackIds = [];
-            
             for ($groupIdx = 0; $groupIdx < $numGroups; $groupIdx++) {
                 $base = $pageSize - ($groupIdx * 0x24);
                 $flagsOffset = $base - 4;
@@ -180,9 +184,8 @@ class TrackParser {
                 }
                 
                 $presenceFlags = unpack('v', substr($pageData, $flagsOffset, 2))[1];
-                $rowsInGroup = min(16, $numRows - ($groupIdx * 16));
                 
-                for ($rowIdx = 0; $rowIdx < $rowsInGroup; $rowIdx++) {
+                for ($rowIdx = 0; $rowIdx < 16; $rowIdx++) {
                     $isPresent = ($presenceFlags >> $rowIdx) & 1;
                     if (!$isPresent) {
                         continue;
@@ -204,12 +207,12 @@ class TrackParser {
                     }
 
                     $track = $this->parseTrackRow($pageData, $actualRowOffset);
-                    if ($track && !in_array($track['id'], $seenTrackIds)) {
+                    if ($track) {
                         $tracks[] = $track;
-                        $seenTrackIds[] = $track['id'];
                     }
                 }
             }
+
 
         } catch (\Exception $e) {
             if ($this->logger) {
