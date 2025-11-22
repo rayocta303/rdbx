@@ -75,4 +75,21 @@ require_once __DIR__ . '/../partials/head.php';
     </div>
 </div>
 
-<?php require_once __DIR__ . '/../partials/footer.php'; ?>
+<script>
+function showTab(tabName) {
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+    
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.classList.remove('border-cyan-500', 'text-cyan-400', 'bg-gray-800');
+        button.classList.add('border-transparent', 'text-gray-500', 'bg-transparent');
+    });
+
+    document.getElementById(tabName + 'Content').classList.remove('hidden');
+    document.getElementById(tabName + 'Tab').classList.remove('border-transparent', 'text-gray-500', 'bg-transparent');
+    document.getElementById(tabName + 'Tab').classList.add('border-cyan-500', 'text-cyan-400', 'bg-gray-800');
+}
+</script>
+</body>
+</html>
