@@ -126,44 +126,44 @@
                     </div>
                 </div>
             </div>
-            <div class="flex items-end justify-center col-span-2">   
+            <div class="flex items-center justify-center gap-6 col-span-2">   
                 <!-- Volume Fader A -->
                 <div class="volume-fader-wrapper">
-                    <!-- <div class="volume-fader-label">VOL A</div> -->
+                    <div class="volume-fader-icon">
+                        <i class="fas fa-volume-up"></i>
+                    </div>
                     <div class="volume-fader-control">
                         <span class="volume-value-vertical" id="volumeValueA">100%</span>
                         <input type="range" class="volume-slider-vertical" id="volumeSliderA" 
                                min="0" max="100" step="1" value="100"
                                orient="vertical"
                                oninput="window.dualPlayer.setVolume('a', this.value)">
-                        <!-- <div class="volume-fader-markers">
+                        <div class="volume-fader-markers">
                             <span>100</span>
                             <span>50</span>
                             <span>0</span>
-                        </div> -->
+                        </div>
                     </div>
-                    <!-- <div class="volume-fader-icon">
-                        <i class="fas fa-volume-up"></i>
-                    </div> -->
+                    <div class="volume-fader-label">A</div>
                 </div>
                 <!-- Volume Fader B -->
                 <div class="volume-fader-wrapper">
-                    <!-- <div class="volume-fader-label volume-fader-label-b">VOL B</div> -->
+                    <div class="volume-fader-icon">
+                        <i class="fas fa-volume-up"></i>
+                    </div>
                     <div class="volume-fader-control">
                         <span class="volume-value-vertical" id="volumeValueB">100%</span>
                         <input type="range" class="volume-slider-vertical" id="volumeSliderB" 
                                min="0" max="100" step="1" value="100"
                                orient="vertical"
                                oninput="window.dualPlayer.setVolume('b', this.value)">
-                        <!-- <div class="volume-fader-markers">
+                        <div class="volume-fader-markers">
                             <span>100</span>
                             <span>50</span>
                             <span>0</span>
-                        </div> -->
+                        </div>
                     </div>
-                    <!-- <div class="volume-fader-icon">
-                        <i class="fas fa-volume-up"></i>
-                    </div> -->
+                    <div class="volume-fader-label volume-fader-label-b">B</div>
                 </div>
             </div>
             <!-- Deck B -->
