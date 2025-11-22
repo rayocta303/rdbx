@@ -404,7 +404,7 @@ class DualPlayer {
         reverseLoop();
     }
 
-    loadTrack(track, deckId) {
+    async loadTrack(track, deckId) {
         const deck = this.decks[deckId];
 
         console.log(`[Deck ${deckId.toUpperCase()}] Loading track:`, {
@@ -434,6 +434,23 @@ class DualPlayer {
 
         deck.audio.src = audioSrc;
         deck.audio.load();
+
+        // Lazy-load analysis data (waveform, beat_grid, cue_points)
+        console.log(`[Deck ${deckId.toUpperCase()}] Fetching analysis data...`);
+        try {
+            const response = await fetch(`/api/track-analysis.php?id=${track.id}`);
+            if (response.ok) {
+                const analysisData = await response.json();
+                track.waveform = analysisData.waveform;
+                track.beat_grid = analysisData.beat_grid;
+                track.cue_points = analysisData.cue_points;
+                console.log(`[Deck ${deckId.toUpperCase()}] Analysis data loaded successfully`);
+            } else {
+                console.warn(`[Deck ${deckId.toUpperCase()}] Failed to load analysis data:`, response.status);
+            }
+        } catch (error) {
+            console.error(`[Deck ${deckId.toUpperCase()}] Error loading analysis data:`, error);
+        }
 
         if (track.waveform) {
             deck.waveformData = track.waveform;

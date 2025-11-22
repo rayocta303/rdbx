@@ -1,7 +1,4 @@
 <?php
-error_reporting(0);
-ini_set('display_errors', 0);
-
 require_once __DIR__ . '/../src/RekordboxReader.php';
 
 use RekordboxReader\RekordboxReader;
@@ -16,13 +13,42 @@ try {
     
     if (is_dir($exportPath)) {
         $reader = new RekordboxReader($exportPath, __DIR__ . '/../output', false);
-        $data = $reader->run();
+        $fullData = $reader->run();
         $stats = $reader->getStats();
+        
+        // Filter tracks to lightweight metadata only (no waveform/beat_grid)
+        $lightTracks = [];
+        foreach ($fullData['tracks'] as $track) {
+            $lightTracks[] = [
+                'id' => $track['id'],
+                'title' => $track['title'],
+                'artist' => $track['artist'],
+                'album' => $track['album'],
+                'label' => $track['label'] ?? '',
+                'key' => $track['key'],
+                'genre' => $track['genre'],
+                'bpm' => $track['bpm'],
+                'duration' => $track['duration'],
+                'year' => $track['year'] ?? 0,
+                'rating' => $track['rating'] ?? 0,
+                'file_path' => $track['file_path'],
+                'analyze_path' => $track['analyze_path'] ?? '',
+                'play_count' => $track['play_count'] ?? 0,
+                'comment' => $track['comment'] ?? ''
+            ];
+        }
+        
+        $data = [
+            'tracks' => $lightTracks,
+            'playlists' => $fullData['playlists']
+        ];
     } else {
         $error = "Rekordbox-USB directory not found!";
+        $data = ['tracks' => [], 'playlists' => []];
     }
 } catch (Exception $e) {
     $error = $e->getMessage();
+    $data = ['tracks' => [], 'playlists' => []];
 }
 
 require_once 'partials/head.php';
