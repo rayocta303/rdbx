@@ -80,7 +80,7 @@
             
             tracks.forEach((track, index) => {
                 const row = document.createElement('tr');
-                row.className = 'track-row hover:bg-gray-50 cursor-pointer';
+                row.className = 'track-row cursor-pointer';
                 row.setAttribute('data-search', (track.title + ' ' + track.artist + ' ' + track.genre + ' ' + track.key).toLowerCase());
                 row.setAttribute('data-track-id', track.id);
                 row.onclick = () => {

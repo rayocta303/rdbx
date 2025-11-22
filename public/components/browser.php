@@ -149,39 +149,39 @@
         </div>
 
         <div id="trackDetailPanel" class="w-2/5 border-l-2 border-cyan-600 overflow-y-auto hidden flex-shrink-0 scrollbar-thin deck-section">
-            <div class="p-6 bg-gradient-to-b from-gray-900 to-gray-800">
-                <div class="mb-6 p-4 bg-gradient-to-r from-cyan-900 to-blue-900 rounded-lg border border-cyan-700">
-                    <h2 id="detailTrackTitle" class="text-2xl font-bold text-white mb-2">Track Title</h2>
-                    <p id="detailTrackArtist" class="text-lg text-cyan-300">Artist Name</p>
+            <div class="p-3 bg-gradient-to-b from-gray-900 to-gray-800">
+                <div class="mb-3 p-3 bg-gradient-to-r from-cyan-900 to-blue-900 rounded-lg border border-cyan-700">
+                    <h2 id="detailTrackTitle" class="text-lg font-bold text-white mb-1">Track Title</h2>
+                    <p id="detailTrackArtist" class="text-sm text-cyan-300">Artist Name</p>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4 mb-6 p-4 bg-gray-800 bg-opacity-50 rounded-lg border border-gray-700">
+                <div class="grid grid-cols-2 gap-3 mb-3 p-3 bg-gray-800 bg-opacity-50 rounded-lg border border-gray-700">
                     <div>
                         <div class="metadata-label">BPM</div>
-                        <div id="detailTrackBPM" class="bpm-indicator text-xl">120.00</div>
+                        <div id="detailTrackBPM" class="bpm-indicator text-base">120.00</div>
                     </div>
                     <div>
                         <div class="metadata-label">Key</div>
-                        <div id="detailTrackKey" class="metadata-value text-xl">Am</div>
+                        <div id="detailTrackKey" class="metadata-value text-base">Am</div>
                     </div>
                     <div>
                         <div class="metadata-label">Genre</div>
-                        <div id="detailTrackGenre" class="metadata-value">-</div>
+                        <div id="detailTrackGenre" class="metadata-value text-sm">-</div>
                     </div>
                     <div>
                         <div class="metadata-label">Duration</div>
-                        <div id="detailTrackDuration" class="metadata-value">0:00</div>
+                        <div id="detailTrackDuration" class="metadata-value text-sm">0:00</div>
                     </div>
                     <div class="col-span-2">
                         <div class="metadata-label">Rating</div>
-                        <div id="detailTrackRating" class="mt-1">-</div>
+                        <div id="detailTrackRating" class="mt-0.5">-</div>
                     </div>
                 </div>
 
-                <div id="audioPlayerContainer" class="mb-6"></div>
+                <div id="audioPlayerContainer" class="mb-3"></div>
 
-                <div class="mb-6">
-                    <h3 class="text-sm font-semibold text-cyan-400 mb-2 flex items-center gap-2">
+                <div class="mb-3">
+                    <h3 class="text-xs font-semibold text-cyan-400 mb-1.5 flex items-center gap-2">
                         <i class="fas fa-chart-area"></i>
                         <span>WAVEFORM OVERVIEW</span>
                     </h3>
@@ -190,8 +190,8 @@
                     </div>
                 </div>
 
-                <div class="mb-6">
-                    <h3 class="text-sm font-semibold text-cyan-400 mb-2 flex items-center gap-2">
+                <div class="mb-3">
+                    <h3 class="text-xs font-semibold text-cyan-400 mb-1.5 flex items-center gap-2">
                         <i class="fas fa-waveform-path"></i>
                         <span>WAVEFORM DETAILED</span>
                     </h3>
@@ -201,14 +201,14 @@
                 </div>
 
                 <div>
-                    <h3 class="text-sm font-semibold text-cyan-400 mb-3 flex items-center gap-2">
+                    <h3 class="text-xs font-semibold text-cyan-400 mb-2 flex items-center gap-2">
                         <i class="fas fa-map-marker-alt"></i>
                         <span>HOT CUES & MEMORY POINTS</span>
                     </h3>
-                    <div id="cueListContainer" class="bg-gray-900 bg-opacity-50 rounded-lg p-3 border border-gray-700">
-                        <div class="text-center text-gray-500 py-4">
-                            <i class="fas fa-map-marker-alt text-2xl mb-2"></i>
-                            <div>No cue points</div>
+                    <div id="cueListContainer" class="bg-gray-900 bg-opacity-50 rounded-lg p-2 border border-gray-700">
+                        <div class="text-center text-gray-500 py-3">
+                            <i class="fas fa-map-marker-alt text-xl mb-1"></i>
+                            <div class="text-sm">No cue points</div>
                         </div>
                     </div>
                 </div>
