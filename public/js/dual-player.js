@@ -1020,7 +1020,7 @@ class DualPlayer {
         // Smooth beatgrid config (matching Waveform.html)
         const CONE_CURVE = 2.8;
         const CONE_BOOST = 1.15;
-        const DECAY = 4.5;
+        const DECAY = 1.5;
         const FLAT_ZONE = 0;
         const TRANSIENT_ZONE = 0.0;
         const SUB_DIVISIONS = 4; // 1 beat = 4 gelombang
@@ -1062,11 +1062,13 @@ class DualPlayer {
 
                     // Draw sub-divisions (4 gelombang per beat)
                     for (let i = 0; i < SUB_DIVISIONS; i++) {
-                        const subTime = beatTime + (i * subInterval);
+                        const subTime = beatTime + i * subInterval;
 
                         if (subTime >= viewStart && subTime < viewEnd) {
-                            const relativePosition = (subTime - viewStart) / viewDuration;
-                            const x = Math.floor(relativePosition * width) + 0.5;
+                            const relativePosition =
+                                (subTime - viewStart) / viewDuration;
+                            const x =
+                                Math.floor(relativePosition * width) + 0.5;
 
                             // Calculate progress within beat (0 to 1)
                             const progress = i / SUB_DIVISIONS;
@@ -1095,14 +1097,14 @@ class DualPlayer {
             });
 
             ctx.restore();
-
         } else {
             // Fallback: Use simple BPM calculation when no beat grid data available
             const effectiveBPM = deck.track.bpm * pitchMultiplier;
             const beatInterval = 60 / effectiveBPM;
             const subInterval = beatInterval / SUB_DIVISIONS;
 
-            const firstBeat = Math.ceil(viewStart / beatInterval) * beatInterval;
+            const firstBeat =
+                Math.ceil(viewStart / beatInterval) * beatInterval;
 
             ctx.save();
 
@@ -1115,10 +1117,11 @@ class DualPlayer {
 
                 // Draw sub-divisions (4 gelombang per beat)
                 for (let i = 0; i < SUB_DIVISIONS; i++) {
-                    const subTime = beatTime + (i * subInterval);
+                    const subTime = beatTime + i * subInterval;
 
                     if (subTime >= viewStart && subTime < viewEnd) {
-                        const relativePosition = (subTime - viewStart) / viewDuration;
+                        const relativePosition =
+                            (subTime - viewStart) / viewDuration;
                         const x = Math.floor(relativePosition * width) + 0.5;
 
                         // Calculate progress within beat (0 to 1)
