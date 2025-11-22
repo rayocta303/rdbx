@@ -54,6 +54,9 @@ require_once 'partials/head.php';
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
+                    <a href="/table" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium transition-colors">
+                        <i class="fas fa-table"></i> Tables
+                    </a>
                     <a href="/stats" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium transition-colors">
                         <i class="fas fa-chart-bar"></i> Statistics
                     </a>

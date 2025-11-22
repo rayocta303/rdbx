@@ -11,6 +11,7 @@ if (empty($uri)) {
 $routes = [
     '/stats' => __DIR__ . '/pages/stats.php',
     '/debug' => __DIR__ . '/pages/debug.php',
+    '/table' => __DIR__ . '/pages/table.php',
     '/' => __DIR__ . '/index.php',
 ];
 
