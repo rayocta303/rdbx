@@ -12,6 +12,7 @@ require_once __DIR__ . '/../../src/Parsers/ColorParser.php';
 require_once __DIR__ . '/../../src/Parsers/LabelParser.php';
 require_once __DIR__ . '/../../src/Parsers/HistoryParser.php';
 require_once __DIR__ . '/../../src/Parsers/ColumnsParser.php';
+require_once __DIR__ . '/../../src/Parsers/ArtworkParser.php';
 
 use RekordboxReader\RekordboxReader;
 use RekordboxReader\Parsers\PdbParser;
@@ -23,6 +24,7 @@ use RekordboxReader\Parsers\ColorParser;
 use RekordboxReader\Parsers\LabelParser;
 use RekordboxReader\Parsers\HistoryParser;
 use RekordboxReader\Parsers\ColumnsParser;
+use RekordboxReader\Parsers\ArtworkParser;
 
 $error = null;
 $pdbHeader = [];
@@ -110,28 +112,10 @@ try {
             $labelsData[] = ['id' => $id, 'name' => $name];
         }
         
-        $artworkTable = $pdbParser->getTable(PdbParser::TABLE_ARTWORK);
-        if ($artworkTable) {
-            for ($pageIdx = $artworkTable['first_page']; $pageIdx <= $artworkTable['last_page']; $pageIdx++) {
-                $pageData = $pdbParser->readPage($pageIdx);
-                if ($pageData && strlen($pageData) >= 40) {
-                    $offset = 40;
-                    while ($offset + 20 < strlen($pageData)) {
-                        $testId = unpack('V', substr($pageData, $offset, 4))[1];
-                        if ($testId > 0 && $testId < 100000) {
-                            list($str, $newOff) = $pdbParser->extractString($pageData, $offset + 4);
-                            if ($str) {
-                                $artworkData[] = ['id' => $testId, 'path' => trim($str)];
-                                $offset = $newOff;
-                            } else {
-                                break;
-                            }
-                        } else {
-                            break;
-                        }
-                    }
-                }
-            }
+        $artworkParser = new ArtworkParser($pdbParser);
+        $artworks = $artworkParser->parseArtwork();
+        foreach ($artworks as $id => $path) {
+            $artworkData[] = ['id' => $id, 'path' => trim($path)];
         }
         
         $historyParser = new HistoryParser($pdbParser);
@@ -657,35 +641,44 @@ require_once __DIR__ . '/../partials/head.php';
                 <?php else: ?>
                 <div class="p-6">
                     <div class="bg-blue-900 bg-opacity-30 border border-blue-600 rounded p-4 mb-4">
-                        <h3 class="text-blue-400 font-semibold mb-2"><i class="fas fa-info-circle"></i> Raw Data</h3>
-                        <p class="text-blue-300 text-sm">The structure of columns table is not fully documented yet. Showing raw hex data for analysis.</p>
+                        <h3 class="text-blue-400 font-semibold mb-2"><i class="fas fa-info-circle"></i> About Columns Table</h3>
+                        <p class="text-blue-300 text-sm">The Columns table contains metadata browsing categories used by CDJs to organize and display tracks. This includes sorting and filtering criteria available on Pioneer DJ equipment.</p>
                     </div>
                     <div class="overflow-x-auto" style="max-height: 600px;">
-                        <table class="w-full text-xs">
+                        <table class="w-full text-sm">
                             <thead class="sticky top-0 bg-gray-800">
                                 <tr>
-                                    <th class="py-2 px-2 text-left text-cyan-400">Offset</th>
-                                    <th class="py-2 px-2 text-left text-cyan-400">Raw Hex (first 32 bytes)</th>
-                                    <th class="py-2 px-2 text-left text-cyan-400">Parsed Data</th>
+                                    <th class="py-3 px-3 text-left text-cyan-400">ID / Subtype</th>
+                                    <th class="py-3 px-3 text-left text-cyan-400">Column Type</th>
+                                    <th class="py-3 px-3 text-left text-cyan-400">Name</th>
+                                    <th class="py-3 px-3 text-left text-cyan-400">Offset</th>
+                                    <th class="py-3 px-3 text-left text-cyan-400">Raw Data</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($columnsData as $column): ?>
                                 <tr class="border-b border-gray-800 hover:bg-gray-800">
-                                    <td class="py-1 px-2 font-mono text-purple-400"><?= $column['offset'] ?></td>
-                                    <td class="py-1 px-2 font-mono text-gray-300 text-xs"><?= htmlspecialchars($column['raw_hex']) ?></td>
-                                    <td class="py-1 px-2 text-gray-400 text-xs">
-                                        <?php 
-                                        if (isset($column['data'])) {
-                                            echo 'ID: ' . ($column['data']['id'] ?? 'N/A');
-                                            echo ' | Bytes: ';
-                                            for ($i = 0; $i < 8; $i++) {
-                                                if (isset($column['data']['byte_' . $i])) {
-                                                    echo sprintf('%02X ', $column['data']['byte_' . $i]);
-                                                }
-                                            }
-                                        }
-                                        ?>
+                                    <td class="py-2 px-3 font-mono text-purple-400">
+                                        <?= isset($column['data']['subtype']) ? $column['data']['subtype'] : ($column['data']['id'] ?? 'N/A') ?>
+                                    </td>
+                                    <td class="py-2 px-3 text-gray-300">
+                                        <?= isset($column['data']['column_type']) ? htmlspecialchars($column['data']['column_type']) : 'Unknown' ?>
+                                    </td>
+                                    <td class="py-2 px-3 text-white">
+                                        <?= isset($column['data']['name']) && !empty($column['data']['name']) ? htmlspecialchars($column['data']['name']) : '<span class="text-gray-500">-</span>' ?>
+                                    </td>
+                                    <td class="py-2 px-3 font-mono text-gray-500 text-xs">
+                                        <?= $column['offset'] ?>
+                                    </td>
+                                    <td class="py-2 px-3">
+                                        <details class="inline">
+                                            <summary class="cursor-pointer text-cyan-400 hover:text-cyan-300 text-xs">
+                                                <i class="fas fa-code"></i> View Hex
+                                            </summary>
+                                            <div class="mt-2 p-2 bg-gray-950 rounded border border-gray-700 font-mono text-xs text-gray-400 break-all">
+                                                <?= htmlspecialchars($column['raw_hex']) ?>
+                                            </div>
+                                        </details>
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>

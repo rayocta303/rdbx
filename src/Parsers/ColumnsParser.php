@@ -150,7 +150,7 @@ class ColumnsParser {
 
     private function parseRow($pageData, $offset, $pageSize) {
         try {
-            $maxLength = min(100, $pageSize - $offset);
+            $maxLength = min(200, $pageSize - $offset);
             
             if ($maxLength < 4) {
                 return null;
@@ -165,13 +165,55 @@ class ColumnsParser {
                 'data' => []
             ];
             
+            // Parse subtype (first 2 bytes)
             if ($maxLength >= 2) {
-                $id = unpack('v', substr($rowData, 0, 2))[1];
-                $result['data']['id'] = $id;
+                $subtype = unpack('v', substr($rowData, 0, 2))[1];
+                $result['data']['subtype'] = $subtype;
+                $result['data']['id'] = $subtype;
             }
             
-            for ($i = 0; $i < min(8, $maxLength); $i++) {
-                $result['data']['byte_' . $i] = ord($rowData[$i]);
+            // Try to identify column type based on pattern
+            if ($maxLength >= 4) {
+                $type_indicator = unpack('v', substr($rowData, 2, 2))[1];
+                $result['data']['type_indicator'] = $type_indicator;
+                
+                // Attempt to classify column type
+                if ($type_indicator == 0) {
+                    $result['data']['column_type'] = 'Unknown';
+                } else {
+                    $result['data']['column_type'] = 'Type_' . $type_indicator;
+                }
+            }
+            
+            // Try to extract string data (similar to other parsers)
+            // Look for string offset at position 4-6
+            if ($maxLength >= 8) {
+                $stringOffset = unpack('v', substr($rowData, 4, 2))[1];
+                
+                if ($stringOffset > 0 && $stringOffset < $maxLength) {
+                    // Try to extract string at this offset
+                    $absOffset = $offset + $stringOffset;
+                    if ($absOffset < $pageSize) {
+                        list($str, $newOffset) = $this->pdbParser->extractString($pageData, $absOffset);
+                        
+                        if ($str && strlen(trim($str)) > 0) {
+                            // Clean the string
+                            $nullPos = strpos($str, "\x00");
+                            if ($nullPos !== false) {
+                                $str = substr($str, 0, $nullPos);
+                            }
+                            $str = preg_replace('/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/', '', $str);
+                            $result['data']['name'] = trim($str);
+                        }
+                    }
+                }
+            }
+            
+            // Extract additional numeric fields
+            if ($maxLength >= 12) {
+                for ($i = 0; $i < min(12, $maxLength); $i++) {
+                    $result['data']['byte_' . $i] = ord($rowData[$i]);
+                }
             }
             
             return $result;

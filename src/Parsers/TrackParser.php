@@ -161,48 +161,46 @@ class TrackParser {
 
             $heapPos = 40;
             $pageSize = strlen($pageData);
-            
-            $rowIndexStart = $pageSize - 4 - (2 * $numRows);
+            $numGroups = intval(($numRows - 1) / 16) + 1;
             
             $seenTrackIds = [];
             
-            for ($rowIdx = 0; $rowIdx < $numRows; $rowIdx++) {
-                $rowOffsetPos = $rowIndexStart + ($rowIdx * 2);
+            for ($groupIdx = 0; $groupIdx < $numGroups; $groupIdx++) {
+                $base = $pageSize - ($groupIdx * 0x24);
+                $flagsOffset = $base - 4;
                 
-                if ($rowOffsetPos < 0 || $rowOffsetPos + 2 > $pageSize) {
+                if ($flagsOffset < 0 || $flagsOffset + 2 > $pageSize) {
                     continue;
                 }
                 
-                $rowOffsetData = unpack('v', substr($pageData, $rowOffsetPos, 2));
-                $rowOffset = $rowOffsetData[1];
+                $presenceFlags = unpack('v', substr($pageData, $flagsOffset, 2))[1];
+                $rowsInGroup = min(16, $numRows - ($groupIdx * 16));
                 
-                $actualRowOffset = ($rowOffset & 0x1FFF) + $heapPos;
-                
-                if ($actualRowOffset >= $pageSize || $actualRowOffset + 200 > $pageSize) {
-                    if ($this->logger) {
-                        $this->logger->debug("Skipping row $rowIdx: invalid offset $actualRowOffset");
+                for ($rowIdx = 0; $rowIdx < $rowsInGroup; $rowIdx++) {
+                    $isPresent = ($presenceFlags >> $rowIdx) & 1;
+                    if (!$isPresent) {
+                        continue;
                     }
-                    continue;
-                }
+                    
+                    $rowOffsetPos = $base - (6 + ($rowIdx * 2));
+                    
+                    if ($rowOffsetPos < 0 || $rowOffsetPos + 2 > $pageSize) {
+                        continue;
+                    }
+                    
+                    $rowOffsetData = unpack('v', substr($pageData, $rowOffsetPos, 2));
+                    $rowOffset = $rowOffsetData[1];
+                    
+                    $actualRowOffset = ($rowOffset & 0x1FFF) + $heapPos;
+                    
+                    if ($actualRowOffset >= $pageSize || $actualRowOffset + 200 > $pageSize) {
+                        continue;
+                    }
 
-                $track = $this->parseTrackRow($pageData, $actualRowOffset);
-                if ($track && !in_array($track['id'], $seenTrackIds)) {
-                    $tracks[] = $track;
-                    $seenTrackIds[] = $track['id'];
-                }
-            }
-            
-            if (count($tracks) < $numRows && $pageIdx == 2) {
-                $knownOffsets = [824];
-                foreach ($knownOffsets as $knownOffset) {
-                    $track = $this->parseTrackRow($pageData, $knownOffset);
-                    if ($track && $track['id'] > 0 && !in_array($track['id'], $seenTrackIds)) {
+                    $track = $this->parseTrackRow($pageData, $actualRowOffset);
+                    if ($track && !in_array($track['id'], $seenTrackIds)) {
                         $tracks[] = $track;
                         $seenTrackIds[] = $track['id'];
-                        
-                        if ($this->logger) {
-                            $this->logger->debug("Found track #{$track['id']} at known offset $knownOffset");
-                        }
                     }
                 }
             }
@@ -375,12 +373,17 @@ class TrackParser {
                 'artist_id' => $fixed['artist_id'] ?? 0,
                 'album_id' => $fixed['album_id'] ?? 0,
                 'genre_id' => $fixed['genre_id'] ?? 0,
+                'composer_id' => $fixed['composer_id'] ?? 0,
+                'remixer_id' => $fixed['remixer_id'] ?? 0,
+                'original_artist_id' => $fixed['original_artist_id'] ?? 0,
+                'label_id' => $fixed['label_id'] ?? 0,
                 'file_path' => trim($filePath),
                 'analyze_path' => trim($analyzePath),
                 'comment' => trim($strings[16] ?? ''),
                 'duration' => $fixed['duration'] ?? 0,
                 'bpm' => $bpm,
                 'sample_rate' => $fixed['sample_rate'] ?? 0,
+                'sample_depth' => $fixed['sample_depth'] ?? 0,
                 'bitrate' => $fixed['bitrate'] ?? 0,
                 'year' => $fixed['year'] ?? 0,
                 'rating' => $fixed['rating'] ?? 0,
@@ -388,6 +391,7 @@ class TrackParser {
                 'artwork_id' => $fixed['artwork_id'] ?? 0,
                 'play_count' => $fixed['play_count'] ?? 0,
                 'track_number' => $fixed['track_number'] ?? 0,
+                'disc_number' => $fixed['disc_number'] ?? 0,
                 'file_size' => $fixed['file_size'] ?? 0
             ];
 

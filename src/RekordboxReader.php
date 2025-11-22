@@ -13,6 +13,7 @@ require_once __DIR__ . '/Parsers/ColorParser.php';
 require_once __DIR__ . '/Parsers/LabelParser.php';
 require_once __DIR__ . '/Parsers/HistoryParser.php';
 require_once __DIR__ . '/Parsers/ColumnsParser.php';
+require_once __DIR__ . '/Parsers/ArtworkParser.php';
 require_once __DIR__ . '/Utils/Logger.php';
 
 use RekordboxReader\Parsers\PdbParser;
@@ -26,6 +27,7 @@ use RekordboxReader\Parsers\ColorParser;
 use RekordboxReader\Parsers\LabelParser;
 use RekordboxReader\Parsers\HistoryParser;
 use RekordboxReader\Parsers\ColumnsParser;
+use RekordboxReader\Parsers\ArtworkParser;
 use RekordboxReader\Utils\Logger;
 
 class RekordboxReader {
@@ -95,7 +97,8 @@ class RekordboxReader {
             'labels' => [],
             'history_playlists' => [],
             'history_entries' => [],
-            'columns' => []
+            'columns' => [],
+            'artworks' => []
         ];
 
         if (!file_exists($this->pdbPath)) {
@@ -136,6 +139,10 @@ class RekordboxReader {
         $columnsParser = new ColumnsParser($pdbParser, $this->logger);
         $columns = $columnsParser->parseColumns();
         $result['columns'] = $columns;
+        
+        $artworkParser = new ArtworkParser($pdbParser, $this->logger);
+        $artworks = $artworkParser->parseArtwork();
+        $result['artworks'] = $artworks;
         
         $trackParser = new TrackParser($pdbParser, $this->logger);
         $trackParser->setArtistAlbumParser($artistAlbumParser);
