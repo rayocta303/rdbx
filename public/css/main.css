@@ -5,17 +5,18 @@
 }
 
 body {
-    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+    /* background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); */
+    background:  #2a2a2a;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     color: #e0e0e0;
     min-height: 100vh;
 }
 
 .app-container {
-    background: linear-gradient(135deg, #1e1e1e 0%, #1a1a1a 100%);
+    /* background: linear-gradient(135deg, #1e1e1e 0%, #1a1a1a 100%); */
     border: 1px solid #2a2a2a;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    padding: 1.25rem;
+    /* box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); */
+    /* padding: 1.25rem; */
 }
 
 .app-header {
@@ -37,7 +38,7 @@ body {
 
 .playlist-item {
     transition: all 0.2s ease;
-    color: #b0b0b0;
+    /* color: #b0b0b0; */
 }
 
 .playlist-item:hover {
@@ -181,7 +182,7 @@ canvas {
 
 .deck-container {
     background: #1a1a1a;
-    border: 2px solid #2a2a2a;
+    /* border: 2px solid #2a2a2a; */
     padding: 1rem;
 }
 
@@ -404,8 +405,8 @@ canvas {
     background: #2a2a2a;
     border: 1px solid #3a3a3a;
     color: #e0e0e0;
-    padding: 0.375rem 0.75rem;
-    border-radius: 4px;
+    padding: 0.2rem 0.5rem;
+    /* border-radius: 4px; */
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -437,8 +438,7 @@ canvas {
     height: 120px;
     overflow: hidden;
     cursor: grab;
-    border: 2px solid #2a2a2a;
-    border-radius: 8px;
+
 }
 
 .waveform-container-player:last-child {
@@ -857,9 +857,9 @@ canvas {
 }
 
 .waveform-beatmatch-header {
-    margin-bottom: 16px;
-    padding-bottom: 12px;
-    border-bottom: 2px solid #2a2a2a;
+    /* margin-bottom: 16px;
+    padding-bottom: 12px; */
+    /* border-bottom: 2px solid #2a2a2a; */
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -941,7 +941,7 @@ canvas {
     flex-direction: column;
     gap: 0;
     background: #0a0a0a;
-    border: 2px solid #2a2a2a;
+    /* border: 2px solid #2a2a2a; */
     overflow: hidden;
 }
 
@@ -951,8 +951,6 @@ canvas {
     gap: 8px;
     padding: 8px 12px;
     background: #252525;
-    border-radius: 6px;
-    border: 1px solid #3a3a3a;
 }
 
 .mixer-volume-section {

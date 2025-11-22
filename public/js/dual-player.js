@@ -6,11 +6,11 @@ class DualPlayer {
 
         // VU Meter Configuration
         this.vuMeterConfig = {
-            smoothingTimeConstant: 0.1, // 0.0 (fast response) - 1.0 (slow response)
+            smoothingTimeConstant: 0.0, // 0.0 (fast response) - 1.0 (slow response)
             fftSize: 256, // FFT size: 32, 64, 128, 256, 512, 1024, 2048
             gainCurve: 0.8, // 0.3 (subtle) - 1.0 (linear response)
-            updateInterval: 10, // Update interval in milliseconds (lower = more frequent)
-            rmsBoost: 1.7, // RMS multiplier: 0.5 (quiet) - 2.0 (loud)
+            updateInterval: 2, // Update interval in milliseconds (lower = more frequent)
+            rmsBoost: 1.5, // RMS multiplier: 0.5 (quiet) - 2.0 (loud)
         };
 
         this.decks = {
@@ -2012,7 +2012,7 @@ class DualPlayer {
         level = Math.max(0, Math.min(100, level));
 
         // Update CSS custom property for smooth gradient animation
-        vuMeter.style.setProperty('--vu-level', `${level}%`);
+        vuMeter.style.setProperty("--vu-level", `${level}%`);
     }
 
     toggleBPMSync(deckId) {
