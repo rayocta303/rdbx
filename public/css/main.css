@@ -28,7 +28,7 @@ body {
 .deck-section {
     background: #252525;
     border: 1px solid #3a3a3a;
-    border-radius: 8px;
+    /* border-radius: 8px; */
 }
 
 .library-panel {
