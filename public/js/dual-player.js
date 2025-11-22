@@ -1986,7 +1986,6 @@ class DualPlayer {
 
         if (!vuMeter) return;
 
-        const bars = vuMeter.querySelectorAll(".vu-meter-bar");
         let level = 0;
 
         if (deck.isPlaying && deck.analyserNode && deck.audioDataArray) {
@@ -2009,15 +2008,11 @@ class DualPlayer {
             level = Math.pow(level / 100, this.vuMeterConfig.gainCurve) * 100;
         }
 
-        const activeBars = Math.floor((level / 100) * bars.length);
+        // Clamp level between 0 and 100
+        level = Math.max(0, Math.min(100, level));
 
-        bars.forEach((bar, index) => {
-            if (index < activeBars) {
-                bar.classList.add("active");
-            } else {
-                bar.classList.remove("active");
-            }
-        });
+        // Update CSS custom property for smooth gradient animation
+        vuMeter.style.setProperty('--vu-level', `${level}%`);
     }
 
     toggleBPMSync(deckId) {

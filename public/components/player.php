@@ -141,31 +141,13 @@
                 <!-- VU Meter A -->
                 <div class="vu-meter-wrapper">
                     <div class="vu-meter-label">A</div>
-                    <div class="vu-meter" id="vuMeterA">
-                        <div class="vu-meter-bar vu-red"></div>
-                        <div class="vu-meter-bar vu-yellow"></div>
-                        <div class="vu-meter-bar vu-yellow"></div>
-                        <div class="vu-meter-bar vu-green"></div>
-                        <div class="vu-meter-bar vu-green"></div>
-                        <div class="vu-meter-bar vu-green"></div>
-                        <div class="vu-meter-bar vu-green"></div>
-                        <div class="vu-meter-bar vu-green"></div>
-                    </div>
+                    <div class="vu-meter" id="vuMeterA"></div>
                 </div>
                 
                 <!-- VU Meter B -->
                 <div class="vu-meter-wrapper">
                     <div class="vu-meter-label">B</div>
-                    <div class="vu-meter" id="vuMeterB">
-                        <div class="vu-meter-bar vu-red"></div>
-                        <div class="vu-meter-bar vu-yellow"></div>
-                        <div class="vu-meter-bar vu-yellow"></div>
-                        <div class="vu-meter-bar vu-green"></div>
-                        <div class="vu-meter-bar vu-green"></div>
-                        <div class="vu-meter-bar vu-green"></div>
-                        <div class="vu-meter-bar vu-green"></div>
-                        <div class="vu-meter-bar vu-green"></div>
-                    </div>
+                    <div class="vu-meter" id="vuMeterB"></div>
                 </div>
                 
                 <!-- Volume Fader B -->
