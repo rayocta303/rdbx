@@ -1039,21 +1039,7 @@ canvas {
     background: linear-gradient(to bottom, #1a1a1a, #0d0d0d);
     border: 2px solid #2a2a2a;
     border-radius: 12px;
-    min-height: 300px;
-}
-
-.volume-fader-label {
-    font-size: 11px;
-    font-weight: bold;
-    color: #00d4ff;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    writing-mode: vertical-rl;
-    text-orientation: mixed;
-}
-
-.volume-fader-label-b {
-    color: #ff6b00;
+    min-height: 280px;
 }
 
 .volume-fader-control {
@@ -1121,19 +1107,4 @@ canvas {
 .volume-slider-vertical::-moz-range-thumb:hover {
     transform: scale(1.2);
     box-shadow: 0 0 18px rgba(0, 212, 255, 1), 0 4px 8px rgba(0, 0, 0, 0.6);
-}
-
-.volume-fader-markers {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    height: 200px;
-    font-size: 9px;
-    color: #666;
-    font-family: 'Courier New', monospace;
-}
-
-.volume-fader-icon {
-    color: #00d4ff;
-    font-size: 16px;
 }
