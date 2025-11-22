@@ -61,6 +61,7 @@ class DualPlayer {
             beatSyncFilteredError: 0,
             beatSyncErrorIntegral: 0,
             beatSyncSlipCounter: 0,
+            bpmMultiplier: 1.0,
         };
     }
 
@@ -440,6 +441,7 @@ class DualPlayer {
         deck.waveformOffset = 0;
         deck.pitchValue = 0;
         deck.originalBPM = track.bpm || 0;
+        deck.bpmMultiplier = 1.0;
 
         const deckLabel = deckId.toUpperCase();
         const pitchSlider = document.getElementById(`pitchSlider${deckLabel}`);
