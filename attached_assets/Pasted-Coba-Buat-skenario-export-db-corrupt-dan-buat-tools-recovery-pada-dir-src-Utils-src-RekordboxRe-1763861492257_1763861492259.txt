@@ -1,0 +1,219 @@
+Coba Buat skenario export.db corrupt dan buat tools recovery pada dir "./src/Utils"
+src/RekordboxReader.php
+
+Clone dir "./Rekordbox-USB" copy / duplikasi menjadi "./Rekordbox-USB-Corrupted"
+
+Buat halaman playlist recovery "./public/pages/recovery.php"
+
+
+Skenario :
+1. Signature / Magic Header Corrupt
+Bagian yang rusak:
+
+Magic bytes
+
+Identifier format
+
+Marker valid file
+
+Dampak:
+
+Rekordbox/CDJ menolak load
+
+Parser normal berhenti di awal
+
+Metode Recovery:
+Metode	Penjelasan
+Header reconstruction	Replace / rebuild dari DB sehat versi sama
+Signature bypass	Parser custom langsung skip validasi
+Static header injection	Sisipkan header fix static berdasarkan map versi
+
+
+2. Database Metadata Header Corrupt
+Bagian yang rusak:
+
+Database version info
+
+Offset / pointer awal ke struktur utama
+
+Page size info
+
+Table map header
+
+Dampak:
+
+Seluruh struktur sulit dipetakan
+
+Tabel tidak bisa ditemukan
+
+Metode Recovery:
+Metode	Penjelasan
+Infer metadata via page scan	Cari page valid manual untuk infer struktur
+Static structure override	Paksa struktur DB berdasarkan versi diketahui
+Header rebuild dari heuristik	Rekonstruksi info lewat deteksi pola halaman
+
+3. Page Header Corrupt
+Bagian yang rusak:
+
+Header setiap page
+
+Page flags
+
+Page type identifier
+
+Link ke next page
+
+Dampak:
+
+Page tidak bisa diidentifikasi
+
+Parser crash atau skip seluruh table
+
+Metode Recovery:
+Metode	Penjelasan
+Skip invalid page	Abaikan page dengan signature header rusak
+Page pattern scanning	Deteksi page dari struktur internal data
+Page header regeneration	Rebuild header jika payload terlihat valid
+
+4. Row Presence Bitmap Corrupt
+Bagian yang rusak:
+
+Bitmask yang menandai row mana valid/deleted
+
+Dampak:
+
+Banyak row dianggap hilang
+
+Playlist kosong padahal data masih ada
+
+Metode Recovery:
+Metode	Penjelasan
+Force-all-valid	Anggap semua row valid
+Heuristic row scan	Deteksi row valid dari pola data internal
+Bitmap reconstruction	Bangun ulang bitmap dari hasil scanning data
+
+5. Table Index / Page Reference Corrupt
+Bagian yang rusak:
+
+Pointer awal tabel
+
+Link antar halaman dalam satu tabel
+
+Table directory
+
+Dampak:
+
+Satu tabel seolah hilang
+
+Track ada tapi playlist relasinya rusak
+
+Metode Recovery:
+Metode	Penjelasan
+Linear full scan	Abaikan pointer, baca semua page linear
+Table re-mapping	Bangun ulang table pointer map
+Cross-table inference	Deteksi hubungan antar tabel dari ID relasi
+
+6. Row Structure Corrupt
+Bagian yang rusak:
+
+Offset field di dalam row
+
+Struktur layout data
+
+Data alignment row
+
+Dampak:
+
+Field seperti title/BPM rusak
+
+Parsing shift ke field lain
+
+Metode Recovery:
+Metode	Penjelasan
+Field pattern matching	Cari field via pola string/path
+Partial row extraction	Ambil field yang masih utuh
+Row structure re-alignment	Koreksi offset berdasarkan template versi
+
+7. Field-Level Data Corrupt
+Bagian yang rusak:
+
+Nilai dalam field (BPM, path, title, key, dll)
+
+String corrupted
+
+Numeric anomaly
+
+Dampak:
+
+Metadata rusak sebagian
+
+Nama track aneh
+
+Metode Recovery:
+Metode	Penjelasan
+Data sanity check	Validasi range BPM/key/path
+Field correction heuristics	Koreksi karakter rusak
+Cross-reference lookup	Ambil field dari table lain jika ada duplikat
+
+8. Playlist Structure Corrupt
+Bagian yang rusak:
+
+Playlist tree structure
+
+Parent-child link
+
+Entry mapping
+
+Dampak:
+
+Hirarki playlist rusak
+
+Playlist kosong / duplikat
+
+Metode Recovery:
+Metode	Penjelasan
+Tree flatten rebuild	Rekonstruksi playlist jadi flat
+Rebuild via encounter order	Urutkan playlist via entry table
+Relink by TrackID	Hubungkan ulang lewat Track ID
+
+9. Cross-Table Relationship Corrupt
+Bagian yang rusak:
+
+Foreign ID antara tabel:
+
+track ↔ playlist
+
+track ↔ album
+
+track ↔ artist
+
+Dampak:
+
+Track muncul tapi tanpa relasi
+
+Playlist kehilangan isi
+
+Metode Recovery:
+Metode	Penjelasan
+Orphan track relinking	Cocokkan ulang via checksum/path
+Relationship inference	Rekonstruksi relasi dari pola penggunaan
+Duplicate detection	Gabungkan row yang seharusnya sama
+
+10. Internal Version Mismatch / Structure Drift
+Bagian yang rusak:
+
+Layout data beda dengan versi parser
+
+Field offset berubah antar versi Rekordbox
+
+Dampak:
+
+Parsing salah total
+
+Data terlihat kacau padahal sebenarnya utuh
+
+Metode Recovery:
+Metode	Penjelasan
+Version detection	Auto-deteksi versi struktur
+Dynamic schema mapping	Gunakan schema per versi
+Field offset brute detection	Deteksi posisi field via data pattern
