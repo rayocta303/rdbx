@@ -107,37 +107,124 @@ class DatabaseRecovery {
             $this->data = $newHeader . substr($this->data, 24);
             $this->log("Copied complete header from reference DB");
         } else {
-            // Try to detect page size by looking for page patterns
-            $possiblePageSizes = [512, 1024, 2048, 4096, 8192];
-            $detectedPageSize = self::DEFAULT_PAGE_SIZE;
+            // Smart recovery without reference
+            $this->log("Smart recovery: analyzing header without reference");
             
-            foreach ($possiblePageSizes as $size) {
-                if ($this->detectPagePattern($size)) {
-                    $detectedPageSize = $size;
-                    break;
-                }
+            $currentHeader = unpack('V6', substr($this->data, 0, 24));
+            $newHeader = $currentHeader;
+            
+            // Fix signature if needed
+            if ($currentHeader[1] !== 0) {
+                $this->log("Fixing signature: {$currentHeader[1]} → 0");
+                $newHeader[1] = 0;
             }
             
-            $this->log("Detected page size: {$detectedPageSize}");
+            // Detect page size
+            $possiblePageSizes = [512, 1024, 2048, 4096, 8192];
+            $validPageSizes = [512, 1024, 2048, 4096, 8192];
             
-            $totalPages = intval(strlen($this->data) / $detectedPageSize);
-            $newHeader = pack('V6', 
-                0, // signature
-                $detectedPageSize,
-                self::DEFAULT_NUM_TABLES,
-                $totalPages,
-                0,
-                1
-            );
+            if (!in_array($currentHeader[2], $validPageSizes)) {
+                $detectedPageSize = $this->detectPageSize();
+                $this->log("Invalid page size {$currentHeader[2]}, detected: $detectedPageSize");
+                $newHeader[2] = $detectedPageSize;
+            } else {
+                $this->log("Page size OK: {$currentHeader[2]}");
+            }
             
-            $this->data = $newHeader . substr($this->data, 24);
-            $this->log("Inferred metadata without reference");
+            // Validate num_tables
+            if ($currentHeader[3] < 1 || $currentHeader[3] > 50) {
+                $this->log("Invalid num_tables {$currentHeader[3]}, using default: " . self::DEFAULT_NUM_TABLES);
+                $newHeader[3] = self::DEFAULT_NUM_TABLES;
+            } else {
+                $this->log("Num tables OK: {$currentHeader[3]}");
+            }
+            
+            // Calculate correct next_unused_page
+            $pageSize = $newHeader[2];
+            $numTables = $newHeader[3];
+            $maxPage = floor(strlen($this->data) / $pageSize);
+            
+            if ($currentHeader[4] > $maxPage * 2 || $currentHeader[4] < 1) {
+                $lastUsedPage = $this->findLastUsedPageFromTableDirectory($pageSize, $numTables);
+                $correctNextUnused = $lastUsedPage + 1;
+                $this->log("Invalid next_unused_page {$currentHeader[4]}, calculated: $correctNextUnused (last used: $lastUsedPage)");
+                $newHeader[4] = $correctNextUnused;
+            } else {
+                $this->log("Next unused page OK: {$currentHeader[4]}");
+            }
+            
+            $headerBytes = pack('V6', $newHeader[1], $newHeader[2], $newHeader[3], $newHeader[4], $newHeader[5], $newHeader[6]);
+            $this->data = $headerBytes . substr($this->data, 24);
+            $this->log("Smart header recovery completed");
         }
         
         $this->saveDatabase();
         $this->log("Metadata header recovered");
         
         return true;
+    }
+    
+    /**
+     * Detect page size by checking patterns
+     */
+    private function detectPageSize() {
+        $possibleSizes = [512, 1024, 2048, 4096, 8192];
+        
+        foreach ($possibleSizes as $size) {
+            $totalPages = floor(strlen($this->data) / $size);
+            if ($totalPages < 10) continue;
+            
+            $validCount = 0;
+            for ($i = 1; $i < min(10, $totalPages); $i++) {
+                $offset = $i * $size;
+                if ($offset + 8 < strlen($this->data)) {
+                    $bytes = substr($this->data, $offset, 8);
+                    $hasData = false;
+                    for ($j = 0; $j < 8; $j++) {
+                        if (ord($bytes[$j]) !== 0) {
+                            $hasData = true;
+                            break;
+                        }
+                    }
+                    if ($hasData) $validCount++;
+                }
+            }
+            
+            if ($validCount >= 5) {
+                return $size;
+            }
+        }
+        
+        return self::DEFAULT_PAGE_SIZE;
+    }
+    
+    /**
+     * Find last used page by scanning table directory
+     */
+    private function findLastUsedPageFromTableDirectory($pageSize, $numTables) {
+        $offset = 24;
+        $maxPage = 0;
+        
+        for ($i = 0; $i < $numTables; $i++) {
+            if ($offset + 16 > strlen($this->data)) break;
+            
+            $tableEntry = unpack('V4', substr($this->data, $offset, 16));
+            $lastPage = $tableEntry[4];
+            
+            // Only count if value seems reasonable
+            if ($lastPage > 0 && $lastPage < 10000) {
+                $maxPage = max($maxPage, $lastPage);
+            }
+            
+            $offset += 16;
+        }
+        
+        // Fallback: calculate from file size
+        if ($maxPage == 0) {
+            $maxPage = floor(strlen($this->data) / $pageSize) - 1;
+        }
+        
+        return $maxPage;
     }
 
     /**
@@ -311,50 +398,94 @@ class DatabaseRecovery {
             return $numTables;
         }
         
-        // Fallback: Rebuild table directory by scanning all pages
-        $this->log("No reference DB - attempting to rebuild table directory");
-        $tables = [];
-        $totalPages = intval(strlen($this->data) / $pageSize);
+        // Smart recovery: Fix table directory without reference
+        $this->log("Smart recovery: fixing table directory");
         
-        for ($page = 1; $page < $totalPages; $page++) {
-            $offset = $page * $pageSize;
-            $tableType = $this->detectTableType($offset, $pageSize);
-            
-            if ($tableType !== null) {
-                if (!isset($tables[$tableType])) {
-                    $tables[$tableType] = [
-                        'type' => $tableType,
-                        'first_page' => $page,
-                        'last_page' => $page
-                    ];
-                } else {
-                    $tables[$tableType]['last_page'] = $page;
-                }
-            }
-        }
+        $header = unpack('V6', substr($this->data, 0, 24));
+        $numTables = $header[3];
+        $pageSize = $header[2];
+        $maxReasonablePage = strlen($this->data) / $pageSize;
         
-        // Rebuild table directory in header
+        $fixedCount = 0;
         $offset = 24;
-        foreach ($tables as $table) {
-            $entry = pack('V4', 
-                $table['type'], 
-                0, // empty_candidate
-                $table['first_page'], 
-                $table['last_page']
-            );
+        
+        for ($i = 0; $i < $numTables; $i++) {
+            if ($offset + 16 > strlen($this->data)) break;
             
-            if ($offset + 16 <= strlen($this->data)) {
-                for ($i = 0; $i < 16; $i++) {
-                    $this->data[$offset + $i] = $entry[$i];
+            $tableEntry = unpack('V4', substr($this->data, $offset, 16));
+            $type = $tableEntry[1];
+            $emptyCandidate = $tableEntry[2];
+            $firstPage = $tableEntry[3];
+            $lastPage = $tableEntry[4];
+            
+            $newEntry = $tableEntry;
+            $needsFix = false;
+            
+            // Fix unreasonable first_page values
+            if ($firstPage > $maxReasonablePage) {
+                $this->log("Table $i: first_page=$firstPage too large, finding actual page");
+                $actualPage = $this->findTablePageByScanning($type, $pageSize);
+                if ($actualPage > 0) {
+                    $newEntry[3] = $actualPage;
+                    $newEntry[4] = $actualPage;
+                    $needsFix = true;
+                    $this->log("Table $i: fixed to page $actualPage");
                 }
-                $offset += 16;
             }
+            
+            // Fix swapped first/last pages
+            if ($lastPage > 0 && $firstPage > 0 && $lastPage < $firstPage && $firstPage < $maxReasonablePage) {
+                $temp = $newEntry[3];
+                $newEntry[3] = $newEntry[4];
+                $newEntry[4] = $temp;
+                $needsFix = true;
+                $this->log("Table $i: swapped first/last pages ($lastPage <-> $firstPage)");
+            }
+            
+            if ($needsFix) {
+                $entryBytes = pack('V4', $newEntry[1], $newEntry[2], $newEntry[3], $newEntry[4]);
+                for ($j = 0; $j < 16; $j++) {
+                    $this->data[$offset + $j] = $entryBytes[$j];
+                }
+                $fixedCount++;
+            }
+            
+            $offset += 16;
         }
         
         $this->saveDatabase();
-        $this->log("Recovered table index with " . count($tables) . " tables");
+        $this->log("Table directory: fixed $fixedCount entries");
         
-        return count($tables);
+        return $numTables;
+    }
+    
+    /**
+     * Find table page by scanning pages
+     */
+    private function findTablePageByScanning($type, $pageSize) {
+        $totalPages = floor(strlen($this->data) / $pageSize);
+        
+        for ($page = 1; $page < min($totalPages, 100); $page++) {
+            $offset = $page * $pageSize;
+            if ($offset + 100 > strlen($this->data)) continue;
+            
+            $pageData = substr($this->data, $offset, 100);
+            
+            // Check if page has data
+            $hasData = false;
+            for ($i = 40; $i < 100; $i++) {
+                if (ord($pageData[$i]) > 0) {
+                    $hasData = true;
+                    break;
+                }
+            }
+            
+            if ($hasData) {
+                return $page;
+            }
+        }
+        
+        return 0;
     }
 
     private function detectTableType($offset, $pageSize) {
