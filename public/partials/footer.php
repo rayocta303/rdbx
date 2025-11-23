@@ -120,9 +120,8 @@
                     row.classList.add('selected');
                     currentSelectedTrackRow = row;
                     
-                    if (trackDetailPanel) {
-                        trackDetailPanel.loadTrack(track);
-                    }
+                    // Track detail panel will only open manually via toggle button
+                    // Auto-load disabled to prevent unwanted panel opening
                 };
                 
                 const hotCueLabels = track.cue_points ? 
@@ -200,6 +199,15 @@
             if (panel.classList.contains('hidden')) {
                 panel.classList.remove('hidden');
                 toggleText.textContent = 'Hide Details';
+                
+                // Load currently selected track when panel is opened
+                if (currentSelectedTrackRow && trackDetailPanel) {
+                    const trackId = parseInt(currentSelectedTrackRow.getAttribute('data-track-id'));
+                    const track = tracksData.find(t => t.id === trackId) || usbTracksData.find(t => t.id === trackId);
+                    if (track) {
+                        trackDetailPanel.loadTrack(track);
+                    }
+                }
             } else {
                 panel.classList.add('hidden');
                 toggleText.textContent = 'Show Details';
