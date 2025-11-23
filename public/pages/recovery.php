@@ -41,22 +41,62 @@ require_once __DIR__ . '/../partials/head.php';
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <label class="block text-sm font-medium mb-2">Source Database</label>
-                    <select id="sourceDb" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2">
-                        <option value="Rekordbox-USB/PIONEER/rekordbox/export.pdb">Original (Rekordbox-USB)</option>
-                        <option value="Rekordbox-USB-Corrupted/PIONEER/rekordbox/export.pdb">Corrupted Copy</option>
-                    </select>
+                    <div class="flex gap-2">
+                        <input type="text" id="sourceDb" value="Rekordbox-USB/PIONEER/rekordbox/export.pdb" 
+                               class="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2 font-mono text-sm">
+                        <button onclick="browseFiles('sourceDb')" class="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded">
+                            <i class="fas fa-folder-open"></i>
+                        </button>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-2">Reference Database (Optional)</label>
-                    <select id="referenceDb" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2">
-                        <option value="">None</option>
-                        <option value="Rekordbox-USB/PIONEER/rekordbox/export.pdb">Original (for templates)</option>
-                    </select>
+                    <div class="flex gap-2">
+                        <input type="text" id="referenceDb" value="" placeholder="Leave empty for none"
+                               class="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2 font-mono text-sm">
+                        <button onclick="browseFiles('referenceDb')" class="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded">
+                            <i class="fas fa-folder-open"></i>
+                        </button>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-2">Output Path</label>
                     <input type="text" id="outputPath" value="Rekordbox-USB-Corrupted/PIONEER/rekordbox/export_recovered.pdb" 
-                           class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2">
+                           class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 font-mono text-sm">
+                </div>
+            </div>
+        </div>
+
+        <!-- File Browser Modal -->
+        <div id="fileBrowserModal" class="fixed inset-0 bg-black bg-opacity-75 hidden items-center justify-center z-50" style="display: none;">
+            <div class="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[80vh] flex flex-col">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-bold flex items-center">
+                        <i class="fas fa-folder-tree mr-2 text-blue-400"></i>
+                        Browse Database Files
+                    </h3>
+                    <button onclick="closeFileBrowser()" class="text-gray-400 hover:text-white">
+                        <i class="fas fa-times text-2xl"></i>
+                    </button>
+                </div>
+                
+                <div class="mb-4">
+                    <input type="text" id="fileSearchInput" placeholder="Search files..." 
+                           class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2"
+                           oninput="filterFiles()">
+                </div>
+                
+                <div id="fileBrowserContent" class="flex-1 overflow-y-auto bg-gray-900 rounded p-4">
+                    <div class="text-center text-gray-400">
+                        <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
+                        <div>Loading files...</div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 flex justify-end gap-2">
+                    <button onclick="closeFileBrowser()" class="bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded">
+                        Cancel
+                    </button>
                 </div>
             </div>
         </div>
@@ -563,6 +603,130 @@ require_once __DIR__ . '/../partials/head.php';
             `;
             
             return html;
+        }
+
+        let currentTargetField = null;
+        let allFiles = [];
+
+        async function browseFiles(targetField) {
+            currentTargetField = targetField;
+            const modal = document.getElementById('fileBrowserModal');
+            modal.style.display = 'flex';
+            modal.classList.remove('hidden');
+            
+            log('Loading available database files...', 'info');
+            
+            try {
+                const response = await fetch('/api/recovery.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'list_files'
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success && result.files) {
+                    allFiles = result.files;
+                    displayFiles(allFiles);
+                    log(`Found ${allFiles.length} database files`, 'success');
+                } else {
+                    document.getElementById('fileBrowserContent').innerHTML = `
+                        <div class="text-center text-red-400">
+                            <i class="fas fa-exclamation-triangle text-3xl mb-2"></i>
+                            <div>Error loading files: ${result.error || 'Unknown error'}</div>
+                        </div>
+                    `;
+                    log(`Error loading files: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                document.getElementById('fileBrowserContent').innerHTML = `
+                    <div class="text-center text-red-400">
+                        <i class="fas fa-exclamation-triangle text-3xl mb-2"></i>
+                        <div>Failed to load files: ${error.message}</div>
+                    </div>
+                `;
+                log(`Exception loading files: ${error.message}`, 'error');
+            }
+        }
+
+        function displayFiles(files) {
+            const container = document.getElementById('fileBrowserContent');
+            
+            if (files.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-gray-400">
+                        <i class="fas fa-folder-open text-3xl mb-2"></i>
+                        <div>No database files found</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '<div class="space-y-2">';
+            
+            files.forEach(file => {
+                const isNormal = file.path.includes('normal');
+                const isCorrupt = file.path.includes('corrupt') || file.path.includes('Corrupted');
+                const isRecovered = file.path.includes('recover');
+                
+                let badge = '';
+                if (isNormal) {
+                    badge = '<span class="text-xs bg-green-600 px-2 py-1 rounded">Normal</span>';
+                } else if (isCorrupt) {
+                    badge = '<span class="text-xs bg-red-600 px-2 py-1 rounded">Corrupt</span>';
+                } else if (isRecovered) {
+                    badge = '<span class="text-xs bg-blue-600 px-2 py-1 rounded">Recovered</span>';
+                }
+                
+                html += `
+                    <div class="bg-gray-800 hover:bg-gray-700 p-3 rounded cursor-pointer transition-colors"
+                         onclick="selectFile('${file.path.replace(/'/g, "\\'")}')">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3 flex-1">
+                                <i class="fas fa-database text-blue-400"></i>
+                                <div class="flex-1">
+                                    <div class="font-mono text-sm">${file.name}</div>
+                                    <div class="text-xs text-gray-500">${file.path}</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                ${badge}
+                                <div class="text-xs text-gray-500">${file.size}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function filterFiles() {
+            const searchTerm = document.getElementById('fileSearchInput').value.toLowerCase();
+            const filtered = allFiles.filter(file => 
+                file.name.toLowerCase().includes(searchTerm) || 
+                file.path.toLowerCase().includes(searchTerm)
+            );
+            displayFiles(filtered);
+        }
+
+        function selectFile(filePath) {
+            if (currentTargetField) {
+                document.getElementById(currentTargetField).value = filePath;
+                log(`Selected file: ${filePath}`, 'success');
+            }
+            closeFileBrowser();
+        }
+
+        function closeFileBrowser() {
+            const modal = document.getElementById('fileBrowserModal');
+            modal.style.display = 'none';
+            modal.classList.add('hidden');
+            currentTargetField = null;
+            document.getElementById('fileSearchInput').value = '';
         }
     </script>
 

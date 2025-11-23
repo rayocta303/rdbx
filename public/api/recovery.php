@@ -186,6 +186,81 @@ try {
             ]);
             break;
 
+        case 'list_files':
+            $baseDir = __DIR__ . '/../../';
+            $files = [];
+            
+            // Whitelist of allowed directories to scan (security: prevent full filesystem enumeration)
+            $allowedDirs = [
+                'Rekordbox-USB/PIONEER/rekordbox',
+                'Rekordbox-USB-Corrupted/PIONEER/rekordbox'
+            ];
+            
+            foreach ($allowedDirs as $allowedDir) {
+                $scanPath = $baseDir . $allowedDir;
+                
+                if (!is_dir($scanPath)) {
+                    continue;
+                }
+                
+                try {
+                    $iterator = new RecursiveIteratorIterator(
+                        new RecursiveDirectoryIterator($scanPath, RecursiveDirectoryIterator::SKIP_DOTS),
+                        RecursiveIteratorIterator::SELF_FIRST
+                    );
+                    
+                    foreach ($iterator as $file) {
+                        if ($file->isFile() && strtolower($file->getExtension()) === 'pdb') {
+                            $fullPath = $file->getPathname();
+                            $relativePath = str_replace($baseDir, '', $fullPath);
+                            
+                            // Additional safety: ensure path is within allowed directories
+                            $isAllowed = false;
+                            foreach ($allowedDirs as $allowed) {
+                                if (strpos($relativePath, $allowed) === 0) {
+                                    $isAllowed = true;
+                                    break;
+                                }
+                            }
+                            
+                            if (!$isAllowed) {
+                                continue;
+                            }
+                            
+                            $fileSize = $file->getSize();
+                            $sizeFormatted = $fileSize < 1024 ? $fileSize . ' B' :
+                                            ($fileSize < 1024*1024 ? round($fileSize/1024, 1) . ' KB' :
+                                            round($fileSize/1024/1024, 1) . ' MB');
+                            
+                            $files[] = [
+                                'name' => $file->getFilename(),
+                                'path' => $relativePath,
+                                'size' => $sizeFormatted,
+                                'size_bytes' => $fileSize,
+                                'modified' => date('Y-m-d H:i:s', $file->getMTime())
+                            ];
+                        }
+                    }
+                } catch (Exception $e) {
+                    // Skip directories that can't be read
+                    continue;
+                }
+            }
+            
+            // Sort by path
+            usort($files, function($a, $b) {
+                return strcmp($a['path'], $b['path']);
+            });
+            
+            echo json_encode([
+                'success' => true,
+                'files' => $files,
+                'count' => count($files),
+                'message' => 'Found ' . count($files) . ' database files',
+                'scanned_directories' => $allowedDirs
+            ]);
+            break;
+
         case 'test_corruption':
             $corruptDb = __DIR__ . '/../../Rekordbox-USB-Corrupted/PIONEER/rekordbox/export.pdb';
             
