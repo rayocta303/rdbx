@@ -92,44 +92,48 @@ class DatabaseRecovery {
     public function recoverMetadataHeader() {
         $this->loadDatabase();
         
-        // Try to detect page size by looking for page patterns
-        $possiblePageSizes = [512, 1024, 2048, 4096, 8192];
-        $detectedPageSize = self::DEFAULT_PAGE_SIZE;
-        
-        foreach ($possiblePageSizes as $size) {
-            if ($this->detectPagePattern($size)) {
-                $detectedPageSize = $size;
-                break;
-            }
-        }
-        
-        $this->log("Detected page size: {$detectedPageSize}");
-        
-        // Reconstruct header with inferred values
+        // If we have a reference DB, use it directly for accurate recovery
         if ($this->referenceDb && file_exists($this->referenceDb)) {
             $refData = file_get_contents($this->referenceDb);
-            $refHeader = unpack('V6data', substr($refData, 0, 24));
-            $newHeader = pack('V6', 
-                $refHeader['data1'], // signature
-                $detectedPageSize,    // page_size
-                $refHeader['data3'],  // num_tables
-                $refHeader['data4'],  // next_unused_page
-                $refHeader['data5'],  // unknown
-                $refHeader['data6']   // sequence
-            );
+            $refHeader = unpack('V6', substr($refData, 0, 24));
+            $corruptHeader = unpack('V6', substr($this->data, 0, 24));
+            
+            $this->log("Using reference DB for header recovery");
+            $this->log("Reference: signature={$refHeader[1]}, page_size={$refHeader[2]}, num_tables={$refHeader[3]}, next_unused_page={$refHeader[4]}, sequence={$refHeader[6]}");
+            $this->log("Corrupt:   signature={$corruptHeader[1]}, page_size={$corruptHeader[2]}, num_tables={$corruptHeader[3]}, next_unused_page={$corruptHeader[4]}, sequence={$corruptHeader[6]}");
+            
+            // Copy entire header from reference (all 24 bytes)
+            $newHeader = substr($refData, 0, 24);
+            $this->data = $newHeader . substr($this->data, 24);
+            $this->log("Copied complete header from reference DB");
         } else {
+            // Try to detect page size by looking for page patterns
+            $possiblePageSizes = [512, 1024, 2048, 4096, 8192];
+            $detectedPageSize = self::DEFAULT_PAGE_SIZE;
+            
+            foreach ($possiblePageSizes as $size) {
+                if ($this->detectPagePattern($size)) {
+                    $detectedPageSize = $size;
+                    break;
+                }
+            }
+            
+            $this->log("Detected page size: {$detectedPageSize}");
+            
             $totalPages = intval(strlen($this->data) / $detectedPageSize);
             $newHeader = pack('V6', 
-                0, // placeholder signature
+                0, // signature
                 $detectedPageSize,
                 self::DEFAULT_NUM_TABLES,
                 $totalPages,
                 0,
                 1
             );
+            
+            $this->data = $newHeader . substr($this->data, 24);
+            $this->log("Inferred metadata without reference");
         }
         
-        $this->data = $newHeader . substr($this->data, 24);
         $this->saveDatabase();
         $this->log("Metadata header recovered");
         
@@ -166,6 +170,39 @@ class DatabaseRecovery {
     public function recoverPageHeaders($pageSize = self::DEFAULT_PAGE_SIZE) {
         $this->loadDatabase();
         
+        // If we have reference DB, copy page headers from it
+        if ($this->referenceDb && file_exists($this->referenceDb)) {
+            $refData = file_get_contents($this->referenceDb);
+            $totalPages = intval(strlen($this->data) / $pageSize);
+            $recoveredPages = 0;
+            
+            $this->log("Copying page headers from reference DB");
+            
+            for ($page = 0; $page < $totalPages; $page++) {
+                $offset = $page * $pageSize;
+                
+                if ($offset + 40 <= strlen($this->data) && $offset + 40 <= strlen($refData)) {
+                    $refPageHeader = substr($refData, $offset, 40);
+                    $corruptPageHeader = substr($this->data, $offset, 40);
+                    
+                    // Only copy if headers differ
+                    if ($refPageHeader !== $corruptPageHeader) {
+                        for ($i = 0; $i < 40; $i++) {
+                            $this->data[$offset + $i] = $refPageHeader[$i];
+                        }
+                        $recoveredPages++;
+                    }
+                }
+            }
+            
+            $this->saveDatabase();
+            $this->log("Recovered {$recoveredPages} page headers from reference");
+            
+            return $recoveredPages;
+        }
+        
+        // Fallback: try to rebuild page headers
+        $this->log("No reference DB - attempting to rebuild page headers");
         $totalPages = intval(strlen($this->data) / $pageSize);
         $recoveredPages = 0;
         
@@ -249,7 +286,33 @@ class DatabaseRecovery {
     public function recoverTableIndex($pageSize = self::DEFAULT_PAGE_SIZE) {
         $this->loadDatabase();
         
-        // Rebuild table directory by scanning all pages
+        // If we have reference DB, copy table directory directly
+        if ($this->referenceDb && file_exists($this->referenceDb)) {
+            $refData = file_get_contents($this->referenceDb);
+            $refHeader = unpack('V6', substr($refData, 0, 24));
+            $numTables = $refHeader[3];
+            
+            $this->log("Copying table directory from reference DB ($numTables tables)");
+            
+            // Copy table directory (starts at byte 24, 16 bytes per table)
+            $tableDirectorySize = $numTables * 16;
+            $tableDirectory = substr($refData, 24, $tableDirectorySize);
+            
+            // Replace corrupt table directory
+            for ($i = 0; $i < $tableDirectorySize; $i++) {
+                if (24 + $i < strlen($this->data)) {
+                    $this->data[24 + $i] = $tableDirectory[$i];
+                }
+            }
+            
+            $this->saveDatabase();
+            $this->log("Table directory recovered from reference");
+            
+            return $numTables;
+        }
+        
+        // Fallback: Rebuild table directory by scanning all pages
+        $this->log("No reference DB - attempting to rebuild table directory");
         $tables = [];
         $totalPages = intval(strlen($this->data) / $pageSize);
         
@@ -271,7 +334,7 @@ class DatabaseRecovery {
         }
         
         // Rebuild table directory in header
-        $offset = 28;
+        $offset = 24;
         foreach ($tables as $table) {
             $entry = pack('V4', 
                 $table['type'], 
