@@ -43,8 +43,8 @@ $columnsData = [];
 $tablesInfo = [];
 
 try {
-    $exportPath = __DIR__ . '/../../Rekordbox-USB-Corrupted';
-    $pdbPath = $exportPath . '/PIONEER/rekordbox/export_full_recovery.pdb';
+    $exportPath = __DIR__ . '/../../Rekordbox-USB';
+    $pdbPath = $exportPath . '/PIONEER/rekordbox/export_absolute_perfect.pdb';
     
     if (is_dir($exportPath) && file_exists($pdbPath)) {
         $pdbParser = new PdbParser($pdbPath);
