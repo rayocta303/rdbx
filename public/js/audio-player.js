@@ -75,8 +75,13 @@ class AudioPlayer {
         
         this.audio = new Audio();
         
-        // Use audio.php endpoint to stream audio files
-        const audioPath = 'audio.php?path=' + encodeURIComponent(track.file_path);
+        // Use audio.php endpoint to stream audio files, or blob URL for USB tracks
+        let audioPath;
+        if (track._usb_source) {
+            audioPath = track.file_path; // Blob URL, use directly
+        } else {
+            audioPath = 'audio.php?path=' + encodeURIComponent(track.file_path);
+        }
         this.audio.src = audioPath;
         this.audio.volume = this.volumeSlider.value / 100;
         

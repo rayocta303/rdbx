@@ -380,20 +380,21 @@
                         return fileHandleCache.get(filePath);
                     }
                     
+                    let cleanPath = filePath;
+                    if (cleanPath.startsWith('/')) {
+                        cleanPath = cleanPath.substring(1);
+                    }
+                    
+                    const pathParts = cleanPath.split('/').filter(p => p && p !== '.');
+                    const fileName = pathParts[pathParts.length - 1];
+                    
                     try {
-                        let cleanPath = filePath;
-                        if (cleanPath.startsWith('/')) {
-                            cleanPath = cleanPath.substring(1);
-                        }
-                        
-                        const pathParts = cleanPath.split('/').filter(p => p && p !== '.');
                         let currentHandle = usbRootHandle;
                         
                         for (let i = 0; i < pathParts.length - 1; i++) {
                             currentHandle = await currentHandle.getDirectoryHandle(pathParts[i]);
                         }
                         
-                        const fileName = pathParts[pathParts.length - 1];
                         const fileHandle = await currentHandle.getFileHandle(fileName);
                         const file = await fileHandle.getFile();
                         const blobURL = URL.createObjectURL(file);
@@ -401,9 +402,46 @@
                         fileHandleCache.set(filePath, blobURL);
                         return blobURL;
                     } catch (e) {
-                        console.warn('[USB Drive] Could not find file:', filePath, e);
+                        console.warn('[USB Drive] Could not find file at expected path:', filePath);
+                        
+                        try {
+                            console.log('[USB Drive] Searching for file:', fileName);
+                            const foundFile = await searchFileRecursively(usbRootHandle, fileName);
+                            if (foundFile) {
+                                const blobURL = URL.createObjectURL(foundFile);
+                                fileHandleCache.set(filePath, blobURL);
+                                return blobURL;
+                            }
+                        } catch (searchError) {
+                            console.warn('[USB Drive] Recursive search failed:', searchError);
+                        }
+                        
                         return null;
                     }
+                }
+                
+                async function searchFileRecursively(dirHandle, targetFileName, maxDepth = 5, currentDepth = 0) {
+                    if (currentDepth >= maxDepth) return null;
+                    
+                    try {
+                        for await (const entry of dirHandle.values()) {
+                            if (entry.kind === 'file' && entry.name === targetFileName) {
+                                const fileHandle = await dirHandle.getFileHandle(entry.name);
+                                return await fileHandle.getFile();
+                            } else if (entry.kind === 'directory') {
+                                const result = await searchFileRecursively(
+                                    await dirHandle.getDirectoryHandle(entry.name),
+                                    targetFileName,
+                                    maxDepth,
+                                    currentDepth + 1
+                                );
+                                if (result) return result;
+                            }
+                        }
+                    } catch (e) {
+                        // Skip inaccessible directories
+                    }
+                    return null;
                 }
                 
                 document.getElementById('currentPlaylistTitle').innerHTML = 

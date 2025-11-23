@@ -61,7 +61,9 @@ try {
             'analyze_path' => $track['analyze_path'] ?? '',
             'play_count' => $track['play_count'] ?? 0,
             'comment' => $track['comment'] ?? '',
-            'cue_points' => $track['cue_points'] ?? []
+            'cue_points' => $track['cue_points'] ?? [],
+            'waveform' => $track['waveform'] ?? null,
+            'beat_grid' => $track['beat_grid'] ?? null
         ];
     }
     

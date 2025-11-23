@@ -4,6 +4,22 @@
 This project is a PHP-based web GUI tool designed to read and display Rekordbox USB/SD export databases. It's a re-implementation of a Python tool into a pure PHP, modular structure. The primary goal is to provide a modern web interface for DJ-specific functionalities, including dual-deck playback, waveform visualization, beat grid analysis, hot cue management, and advanced synchronization features, mirroring the professional experience of Rekordbox.
 
 ## Recent Changes (November 2025)
+- **USB Drive Browser with Rekordbox Database (November 23)**: Complete client-side USB drive browsing implementation:
+  - **Auto-Detection**: Automatically detects and parses PIONEER/rekordbox/export.pdb from USB drives
+  - **Database Parsing**: Full support untuk track metadata, playlists, folders dari Rekordbox export
+  - **Playlist Tree View**: Hierarchical playlist rendering dengan folder support di library panel
+  - **Smart File Resolution**: Path resolution dengan fallback recursive search jika path tidak match
+  - **Blob URL Management**: Efficient file loading menggunakan File System Access API
+  - **Analysis Data Loading**: Waveform, beat grid, dan cue points loaded langsung dari track object
+  - **Browser Compatibility**: Detection untuk File System Access API dengan fallback info
+  - **Track Loading**: Full integration dengan dual-deck player untuk playback dari USB
+  - **Bug Fixes**: Audio player handle blob URL correctly, no /audio.php wrapper untuk USB tracks
+- **Beat Sync Feature Removal (November 23)**: Removed buggy beat sync functionality:
+  - Removed all beat sync properties dari deck objects
+  - Removed functions: snapBeatsToGrid(), toggleBeatSync(), startBeatSyncLoop(), stopBeatSyncLoop(), updateBeatSyncUI()
+  - Removed BEAT SYNC button dari UI player
+  - Removed CSS styling .beatsync-btn-compact
+  - BPM Sync tetap berfungsi normal
 - **Database Recovery Tool (November 23)**: Comprehensive corruption simulation and recovery system:
   - **Corruption Scenarios**: 10 simulasi korupsi database (Magic Header, Metadata Header, Page Headers, Row Bitmap, Table Index, Row Structure, Field Data, Playlist Structure, Cross-Table Relationships, Version Mismatch)
   - **Recovery Methods**: 10 metode recovery untuk memperbaiki database yang corrupt
