@@ -104,28 +104,28 @@ class TrackDetailPanel {
             console.log(`[TrackDetail] Fetching analysis data for track ${track.id}...`);
             try {
                 const response = await fetch(`/api/track-analysis.php?id=${track.id}`);
-                
+
                 // Verify this response is still relevant (user didn't switch tracks)
                 if (loadRequestId !== this.loadRequestCounter) {
                     console.log(`[TrackDetail] Ignoring stale fetch for track ${track.id}`);
                     return;
                 }
-                
+
                 if (response.ok) {
                     const analysisData = await response.json();
-                    
+
                     // Double-check after JSON parsing (user might have switched during parse)
                     if (loadRequestId !== this.loadRequestCounter) {
                         console.log(`[TrackDetail] Ignoring stale fetch for track ${track.id} (post-parse)`);
                         return;
                     }
-                    
+
                     // Verify current track still matches fetched track
                     if (!this.currentTrack || this.currentTrack.id !== track.id) {
                         console.log(`[TrackDetail] Current track changed, ignoring fetch for track ${track.id}`);
                         return;
                     }
-                    
+
                     // Safe to update - still the current track
                     this.currentTrack.waveform = analysisData.waveform;
                     this.currentTrack.beat_grid = analysisData.beat_grid;
@@ -134,9 +134,17 @@ class TrackDetailPanel {
                         this.currentTrack.cue_points = analysisData.cue_points;
                     }
                     console.log(`[TrackDetail] Analysis data loaded successfully for track ${track.id}`);
-                    
-                    // Re-render using this.currentTrack to avoid stale reference
-                    this.renderWaveformAndCues(this.currentTrack);
+
+                    // Force immediate re-render with validated data
+                    requestAnimationFrame(() => {
+                        this.renderWaveformAndCues(this.currentTrack);
+
+                        // Double-render to ensure display
+                        setTimeout(() => {
+                            console.log(`[TrackDetail] Force re-render waveform (post-analysis)`);
+                            this.renderWaveformAndCues(this.currentTrack);
+                        }, 50);
+                    });
                 } else {
                     console.warn(`[TrackDetail] Failed to load analysis data:`, response.status);
                 }

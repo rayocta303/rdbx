@@ -415,28 +415,40 @@ class DualPlayer {
 
         deck.track = track;
         
+        // Preload analysis data BEFORE setting audio source
         if (track._usb_source) {
-            console.log(
-                `[Deck ${deckId.toUpperCase()}] Loading from USB Drive (Blob URL)`,
-            );
-            deck.audio.src = track.file_path;
-            deck.audio.load();
-        } else {
-            const audioSrc = `/audio.php?path=${encodeURIComponent(track.file_path)}`;
-            console.log(
-                `[Deck ${deckId.toUpperCase()}] Audio source URL:`,
-                audioSrc,
-            );
-            deck.audio.src = audioSrc;
-            deck.audio.load();
-        }
-
-        // Lazy-load analysis data (waveform, beat_grid, cue_points)
-        if (track._usb_source) {
-            console.log(`[Deck ${deckId.toUpperCase()}] Using analysis data from USB`);
-            if (track.waveform) deck.waveformData = track.waveform;
-            if (track.beat_grid) deck.beatGrid = track.beat_grid;
-            if (track.cue_points) deck.cuePoints = track.cue_points;
+            console.log(`[Deck ${deckId.toUpperCase()}] Preloading analysis data from USB`);
+            
+            // Validate waveform data immediately
+            if (track.waveform) {
+                const hasValidWaveform = 
+                    (Array.isArray(track.waveform.three_band_preview) && track.waveform.three_band_preview.length > 0) ||
+                    (Array.isArray(track.waveform.three_band_detail) && track.waveform.three_band_detail.length > 0) ||
+                    (Array.isArray(track.waveform.color_data) && track.waveform.color_data.length > 0) ||
+                    (Array.isArray(track.waveform.preview_data) && track.waveform.preview_data.length > 0);
+                
+                if (hasValidWaveform) {
+                    deck.waveformData = track.waveform;
+                    console.log(`[Deck ${deckId.toUpperCase()}] Waveform data validated:`, {
+                        three_band_preview: Array.isArray(track.waveform.three_band_preview) ? track.waveform.three_band_preview.length : 0,
+                        three_band_detail: Array.isArray(track.waveform.three_band_detail) ? track.waveform.three_band_detail.length : 0,
+                        color_data: Array.isArray(track.waveform.color_data) ? track.waveform.color_data.length : 0,
+                        preview_data: Array.isArray(track.waveform.preview_data) ? track.waveform.preview_data.length : 0,
+                    });
+                } else {
+                    deck.waveformData = null;
+                    console.warn(`[Deck ${deckId.toUpperCase()}] Waveform data incomplete`, track.waveform);
+                }
+            } else {
+                deck.waveformData = null;
+                console.log(`[Deck ${deckId.toUpperCase()}] No waveform data in track`);
+            }
+            
+            if (track.beat_grid) deck.beatgridData = track.beat_grid;
+            if (track.cue_points) {
+                // Process cue points immediately
+                this.loadHotCues(track, deckId);
+            }
         } else {
             console.log(`[Deck ${deckId.toUpperCase()}] Fetching analysis data...`);
             try {
@@ -446,6 +458,23 @@ class DualPlayer {
                     track.waveform = analysisData.waveform;
                     track.beat_grid = analysisData.beat_grid;
                     track.cue_points = analysisData.cue_points;
+                    
+                    // Validate and assign immediately
+                    if (track.waveform) {
+                        const hasValidWaveform = 
+                            (Array.isArray(track.waveform.three_band_preview) && track.waveform.three_band_preview.length > 0) ||
+                            (Array.isArray(track.waveform.three_band_detail) && track.waveform.three_band_detail.length > 0) ||
+                            (Array.isArray(track.waveform.color_data) && track.waveform.color_data.length > 0) ||
+                            (Array.isArray(track.waveform.preview_data) && track.waveform.preview_data.length > 0);
+                        
+                        if (hasValidWaveform) {
+                            deck.waveformData = track.waveform;
+                        }
+                    }
+                    
+                    if (track.beat_grid) deck.beatgridData = track.beat_grid;
+                    if (track.cue_points) this.loadHotCues(track, deckId);
+                    
                     console.log(`[Deck ${deckId.toUpperCase()}] Analysis data loaded successfully`);
                 } else {
                     console.warn(`[Deck ${deckId.toUpperCase()}] Failed to load analysis data:`, response.status);
@@ -454,64 +483,23 @@ class DualPlayer {
                 console.error(`[Deck ${deckId.toUpperCase()}] Error loading analysis data:`, error);
             }
         }
-
-        // Validate waveform data
-        if (track.waveform) {
-            // Check if waveform has actual data arrays, not just metadata
-            const hasValidWaveform = 
-                (Array.isArray(track.waveform.three_band_preview) && track.waveform.three_band_preview.length > 0) ||
-                (Array.isArray(track.waveform.three_band_detail) && track.waveform.three_band_detail.length > 0) ||
-                (Array.isArray(track.waveform.color_data) && track.waveform.color_data.length > 0) ||
-                (Array.isArray(track.waveform.preview_data) && track.waveform.preview_data.length > 0);
-            
-            if (hasValidWaveform) {
-                deck.waveformData = track.waveform;
-                console.log(
-                    `[Deck ${deckId.toUpperCase()}] Waveform data loaded:`,
-                    {
-                        three_band_preview: Array.isArray(track.waveform.three_band_preview) ? track.waveform.three_band_preview.length : 0,
-                        three_band_detail: Array.isArray(track.waveform.three_band_detail) ? track.waveform.three_band_detail.length : 0,
-                        color_data: Array.isArray(track.waveform.color_data) ? track.waveform.color_data.length : 0,
-                        preview_data: Array.isArray(track.waveform.preview_data) ? track.waveform.preview_data.length : 0,
-                    },
-                );
-            } else {
-                deck.waveformData = null;
-                console.warn(
-                    `[Deck ${deckId.toUpperCase()}] Waveform data incomplete - no valid arrays found`,
-                    track.waveform
-                );
-            }
+        
+        // NOW set audio source after data is ready
+        if (track._usb_source) {
+            console.log(`[Deck ${deckId.toUpperCase()}] Loading from USB Drive (Blob URL)`);
+            deck.audio.src = track.file_path;
+            deck.audio.load();
         } else {
-            deck.waveformData = null;
-            console.log(
-                `[Deck ${deckId.toUpperCase()}] No waveform data available`,
-            );
+            const audioSrc = `/audio.php?path=${encodeURIComponent(track.file_path)}`;
+            console.log(`[Deck ${deckId.toUpperCase()}] Audio source URL:`, audioSrc);
+            deck.audio.src = audioSrc;
+            deck.audio.load();
         }
 
-        deck.beatgridData = track.beat_grid;
-
-        console.log(`[Deck ${deckId.toUpperCase()}] Beat grid data:`, {
-            has_beat_grid: !!track.beat_grid,
-            is_array: Array.isArray(track.beat_grid),
-            length: track.beat_grid ? track.beat_grid.length : 0,
-            first_beat:
-                track.beat_grid && track.beat_grid.length > 0
-                    ? track.beat_grid[0]
-                    : null,
-        });
         deck.waveformOffset = 0;
         deck.pitchValue = 0;
         deck.originalBPM = track.bpm || 0;
         deck.bpmMultiplier = 1.0;
-        
-        // Force waveform render if data is available
-        if (deck.waveformData && track.duration) {
-            console.log(`[Deck ${deckId.toUpperCase()}] Rendering waveform immediately...`);
-            requestAnimationFrame(() => {
-                this.renderWaveform(deckId);
-            });
-        }
 
         const deckLabel = deckId.toUpperCase();
         const pitchSlider = document.getElementById(`pitchSlider${deckLabel}`);
@@ -523,9 +511,7 @@ class DualPlayer {
             pitchValue.textContent = "0.0%";
         }
 
-        this.loadHotCues(track, deckId);
         this.updateTrackInfo(deckId);
-        this.renderWaveformUnified(deckId);
 
         const trackInfoEl = document.getElementById(`trackInfo${deckLabel}`);
         if (trackInfoEl) {
@@ -536,6 +522,12 @@ class DualPlayer {
                     <span class="key-display">${this.escapeHtml(track.key)}</span>
                 </div>
             `;
+        }
+        
+        // Force immediate render if data is ready
+        if (deck.waveformData) {
+            console.log(`[Deck ${deckId.toUpperCase()}] Force rendering waveform with available data`);
+            this.renderWaveformUnified(deckId);
         }
     }
 
@@ -561,7 +553,17 @@ class DualPlayer {
             console.log(
                 `[Deck ${deckLabel}] Rendering waveform with zoom level: ${this.sharedZoomLevel}x, offset: ${deck.waveformOffset.toFixed(2)}s`,
             );
+            
+            // Force double-render to ensure waveform appears
             this.renderWaveformUnified(deckId);
+            
+            // Second render after short delay to catch late-loading data
+            setTimeout(() => {
+                if (deck.waveformData) {
+                    console.log(`[Deck ${deckLabel}] Force re-render waveform (post-metadata)`);
+                    this.renderWaveformUnified(deckId);
+                }
+            }, 100);
         } else {
             console.warn(
                 `[Deck ${deckLabel}] Invalid duration: ${deck.duration}`,
