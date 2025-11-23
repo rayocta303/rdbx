@@ -66,14 +66,8 @@ class DualPlayer {
             scratchSpeed: 0,
             scratchAnimationFrame: null,
             bpmSyncEnabled: false,
-            beatSyncLocked: false,
-            beatSyncAnimationFrame: null,
-            beatSyncTargetDeck: null,
-            beatSyncFilteredError: 0,
-            beatSyncErrorIntegral: 0,
-            beatSyncSlipCounter: 0,
             bpmMultiplier: 1.0,
-            cuePoint: null, // Added property as per changes
+            cuePoint: null,
         };
     }
 
@@ -419,36 +413,46 @@ class DualPlayer {
             this.togglePlay(deckId);
         }
 
-        this.stopBeatSyncLoop(deckId);
-
-        const otherDeckId = deckId === "a" ? "b" : "a";
-        this.stopBeatSyncLoop(otherDeckId);
-
         deck.track = track;
-        const audioSrc = `/audio.php?path=${encodeURIComponent(track.file_path)}`;
-        console.log(
-            `[Deck ${deckId.toUpperCase()}] Audio source URL:`,
-            audioSrc,
-        );
-
-        deck.audio.src = audioSrc;
-        deck.audio.load();
+        
+        if (track._usb_source) {
+            console.log(
+                `[Deck ${deckId.toUpperCase()}] Loading from USB Drive (Blob URL)`,
+            );
+            deck.audio.src = track.file_path;
+            deck.audio.load();
+        } else {
+            const audioSrc = `/audio.php?path=${encodeURIComponent(track.file_path)}`;
+            console.log(
+                `[Deck ${deckId.toUpperCase()}] Audio source URL:`,
+                audioSrc,
+            );
+            deck.audio.src = audioSrc;
+            deck.audio.load();
+        }
 
         // Lazy-load analysis data (waveform, beat_grid, cue_points)
-        console.log(`[Deck ${deckId.toUpperCase()}] Fetching analysis data...`);
-        try {
-            const response = await fetch(`/api/track-analysis.php?id=${track.id}`);
-            if (response.ok) {
-                const analysisData = await response.json();
-                track.waveform = analysisData.waveform;
-                track.beat_grid = analysisData.beat_grid;
-                track.cue_points = analysisData.cue_points;
-                console.log(`[Deck ${deckId.toUpperCase()}] Analysis data loaded successfully`);
-            } else {
-                console.warn(`[Deck ${deckId.toUpperCase()}] Failed to load analysis data:`, response.status);
+        if (track._usb_source) {
+            console.log(`[Deck ${deckId.toUpperCase()}] Using analysis data from USB`);
+            if (track.waveform) deck.waveformData = track.waveform;
+            if (track.beat_grid) deck.beatGrid = track.beat_grid;
+            if (track.cue_points) deck.cuePoints = track.cue_points;
+        } else {
+            console.log(`[Deck ${deckId.toUpperCase()}] Fetching analysis data...`);
+            try {
+                const response = await fetch(`/api/track-analysis.php?id=${track.id}`);
+                if (response.ok) {
+                    const analysisData = await response.json();
+                    track.waveform = analysisData.waveform;
+                    track.beat_grid = analysisData.beat_grid;
+                    track.cue_points = analysisData.cue_points;
+                    console.log(`[Deck ${deckId.toUpperCase()}] Analysis data loaded successfully`);
+                } else {
+                    console.warn(`[Deck ${deckId.toUpperCase()}] Failed to load analysis data:`, response.status);
+                }
+            } catch (error) {
+                console.error(`[Deck ${deckId.toUpperCase()}] Error loading analysis data:`, error);
             }
-        } catch (error) {
-            console.error(`[Deck ${deckId.toUpperCase()}] Error loading analysis data:`, error);
         }
 
         if (track.waveform) {
@@ -1384,16 +1388,10 @@ class DualPlayer {
         const otherDeckId = deckId === "a" ? "b" : "a";
 
         if (this.masterDeck === deckId) {
-            this.stopBeatSyncLoop(deckId);
-            this.stopBeatSyncLoop(otherDeckId);
-
             this.masterDeck = null;
             this.updateMasterUI(deckId, false);
             console.log(`[Master] No master deck selected`);
         } else {
-            this.stopBeatSyncLoop(deckId);
-            this.stopBeatSyncLoop(otherDeckId);
-
             this.masterDeck = deckId;
             this.updateMasterUI(deckId, true);
             this.updateMasterUI(otherDeckId, false);
@@ -1417,11 +1415,6 @@ class DualPlayer {
     }
 
     syncToMaster(deckId, mode = "bpm") {
-        if (mode === "beat") {
-            this.toggleBeatSync(deckId);
-            return;
-        }
-
         if (!this.masterDeck) {
             console.warn(
                 "[Sync] No master deck selected. Please select a master deck first.",
@@ -1464,88 +1457,7 @@ class DualPlayer {
             );
         }
 
-        const snapBeats = false;
-        this.syncBPM(sourceDeckId, targetDeckId, snapBeats);
-    }
-
-    toggleBeatSync(deckId) {
-        if (!this.masterDeck) {
-            console.warn(
-                "[Beat Sync] No master deck selected. Please select a master deck first.",
-            );
-            this.showNotification(
-                "Please select a master deck first by clicking the MASTER button on either deck.",
-                "warning",
-                3000,
-            );
-            return;
-        }
-
-        let sourceDeckId, targetDeckId;
-
-        if (deckId === this.masterDeck) {
-            sourceDeckId = this.masterDeck;
-            targetDeckId = deckId === "a" ? "b" : "a";
-
-            if (!this.decks[targetDeckId].track) {
-                console.warn(
-                    `[Beat Sync] Cannot push sync - Deck ${targetDeckId.toUpperCase()} has no track loaded.`,
-                );
-                this.showNotification(
-                    `Cannot sync: Deck ${targetDeckId.toUpperCase()} has no track loaded. Load a track first.`,
-                    "warning",
-                    3000,
-                );
-                return;
-            }
-        } else {
-            sourceDeckId = this.masterDeck;
-            targetDeckId = deckId;
-        }
-
-        const sourceDeck = this.decks[sourceDeckId];
-        const targetDeck = this.decks[targetDeckId];
-
-        if (
-            sourceDeck.beatSyncLocked &&
-            sourceDeck.beatSyncTargetDeck === targetDeckId
-        ) {
-            this.stopBeatSyncLoop(sourceDeckId);
-            console.log(
-                `[Beat Sync] Locked sync OFF for ${sourceDeckId.toUpperCase()} → ${targetDeckId.toUpperCase()}`,
-            );
-            this.showNotification(`Beat Sync UNLOCKED`, "info", 2000);
-            return;
-        }
-
-        this.stopBeatSyncLoop(sourceDeckId);
-
-        const snapBeats = true;
-        this.syncBPM(sourceDeckId, targetDeckId, snapBeats);
-
-        if (!sourceDeck.isPlaying) {
-            this.togglePlay(sourceDeckId);
-        }
-
-        if (!targetDeck.isPlaying) {
-            this.togglePlay(targetDeckId);
-        }
-
-        sourceDeck.beatSyncLocked = true;
-        sourceDeck.beatSyncTargetDeck = targetDeckId;
-
-        this.updateBeatSyncUI(deckId, true);
-
-        this.startBeatSyncLoop(sourceDeckId, targetDeckId);
-
-        console.log(
-            `[Beat Sync] Locked sync ON for ${sourceDeckId.toUpperCase()} → ${targetDeckId.toUpperCase()}`,
-        );
-        this.showNotification(
-            `Beat Sync LOCKED - Continuous phase monitoring active`,
-            "success",
-            3000,
-        );
+        this.syncBPM(sourceDeckId, targetDeckId);
     }
 
     getTrueBPM(deckId) {
@@ -1590,7 +1502,7 @@ class DualPlayer {
         return 1.0;
     }
 
-    syncBPM(sourceDeckId, targetDeckId, snapBeats = false) {
+    syncBPM(sourceDeckId, targetDeckId) {
         const sourceDeck = this.decks[sourceDeckId];
         const targetDeck = this.decks[targetDeckId];
 
@@ -1633,313 +1545,13 @@ class DualPlayer {
             this.setPitch(targetDeckId, requiredPitchPercent);
         }
 
-        if (snapBeats) {
-            this.snapBeatsToGrid(sourceDeckId, targetDeckId);
-        }
-
         const finalBPM = targetEffectiveBPM * requiredPlaybackRate;
         console.log(
-            `[Beat Sync] Synced ${targetDeckId.toUpperCase()} (${targetOriginalBPM} BPM) to ${sourceDeckId.toUpperCase()}\n` +
+            `[BPM Sync] Synced ${targetDeckId.toUpperCase()} (${targetOriginalBPM} BPM) to ${sourceDeckId.toUpperCase()}\n` +
                 `  Source True BPM: ${sourceTrueBPM.toFixed(2)} | Source Effective BPM: ${sourceActualBPM.toFixed(2)}\n` +
                 `  → Multiplier: ${targetDeck.bpmMultiplier}x | Target Effective: ${targetEffectiveBPM.toFixed(2)} BPM\n` +
-                `  → Final BPM: ${finalBPM.toFixed(2)} | Playback Rate: ${requiredPlaybackRate.toFixed(4)}${snapBeats ? " + Beat Grid Aligned" : ""}`,
+                `  → Final BPM: ${finalBPM.toFixed(2)} | Playback Rate: ${requiredPlaybackRate.toFixed(4)}`,
         );
-    }
-
-    snapBeatsToGrid(sourceDeckId, targetDeckId) {
-        const sourceDeck = this.decks[sourceDeckId];
-        const targetDeck = this.decks[targetDeckId];
-
-        if (
-            !sourceDeck.beatgridData ||
-            !Array.isArray(sourceDeck.beatgridData) ||
-            sourceDeck.beatgridData.length === 0
-        ) {
-            console.warn(
-                `[Beat Sync] No beat grid data available for source deck ${sourceDeckId.toUpperCase()}. Beat sync requires analyzed beat grids.`,
-            );
-            this.showNotification(
-                `Beat grid not available for ${sourceDeckId.toUpperCase()}. Beat sync requires tracks analyzed in Rekordbox.`,
-                "error",
-                4000,
-            );
-            return;
-        }
-
-        if (
-            !targetDeck.beatgridData ||
-            !Array.isArray(targetDeck.beatgridData) ||
-            targetDeck.beatgridData.length === 0
-        ) {
-            console.warn(
-                `[Beat Sync] No beat grid data available for target deck ${targetDeckId.toUpperCase()}. Beat sync requires analyzed beat grids.`,
-            );
-            this.showNotification(
-                `Beat grid not available for ${targetDeckId.toUpperCase()}. Beat sync requires tracks analyzed in Rekordbox.`,
-                "error",
-                4000,
-            );
-            return;
-        }
-
-        const sourceActualBPM = this.getActualBPM(sourceDeckId);
-        const targetActualBPM = this.getActualBPM(targetDeckId);
-
-        const sourceBeatLength = 60 / sourceActualBPM;
-        const targetBeatLength = 60 / targetActualBPM;
-
-        const sourceFirstBeatOffset = sourceDeck.beatgridData[0].time || 0;
-        const targetFirstBeatOffset = targetDeck.beatgridData[0].time || 0;
-
-        const sourceCenterPoint = sourceDeck.audio.currentTime;
-        const targetCenterPoint = targetDeck.audio.currentTime;
-
-        const sourceTimeFromFirstBeat =
-            sourceCenterPoint - sourceFirstBeatOffset;
-        const targetTimeFromFirstBeat =
-            targetCenterPoint - targetFirstBeatOffset;
-
-        const sourceNearestBeatNumber = Math.round(
-            sourceTimeFromFirstBeat / sourceBeatLength,
-        );
-        const targetNearestBeatNumber = Math.round(
-            targetTimeFromFirstBeat / targetBeatLength,
-        );
-
-        const sourceNearestBeatTime =
-            sourceFirstBeatOffset + sourceNearestBeatNumber * sourceBeatLength;
-        const targetNearestBeatTime =
-            targetFirstBeatOffset + targetNearestBeatNumber * targetBeatLength;
-
-        const sourceBeatOffsetFromCenter =
-            sourceNearestBeatTime - sourceCenterPoint;
-        const targetBeatOffsetFromCenter =
-            targetNearestBeatTime - targetCenterPoint;
-
-        const offsetDifference =
-            sourceBeatOffsetFromCenter - targetBeatOffsetFromCenter;
-
-        let newTargetTime = targetCenterPoint + offsetDifference;
-
-        newTargetTime = Math.max(
-            0,
-            Math.min(newTargetTime, targetDeck.duration - 0.1),
-        );
-
-        if (Math.abs(offsetDifference) > 0.001) {
-            targetDeck.audio.currentTime = newTargetTime;
-            this.updatePlayhead(targetDeckId);
-        }
-
-        const adjustmentMs = Math.round(offsetDifference * 1000);
-        const sourceBeatOffsetMs = Math.round(
-            sourceBeatOffsetFromCenter * 1000,
-        );
-        const targetBeatOffsetMs = Math.round(
-            targetBeatOffsetFromCenter * 1000,
-        );
-
-        console.log(
-            `[Beat Sync - Grid Center Alignment]\n` +
-                `  Master ${sourceDeckId.toUpperCase()}: Center=${sourceCenterPoint.toFixed(3)}s | Nearest Beat=${sourceNearestBeatTime.toFixed(3)}s | Offset=${sourceBeatOffsetMs}ms\n` +
-                `  Target ${targetDeckId.toUpperCase()}: Center=${targetCenterPoint.toFixed(3)}s | Nearest Beat=${targetNearestBeatTime.toFixed(3)}s (before) | Offset=${targetBeatOffsetMs}ms\n` +
-                `  → Adjustment: ${adjustmentMs}ms | New Target Time: ${newTargetTime.toFixed(3)}s\n` +
-                `  ✓ Beats aligned at center point | Phase locked`,
-        );
-
-        this.showNotification(
-            `Beat Sync: ${Math.abs(adjustmentMs)}ms adjustment | Beats aligned to center`,
-            "success",
-            2000,
-        );
-    }
-
-    startBeatSyncLoop(sourceDeckId, targetDeckId) {
-        const sourceDeck = this.decks[sourceDeckId];
-        const targetDeck = this.decks[targetDeckId];
-
-        if (!sourceDeck.beatgridData || !targetDeck.beatgridData) {
-            console.warn("[Beat Sync Loop] Missing beat grid data");
-            return;
-        }
-
-        sourceDeck.beatSyncFilteredError = 0;
-        sourceDeck.beatSyncErrorIntegral = 0;
-        sourceDeck.beatSyncSlipCounter = 0;
-
-        const FILTER_ALPHA = 0.15;
-        const KP = 0.35;
-        const KI = 0.15;
-        const INTEGRAL_CLAMP = 0.04;
-        const INTEGRAL_DECAY = 0.98;
-        const RATE_CLAMP = 0.004;
-        const SLIP_THRESHOLD_MS = 40;
-        const SLIP_CONSECUTIVE_FRAMES = 3;
-
-        const phaseMonitor = () => {
-            if (
-                !sourceDeck.beatSyncLocked ||
-                sourceDeck.beatSyncTargetDeck !== targetDeckId
-            ) {
-                return;
-            }
-
-            if (!sourceDeck.isPlaying || !targetDeck.isPlaying) {
-                sourceDeck.beatSyncAnimationFrame =
-                    requestAnimationFrame(phaseMonitor);
-                return;
-            }
-
-            const sourceActualBPM = this.getActualBPM(sourceDeckId);
-            const targetActualBPM = this.getActualBPM(targetDeckId);
-            const sourceBeatLength = 60 / sourceActualBPM;
-            const targetBeatLength = 60 / targetActualBPM;
-
-            const sourceFirstBeatOffset = sourceDeck.beatgridData[0].time || 0;
-            const targetFirstBeatOffset = targetDeck.beatgridData[0].time || 0;
-
-            const sourceCenterPoint = sourceDeck.audio.currentTime;
-            const targetCenterPoint = targetDeck.audio.currentTime;
-
-            const sourceTimeFromFirstBeat =
-                sourceCenterPoint - sourceFirstBeatOffset;
-            const targetTimeFromFirstBeat =
-                targetCenterPoint - targetFirstBeatOffset;
-
-            const sourceBeatPhase =
-                (sourceTimeFromFirstBeat % sourceBeatLength) / sourceBeatLength;
-            const targetBeatPhase =
-                (targetTimeFromFirstBeat % targetBeatLength) / targetBeatLength;
-
-            let phaseError = sourceBeatPhase - targetBeatPhase;
-
-            if (phaseError > 0.5) {
-                phaseError -= 1;
-            } else if (phaseError < -0.5) {
-                phaseError += 1;
-            }
-
-            const phaseErrorSeconds = phaseError * targetBeatLength;
-            const phaseErrorMs = phaseErrorSeconds * 1000;
-
-            sourceDeck.beatSyncFilteredError =
-                FILTER_ALPHA * phaseErrorSeconds +
-                (1 - FILTER_ALPHA) * sourceDeck.beatSyncFilteredError;
-
-            sourceDeck.beatSyncErrorIntegral =
-                (sourceDeck.beatSyncErrorIntegral +
-                    sourceDeck.beatSyncFilteredError) *
-                INTEGRAL_DECAY;
-
-            sourceDeck.beatSyncErrorIntegral = Math.max(
-                -INTEGRAL_CLAMP,
-                Math.min(INTEGRAL_CLAMP, sourceDeck.beatSyncErrorIntegral),
-            );
-
-            if (Math.abs(phaseErrorMs) >= SLIP_THRESHOLD_MS) {
-                sourceDeck.beatSyncSlipCounter++;
-
-                if (sourceDeck.beatSyncSlipCounter >= SLIP_CONSECUTIVE_FRAMES) {
-                    const slipAmount = phaseErrorSeconds;
-                    const newTargetTime = targetCenterPoint + slipAmount;
-                    const clampedTime = Math.max(
-                        0,
-                        Math.min(newTargetTime, targetDeck.duration - 0.1),
-                    );
-
-                    targetDeck.audio.currentTime = clampedTime;
-                    this.updatePlayhead(targetDeckId);
-
-                    sourceDeck.beatSyncFilteredError = 0;
-                    sourceDeck.beatSyncErrorIntegral = 0;
-                    sourceDeck.beatSyncSlipCounter = 0;
-
-                    console.log(
-                        `[Beat Sync PI] Slip correction: ${phaseErrorMs.toFixed(1)}ms → Jump ${(slipAmount * 1000).toFixed(1)}ms | Reset PI state`,
-                    );
-                }
-            } else {
-                sourceDeck.beatSyncSlipCounter = 0;
-            }
-
-            if (Math.abs(phaseErrorMs) < SLIP_THRESHOLD_MS) {
-                const rateDelta =
-                    KP * sourceDeck.beatSyncFilteredError +
-                    KI * sourceDeck.beatSyncErrorIntegral;
-
-                const clampedDelta = Math.max(
-                    -RATE_CLAMP,
-                    Math.min(RATE_CLAMP, rateDelta),
-                );
-
-                const baseRate =
-                    targetDeck.audio.playbackRate ||
-                    1 + targetDeck.pitchValue / 100;
-                const adjustedRate = baseRate + clampedDelta;
-
-                targetDeck.audio.playbackRate = adjustedRate;
-                targetDeck.audio.preservesPitch = targetDeck.masterTempo;
-
-                if (Math.abs(phaseErrorMs) > 2) {
-                    console.log(
-                        `[Beat Sync PI] Error: ${phaseErrorMs.toFixed(1)}ms | Filtered: ${(sourceDeck.beatSyncFilteredError * 1000).toFixed(1)}ms | Integral: ${(sourceDeck.beatSyncErrorIntegral * 1000).toFixed(1)}ms | Rate Δ: ${(clampedDelta * 100).toFixed(3)}%`,
-                    );
-                }
-            }
-
-            sourceDeck.beatSyncAnimationFrame =
-                requestAnimationFrame(phaseMonitor);
-        };
-
-        console.log(
-            `[Beat Sync PI] Starting PI controller: ${sourceDeckId.toUpperCase()} → ${targetDeckId.toUpperCase()} | Kp=${KP}, Ki=${KI}, α=${FILTER_ALPHA}`,
-        );
-
-        sourceDeck.beatSyncAnimationFrame = requestAnimationFrame(phaseMonitor);
-    }
-
-    stopBeatSyncLoop(sourceDeckId) {
-        const sourceDeck = this.decks[sourceDeckId];
-
-        if (sourceDeck.beatSyncAnimationFrame) {
-            cancelAnimationFrame(sourceDeck.beatSyncAnimationFrame);
-            sourceDeck.beatSyncAnimationFrame = null;
-        }
-
-        if (sourceDeck.beatSyncLocked) {
-            const targetDeckId = sourceDeck.beatSyncTargetDeck;
-
-            sourceDeck.beatSyncLocked = false;
-            sourceDeck.beatSyncTargetDeck = null;
-
-            this.updateBeatSyncUI(sourceDeckId, false);
-
-            if (targetDeckId) {
-                const targetDeck = this.decks[targetDeckId];
-                const normalRate = 1 + targetDeck.pitchValue / 100;
-                targetDeck.audio.playbackRate = normalRate;
-                targetDeck.audio.preservesPitch = targetDeck.masterTempo;
-            }
-
-            console.log(
-                `[Beat Sync Loop] Stopped continuous phase monitoring for ${sourceDeckId.toUpperCase()}`,
-            );
-        }
-    }
-
-    updateBeatSyncUI(deckId, isLocked) {
-        const deckLabel = deckId.toUpperCase();
-        const btn = document.getElementById(`beatSync${deckLabel}`);
-
-        if (btn) {
-            if (isLocked) {
-                btn.classList.add("active");
-                btn.title = "Beat Sync LOCKED (Click to unlock)";
-            } else {
-                btn.classList.remove("active");
-                btn.title = "Beat Sync (Lock beats to master)";
-            }
-        }
     }
 
     updateBPMDisplay(deckId, currentBPM) {

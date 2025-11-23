@@ -1,0 +1,54 @@
+[USB Drive Browser] Directory selected: \
+(index):765 [USB Drive] Found export.pdb, parsing database...
+(index):899 [USB Drive] Database parsed successfully: 15 tracks, 2 playlists
+(index):925 [USB Drive] Could not find file: /Contents/Yellow Claw/Amsterdam Twerk Music/DJ Turn It Up.mp3 NotFoundError: A requested file or directory could not be found at the time an operation was processed.
+findAudioFile @ (index):925
+await in findAudioFile
+parseUSBRekordboxDatabase @ (index):934
+await in parseUSBRekordboxDatabase
+window.browseUSBDrive @ (index):771
+await in window.browseUSBDrive
+onclick @ (index):360Understand this warning
+(index):925 [USB Drive] Could not find file: /Contents/UnknownArtist/UnknownAlbum/Flo-Rida - GDFR (Bar-Noize Remix) F.2.mp3 NotFoundError: A requested file or directory could not be found at the time an operation was processed.
+findAudioFile @ (index):925
+await in findAudioFile
+parseUSBRekordboxDatabase @ (index):934
+await in parseUSBRekordboxDatabase
+window.browseUSBDrive @ (index):771
+await in window.browseUSBDrive
+onclick @ (index):360Understand this warning
+(index):925 [USB Drive] Could not find file: /Contents/Missy Elliott/UnknownAlbum/Missy Elliott - Work It (Bar-Noize Booty Twe.mp3 NotFoundError: A requested file or directory could not be found at the time an operation was processed.
+findAudioFile @ (index):925
+await in findAudioFile
+parseUSBRekordboxDatabase @ (index):934
+await in parseUSBRekordboxDatabase
+window.browseUSBDrive @ (index):771
+await in window.browseUSBDrive
+onclick @ (index):360Understand this warning
+(index):925 [USB Drive] Could not find file: /Contents/UnknownArtist/UnknownAlbum/Eve_-_Whos_That_Girl_Dj_-_Little_Edit.mp3 NotFoundError: A requested file or directory could not be found at the time an operation was processed.
+findAudioFile @ (index):925
+await in findAudioFile
+parseUSBRekordboxDatabase @ (index):934
+await in parseUSBRekordboxDatabase
+window.browseUSBDrive @ (index):771
+await in window.browseUSBDrive
+onclick @ (index):360Understand this warning
+(index):925 [USB Drive] Could not find file: /Contents/UnknownArtist/T_W_R_K - BaDINGA!/T_W_R_K - BaDINGA!.mp3 NotFoundError: A requested file or directory could not be found at the time an operation was processed.
+findAudioFile @ (index):925
+await in findAudioFile
+parseUSBRekordboxDatabase @ (index):934
+await in parseUSBRekordboxDatabase
+window.browseUSBDrive @ (index):771
+await in window.browseUSBDrive
+onclick @ (index):360Understand this warning
+(index):925 [USB Drive] Could not find file: /Contents/UnknownArtist/UnknownAlbum/Tropkillaz - Figure 8 Feat. The Kemist-1.mp3 NotFoundError: A requested file or directory could not be found at the time an operation was processed.
+findAudioFile @ (index):925
+await in findAudioFile
+parseUSBRekordboxDatabase @ (index):934
+await in parseUSBRekordboxDatabase
+window.browseUSBDrive @ (index):771
+await in window.browseUSBDrive
+onclick @ (index):360Understand this warning
+(index):974 [USB Drive] Database parse error: TypeError: Assignment to constant variable.
+    at parseUSBRekordboxDatabase ((index):945:28)
+    at async window.browseUSBDrive ((index):771:21)

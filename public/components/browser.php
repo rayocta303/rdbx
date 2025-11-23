@@ -73,6 +73,16 @@
                     renderPlaylistTree($playlistTree);
                     ?>
                 <?php endif; ?>
+                
+                <div class="mt-3 pt-3 border-t border-gray-700">
+                    <button 
+                        onclick="browseUSBDrive()" 
+                        id="usb_drive_browser"
+                        class="playlist-item w-full text-left px-3 py-2 rounded mb-1 bg-gradient-to-r from-purple-900/30 to-blue-900/30 hover:from-purple-800/40 hover:to-blue-800/40 border border-purple-700/50">
+                        <i class="fas fa-usb mr-2"></i> Browse USB Drive (Client)
+                        <span class="text-xs ml-1 opacity-70 block mt-1">Access your local USB drive directly</span>
+                    </button>
+                </div>
             </div>
         </div>
 

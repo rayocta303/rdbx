@@ -1,0 +1,32 @@
+[DualPlayer] Audio context initialized successfully
+(index):754 [USB Drive Browser] Directory selected: \
+(index):765 [USB Drive] Found export.pdb, parsing database...
+(index):899 [USB Drive] Database parsed successfully: 15 tracks, 2 playlists
+(index):930 [USB Drive] Could not find file: /Contents/Yellow Claw/Amsterdam Twerk Music/DJ Turn It Up.mp3 NotFoundError: A requested file or directory could not be found at the time an operation was processed.
+findAudioFile @ (index):930Understand this warning
+(index):930 [USB Drive] Could not find file: /Contents/UnknownArtist/UnknownAlbum/Flo-Rida - GDFR (Bar-Noize Remix) F.2.mp3 NotFoundError: A requested file or directory could not be found at the time an operation was processed.
+findAudioFile @ (index):930Understand this warning
+(index):930 [USB Drive] Could not find file: /Contents/Missy Elliott/UnknownAlbum/Missy Elliott - Work It (Bar-Noize Booty Twe.mp3 NotFoundError: A requested file or directory could not be found at the time an operation was processed.
+findAudioFile @ (index):930Understand this warning
+(index):930 [USB Drive] Could not find file: /Contents/UnknownArtist/UnknownAlbum/Eve_-_Whos_That_Girl_Dj_-_Little_Edit.mp3 NotFoundError: A requested file or directory could not be found at the time an operation was processed.
+findAudioFile @ (index):930Understand this warning
+(index):930 [USB Drive] Could not find file: /Contents/UnknownArtist/T_W_R_K - BaDINGA!/T_W_R_K - BaDINGA!.mp3 NotFoundError: A requested file or directory could not be found at the time an operation was processed.
+findAudioFile @ (index):930Understand this warning
+(index):930 [USB Drive] Could not find file: /Contents/UnknownArtist/UnknownAlbum/Tropkillaz - Figure 8 Feat. The Kemist-1.mp3 NotFoundError: A requested file or directory could not be found at the time an operation was processed.
+findAudioFile @ (index):930Understand this warning
+dual-player.js?v=1763924794:403 [Deck A] Loading track: Object
+dual-player.js?v=1763924794:419 [Deck A] Loading from USB Drive (Blob URL)
+dual-player.js?v=1763924794:436 [Deck A] Using analysis data from USB
+dual-player.js?v=1763924794:471 [Deck A] No waveform data available
+dual-player.js?v=1763924794:478 [Deck A] Beat grid data: Object
+dual-player.js?v=1763924794:523 [Deck A] Track metadata loaded - Duration: 313.57s
+dual-player.js?v=1763924794:537 [Deck A] Rendering waveform with zoom level: 16x, offset: -9.80s
+dual-player.js?v=1763924794:82 [Deck A] Audio data loaded successfully
+dual-player.js?v=1763924794:106 [Deck A] Audio source connected with analyser node
+dual-player.js?v=1763924794:151 [Deck A] Audio can start playing (canplay event)
+dual-player.js?v=1763924794:157 [Deck A] Audio can play through without buffering (canplaythrough event)
+track-detail.js?v=1763924794:104 [TrackDetail] Fetching analysis data for track 4...
+/audio.php?path=blob%3Ahttps%3A%2F%2Fab29bb8a-d0bd-4f0e-a6ba-ec21d95eb471-00-2q7n9nffbb1rq.sisko.replit.dev%2F47300cba-9600-49ed-9cec-31ab4ecd23c3:1  Failed to load resource: the server responded with a status of 404 (Not Found)Understand this error
+audio-player.js?v=1763924794:92 Audio load error: Event
+(anonymous) @ audio-player.js?v=1763924794:92Understand this error
+track-detail.js?v=1763924794:136 [TrackDetail] Analysis data loaded successfully for track 4

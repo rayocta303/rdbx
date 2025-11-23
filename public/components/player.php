@@ -68,10 +68,6 @@
                                 <i class="fas fa-sync-alt"></i>
                                 <span>BPM SYNC</span>
                             </button>
-                            <button class="beatsync-btn-compact" id="beatSyncA" onclick="window.dualPlayer.syncToMaster('a', 'beat')" title="Beat Sync (Snap to Beat Grid)">
-                                <i class="fas fa-wave-square"></i>
-                                <span>BEAT SYNC</span>
-                            </button>
                             <button class="quantize-btn" id="quantizeA" onclick="window.dualPlayer.toggleQuantize('a')" title="Quantize (Snap to Beat)">
                                 <i class="fas fa-magnet"></i>
                             </button>
@@ -202,10 +198,6 @@
                             <button class="sync-btn-compact" id="bpmSyncB" onclick="window.dualPlayer.toggleBPMSync('b')" title="BPM Sync (Toggle)">
                                 <i class="fas fa-sync-alt"></i>
                                 <span>BPM SYNC</span>
-                            </button>
-                            <button class="beatsync-btn-compact" id="beatSyncB" onclick="window.dualPlayer.syncToMaster('b', 'beat')" title="Beat Sync (Snap to Beat Grid)">
-                                <i class="fas fa-wave-square"></i>
-                                <span>BEAT SYNC</span>
                             </button>
                             <button class="quantize-btn" id="quantizeB" onclick="window.dualPlayer.toggleQuantize('b')" title="Quantize (Snap to Beat)">
                                 <i class="fas fa-magnet"></i>
