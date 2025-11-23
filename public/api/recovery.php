@@ -73,6 +73,89 @@ try {
             ]);
             break;
 
+        case 'recover_all':
+            $corruptDb = $input['corruptDb'] ?? '';
+            $recoveredDb = $input['recoveredDb'] ?? '';
+            $referenceDb = $input['referenceDb'] ?? null;
+
+            if (empty($corruptDb) || empty($recoveredDb)) {
+                throw new Exception('Corrupt and recovered database paths required');
+            }
+
+            // Security: Whitelist allowed directories (prevent directory traversal)
+            $baseDir = realpath(__DIR__ . '/../../');
+            $allowedDirs = [
+                realpath($baseDir . '/Rekordbox-USB/PIONEER/rekordbox'),
+                realpath($baseDir . '/Rekordbox-USB-Corrupted/PIONEER/rekordbox'),
+                realpath($baseDir . '/Rekordbox-USB-Recovered/PIONEER/rekordbox')
+            ];
+            // Filter out false values (directories that don't exist)
+            $allowedDirs = array_filter($allowedDirs);
+
+            // Helper function: validate path is within allowed directories AFTER canonicalization
+            $validateCanonicalPath = function($path, $mustExist = true) use ($allowedDirs) {
+                if ($mustExist) {
+                    $canonical = realpath($path);
+                    if ($canonical === false) {
+                        return false; // File doesn't exist
+                    }
+                } else {
+                    // For output files that don't exist yet, validate directory
+                    $dir = dirname($path);
+                    $canonical = realpath($dir);
+                    if ($canonical === false) {
+                        return false; // Directory doesn't exist
+                    }
+                    $canonical = $canonical . '/' . basename($path);
+                }
+                
+                // Check if canonical path is within any allowed directory
+                foreach ($allowedDirs as $allowed) {
+                    if (strpos($canonical, $allowed . '/') === 0 || $canonical === $allowed) {
+                        return $canonical;
+                    }
+                }
+                return false;
+            };
+
+            // Validate and canonicalize corrupt database path
+            $corruptDbPath = $validateCanonicalPath($baseDir . '/' . ltrim($corruptDb, '/'), true);
+            if ($corruptDbPath === false) {
+                throw new Exception('Corrupt database path not allowed or file not found. Must be within Rekordbox directories.');
+            }
+
+            // Validate and canonicalize recovered database path (doesn't need to exist yet)
+            $recoveredDbPath = $validateCanonicalPath($baseDir . '/' . ltrim($recoveredDb, '/'), false);
+            if ($recoveredDbPath === false) {
+                throw new Exception('Recovered database path not allowed. Must be within Rekordbox directories.');
+            }
+
+            // Validate and canonicalize reference database path if provided
+            $referenceDbPath = null;
+            if ($referenceDb) {
+                $referenceDbPath = $validateCanonicalPath($baseDir . '/' . ltrim($referenceDb, '/'), true);
+                if ($referenceDbPath === false) {
+                    throw new Exception('Reference database path not allowed or file not found. Must be within Rekordbox directories.');
+                }
+            }
+
+            $recovery = new DatabaseRecovery($corruptDbPath, $recoveredDbPath, $referenceDbPath, $logger);
+            
+            // Run full recovery
+            $result = $recovery->recoverAll();
+            
+            $log = $recovery->getRecoveryLog();
+            $stats = $recovery->getStats();
+
+            echo json_encode([
+                'success' => $result,
+                'log' => $log,
+                'stats' => $stats,
+                'message' => $result ? 'Full recovery completed successfully' : 'Recovery failed',
+                'recovered_file' => str_replace($baseDir . '/', '', $recoveredDbPath)
+            ]);
+            break;
+
         case 'recover':
             $method = intval($input['method'] ?? 0);
             $corruptDb = $input['corruptDb'] ?? '';
@@ -87,14 +170,64 @@ try {
                 throw new Exception('Corrupt and recovered database paths required');
             }
 
-            // Convert to absolute paths from project root
-            $corruptDb = __DIR__ . '/../../' . $corruptDb;
-            $recoveredDb = __DIR__ . '/../../' . $recoveredDb;
-            if (!empty($referenceDb)) {
-                $referenceDb = __DIR__ . '/../../' . $referenceDb;
+            // Security: Whitelist allowed directories (prevent directory traversal)
+            $baseDir = realpath(__DIR__ . '/../../');
+            $allowedDirs = [
+                realpath($baseDir . '/Rekordbox-USB/PIONEER/rekordbox'),
+                realpath($baseDir . '/Rekordbox-USB-Corrupted/PIONEER/rekordbox'),
+                realpath($baseDir . '/Rekordbox-USB-Recovered/PIONEER/rekordbox')
+            ];
+            // Filter out false values (directories that don't exist)
+            $allowedDirs = array_filter($allowedDirs);
+
+            // Helper function: validate path is within allowed directories AFTER canonicalization
+            $validateCanonicalPath = function($path, $mustExist = true) use ($allowedDirs) {
+                if ($mustExist) {
+                    $canonical = realpath($path);
+                    if ($canonical === false) {
+                        return false; // File doesn't exist
+                    }
+                } else {
+                    // For output files that don't exist yet, validate directory
+                    $dir = dirname($path);
+                    $canonical = realpath($dir);
+                    if ($canonical === false) {
+                        return false; // Directory doesn't exist
+                    }
+                    $canonical = $canonical . '/' . basename($path);
+                }
+                
+                // Check if canonical path is within any allowed directory
+                foreach ($allowedDirs as $allowed) {
+                    if (strpos($canonical, $allowed . '/') === 0 || $canonical === $allowed) {
+                        return $canonical;
+                    }
+                }
+                return false;
+            };
+
+            // Validate and canonicalize corrupt database path
+            $corruptDbPath = $validateCanonicalPath($baseDir . '/' . ltrim($corruptDb, '/'), true);
+            if ($corruptDbPath === false) {
+                throw new Exception('Corrupt database path not allowed or file not found. Must be within Rekordbox directories.');
             }
 
-            $recovery = new DatabaseRecovery($corruptDb, $recoveredDb, $referenceDb, $logger);
+            // Validate and canonicalize recovered database path (doesn't need to exist yet)
+            $recoveredDbPath = $validateCanonicalPath($baseDir . '/' . ltrim($recoveredDb, '/'), false);
+            if ($recoveredDbPath === false) {
+                throw new Exception('Recovered database path not allowed. Must be within Rekordbox directories.');
+            }
+
+            // Validate and canonicalize reference database path if provided
+            $referenceDbPath = null;
+            if ($referenceDb) {
+                $referenceDbPath = $validateCanonicalPath($baseDir . '/' . ltrim($referenceDb, '/'), true);
+                if ($referenceDbPath === false) {
+                    throw new Exception('Reference database path not allowed or file not found. Must be within Rekordbox directories.');
+                }
+            }
+
+            $recovery = new DatabaseRecovery($corruptDbPath, $recoveredDbPath, $referenceDbPath, $logger);
             
             $result = false;
             switch ($method) {
