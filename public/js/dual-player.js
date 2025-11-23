@@ -455,17 +455,33 @@ class DualPlayer {
             }
         }
 
+        // Validate waveform data
         if (track.waveform) {
-            deck.waveformData = track.waveform;
-            console.log(
-                `[Deck ${deckId.toUpperCase()}] Waveform data available:`,
-                {
-                    has_three_band_preview: !!track.waveform.three_band_preview,
-                    has_three_band_detail: !!track.waveform.three_band_detail,
-                    has_color_data: !!track.waveform.color_data,
-                    has_preview_data: !!track.waveform.preview_data,
-                },
-            );
+            // Check if waveform has actual data arrays, not just metadata
+            const hasValidWaveform = 
+                (Array.isArray(track.waveform.three_band_preview) && track.waveform.three_band_preview.length > 0) ||
+                (Array.isArray(track.waveform.three_band_detail) && track.waveform.three_band_detail.length > 0) ||
+                (Array.isArray(track.waveform.color_data) && track.waveform.color_data.length > 0) ||
+                (Array.isArray(track.waveform.preview_data) && track.waveform.preview_data.length > 0);
+            
+            if (hasValidWaveform) {
+                deck.waveformData = track.waveform;
+                console.log(
+                    `[Deck ${deckId.toUpperCase()}] Waveform data loaded:`,
+                    {
+                        three_band_preview: Array.isArray(track.waveform.three_band_preview) ? track.waveform.three_band_preview.length : 0,
+                        three_band_detail: Array.isArray(track.waveform.three_band_detail) ? track.waveform.three_band_detail.length : 0,
+                        color_data: Array.isArray(track.waveform.color_data) ? track.waveform.color_data.length : 0,
+                        preview_data: Array.isArray(track.waveform.preview_data) ? track.waveform.preview_data.length : 0,
+                    },
+                );
+            } else {
+                deck.waveformData = null;
+                console.warn(
+                    `[Deck ${deckId.toUpperCase()}] Waveform data incomplete - no valid arrays found`,
+                    track.waveform
+                );
+            }
         } else {
             deck.waveformData = null;
             console.log(
@@ -488,6 +504,14 @@ class DualPlayer {
         deck.pitchValue = 0;
         deck.originalBPM = track.bpm || 0;
         deck.bpmMultiplier = 1.0;
+        
+        // Force waveform render if data is available
+        if (deck.waveformData && track.duration) {
+            console.log(`[Deck ${deckId.toUpperCase()}] Rendering waveform immediately...`);
+            requestAnimationFrame(() => {
+                this.renderWaveform(deckId);
+            });
+        }
 
         const deckLabel = deckId.toUpperCase();
         const pitchSlider = document.getElementById(`pitchSlider${deckLabel}`);

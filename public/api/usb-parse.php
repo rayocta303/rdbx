@@ -40,6 +40,53 @@ try {
     $trackParser->setKeyParser($keyParser);
     $tracks = $trackParser->parseTracks();
     
+    // Parse ANLZ files to get waveform and beatgrid data
+    $anlzParser = new \RekordboxReader\Parsers\AnlzParser('', $logger);
+    $pioneerPath = dirname($pdbPath);
+    
+    // Enrich tracks with ANLZ data
+    foreach ($tracks as &$track) {
+        if (!empty($track['analyze_path'])) {
+            // Build full ANLZ path
+            $anlzPath = $pioneerPath . '/' . $track['analyze_path'];
+            
+            // Try .EXT file first (detailed waveform), then .DAT, then .2EX
+            $anlzFiles = [
+                str_replace('.DAT', '.EXT', $anlzPath),
+                $anlzPath,
+                str_replace('.DAT', '.2EX', $anlzPath)
+            ];
+            
+            $anlzData = null;
+            foreach ($anlzFiles as $anlzFile) {
+                if (file_exists($anlzFile)) {
+                    $anlzParser = new \RekordboxReader\Parsers\AnlzParser($anlzFile, $logger);
+                    $parsed = $anlzParser->parse();
+                    
+                    // Merge data, preferring detailed waveform
+                    if ($anlzData === null) {
+                        $anlzData = $parsed;
+                    } else {
+                        // Merge waveform data (prefer detailed from .EXT)
+                        if (!empty($parsed['waveform']['three_band_detail'])) {
+                            $anlzData['waveform']['three_band_detail'] = $parsed['waveform']['three_band_detail'];
+                        }
+                        if (!empty($parsed['waveform']['three_band_preview'])) {
+                            $anlzData['waveform']['three_band_preview'] = $parsed['waveform']['three_band_preview'];
+                        }
+                    }
+                }
+            }
+            
+            if ($anlzData) {
+                $track['waveform'] = $anlzData['waveform'];
+                $track['beat_grid'] = $anlzData['beat_grid'];
+                $track['cue_points'] = $anlzData['cue_points'];
+            }
+        }
+    }
+    unset($track);
+    
     $playlistParser = new \RekordboxReader\Parsers\PlaylistParser($pdbParser, $logger);
     $playlists = $playlistParser->parsePlaylists();
     

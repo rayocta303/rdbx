@@ -226,10 +226,16 @@ class AnlzParser {
             $waveform['three_band_preview'] = $waveData;
         }
 
-        // Parse 3-band detail waveform (PWV6)
-        if (isset($this->sections['PWV6'])) {
-            $waveData = $this->parseWaveformData($this->sections['PWV6'][0], '3band');
-            $waveform['three_band_detail'] = $waveData;
+        // Parse 3-band detail waveform (PWV6 or PWV4)
+        $detailSections = ['PWV6', 'PWV4'];
+        foreach ($detailSections as $section) {
+            if (isset($this->sections[$section])) {
+                $waveData = $this->parseWaveformData($this->sections[$section][0], '3band');
+                if (!empty($waveData)) {
+                    $waveform['three_band_detail'] = $waveData;
+                    break;
+                }
+            }
         }
 
         return $waveform;
