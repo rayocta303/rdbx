@@ -311,8 +311,7 @@ class DualPlayer {
                 }
             }
 
-            this.renderWaveform(deckId);
-            this.renderCueMarkers(deckId);
+            this.renderWaveformUnified(deckId);
 
             const deckLabel = deckId.toUpperCase();
             const timeDisplay = document.getElementById(
@@ -498,6 +497,7 @@ class DualPlayer {
 
         this.loadHotCues(track, deckId);
         this.updateTrackInfo(deckId);
+        this.renderWaveformUnified(deckId);
 
         const trackInfoEl = document.getElementById(`trackInfo${deckLabel}`);
         if (trackInfoEl) {
@@ -533,8 +533,7 @@ class DualPlayer {
             console.log(
                 `[Deck ${deckLabel}] Rendering waveform with zoom level: ${this.sharedZoomLevel}x, offset: ${deck.waveformOffset.toFixed(2)}s`,
             );
-            this.renderWaveform(deckId);
-            this.renderCueMarkers(deckId);
+            this.renderWaveformUnified(deckId);
         } else {
             console.warn(
                 `[Deck ${deckLabel}] Invalid duration: ${deck.duration}`,
@@ -724,8 +723,7 @@ class DualPlayer {
             timeDisplay.textContent = `${this.formatTime(currentTime)} / ${this.formatTime(duration)}`;
         }
 
-        this.renderWaveform(deckId);
-        this.renderCueMarkers(deckId);
+        this.renderWaveformUnified(deckId);
     }
 
     draw3BandWaveformMirror(ctx, data, W, H) {
@@ -948,11 +946,10 @@ class DualPlayer {
             deck.audio.currentTime = targetTime;
         }
 
-        this.renderWaveform(deckId);
-        this.renderCueMarkers(deckId);
+        this.renderWaveformUnified(deckId);
     }
 
-    renderWaveform(deckId) {
+    renderWaveformUnified(deckId) {
         const deck = this.decks[deckId];
         const deckLabel = deckId.toUpperCase();
         const canvas = document.getElementById(`waveformCanvas${deckLabel}`);
@@ -1057,6 +1054,15 @@ class DualPlayer {
         ctx.restore();
 
         this.renderBeatgrid(
+            deckId,
+            ctx,
+            displayWidth,
+            displayHeight,
+            viewStart,
+            viewDuration,
+        );
+
+        this.renderCueMarkersOnCanvas(
             deckId,
             ctx,
             displayWidth,
@@ -1174,34 +1180,45 @@ class DualPlayer {
         }
     }
 
-    renderCueMarkers(deckId) {
+    renderCueMarkersOnCanvas(deckId, ctx, width, height, viewStart, viewDuration) {
         const deck = this.decks[deckId];
-        const deckLabel = deckId.toUpperCase();
-        const container = document.getElementById(`cueMarkers${deckLabel}`);
+        
+        if (!deck.hotCues || Object.keys(deck.hotCues).length === 0) return;
 
-        if (!container || !deck.duration || deck.duration <= 0) return;
-
-        container.innerHTML = "";
-
-        const pitchMultiplier = 1 + deck.pitchValue / 100;
-        const effectiveZoom = this.sharedZoomLevel * pitchMultiplier;
-        const viewStart = deck.waveformOffset;
-        const viewDuration = deck.duration / effectiveZoom;
         const viewEnd = viewStart + viewDuration;
 
-        // hotCues is now 0-based (0=A, 1=B, 2=C, etc.)
         Object.entries(deck.hotCues).forEach(([cueIndex, cue]) => {
             if (cue.time >= viewStart && cue.time <= viewEnd) {
                 const relativePosition = (cue.time - viewStart) / viewDuration;
-                const marker = document.createElement("div");
-                marker.className = "cue-marker";
-                marker.style.left = `${relativePosition * 100}%`;
-                const cueLabel = String.fromCharCode(65 + parseInt(cueIndex)); // 0=A, 1=B, etc.
-                marker.title = `Cue ${cueLabel}: ${this.formatTime(cue.time)}`;
-                marker.innerHTML = `<div class="cue-marker-label">${cueLabel}</div>`;
-                container.appendChild(marker);
+                const x = Math.floor(relativePosition * width);
+                
+                const cueLabel = String.fromCharCode(65 + parseInt(cueIndex));
+                
+                ctx.save();
+                ctx.strokeStyle = "rgba(255, 200, 0, 0.9)";
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+                
+                ctx.fillStyle = "rgba(255, 200, 0, 0.95)";
+                ctx.font = "bold 10px Arial";
+                ctx.textAlign = "center";
+                ctx.fillText(cueLabel, x, 12);
+                
+                ctx.restore();
             }
         });
+    }
+
+    renderCueMarkers(deckId) {
+        const deckLabel = deckId.toUpperCase();
+        const container = document.getElementById(`cueMarkers${deckLabel}`);
+        
+        if (container) {
+            container.innerHTML = "";
+        }
     }
 
     ejectDeck(deckId) {
@@ -1314,8 +1331,7 @@ class DualPlayer {
         }
 
         // Re-render waveform and beat grid to reflect new pitch/tempo
-        this.renderWaveform(deckId);
-        this.renderCueMarkers(deckId);
+        this.renderWaveformUnified(deckId);
 
         // Auto-sync BPM to other deck if BPM sync is enabled
         if (!skipBPMSync && deck.bpmSyncEnabled && this.masterDeck === deckId) {
