@@ -45,6 +45,20 @@ try {
     
     $lightTracks = [];
     foreach ($tracks as $track) {
+        // Prepare waveform data for frontend
+        $waveformData = null;
+        if (isset($track['waveform'])) {
+            $waveformData = [
+                'preview' => $track['waveform']['preview'] ?? null,
+                'detail' => $track['waveform']['detail'] ?? null,
+                'color' => $track['waveform']['color'] ?? null,
+                'preview_data' => $track['waveform']['preview_data'] ?? null,
+                'color_data' => $track['waveform']['color_data'] ?? null,
+                'three_band_preview' => $track['waveform']['three_band_preview'] ?? null,
+                'three_band_detail' => $track['waveform']['three_band_detail'] ?? null
+            ];
+        }
+        
         $lightTracks[] = [
             'id' => $track['id'],
             'title' => $track['title'],
@@ -52,6 +66,7 @@ try {
             'album' => $track['album'],
             'label' => $track['label'] ?? '',
             'key' => $track['key'],
+            'key_id' => $track['key_id'] ?? 0,
             'genre' => $track['genre'],
             'bpm' => $track['bpm'],
             'duration' => $track['duration'],
@@ -62,17 +77,41 @@ try {
             'play_count' => $track['play_count'] ?? 0,
             'comment' => $track['comment'] ?? '',
             'cue_points' => $track['cue_points'] ?? [],
-            'waveform' => $track['waveform'] ?? null,
-            'beat_grid' => $track['beat_grid'] ?? null
+            'waveform' => $waveformData,
+            'beat_grid' => $track['beat_grid'] ?? [],
+            'sample_rate' => $track['sample_rate'] ?? 0,
+            'bitrate' => $track['bitrate'] ?? 0,
+            'color_id' => $track['color_id'] ?? 0,
+            'artwork_id' => $track['artwork_id'] ?? 0,
+            'artwork_path' => $track['artwork_path'] ?? ''
         ];
     }
     
     rmdirRecursive($tmpDir);
     
+    // Prepare complete playlist data with hierarchy
+    $playlistsData = [];
+    foreach ($playlists as $playlist) {
+        $playlistsData[] = [
+            'id' => $playlist['id'],
+            'name' => $playlist['name'],
+            'parent_id' => $playlist['parent_id'] ?? 0,
+            'sort_order' => $playlist['sort_order'] ?? 0,
+            'is_folder' => $playlist['is_folder'] ?? false,
+            'entries' => $playlist['entries'] ?? [],
+            'track_count' => $playlist['track_count'] ?? 0
+        ];
+    }
+    
     echo json_encode([
         'success' => true,
         'tracks' => $lightTracks,
-        'playlists' => $playlists
+        'playlists' => $playlistsData,
+        'metadata' => [
+            'total_tracks' => count($lightTracks),
+            'total_playlists' => count($playlistsData),
+            'parsed_at' => date('c')
+        ]
     ]);
     
 } catch (Exception $e) {
