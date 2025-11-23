@@ -5,6 +5,7 @@ class TrackDetailPanel {
         this.audioPlayer = null;
         this.waveformRenderer = null;
         this.cueManager = null;
+        this.loadRequestCounter = 0; // Track in-flight fetch requests
 
         this.init();
     }
@@ -56,7 +57,7 @@ class TrackDetailPanel {
         }
     }
 
-    loadTrack(track) {
+    async loadTrack(track) {
         this.currentTrack = track;
         this.show();
 
@@ -92,14 +93,68 @@ class TrackDetailPanel {
 
         this.audioPlayer.loadTrack(track);
 
+        // Generate unique load request ID to prevent stale fetch overwrites
+        const loadRequestId = ++this.loadRequestCounter;
+
+        // Clear previous waveform immediately to show loading state
+        this.renderWaveformAndCues(track);
+
+        // Lazy-load waveform data if not already present
+        if (!track.waveform && track.id) {
+            console.log(`[TrackDetail] Fetching analysis data for track ${track.id}...`);
+            try {
+                const response = await fetch(`/api/track-analysis.php?id=${track.id}`);
+                
+                // Verify this response is still relevant (user didn't switch tracks)
+                if (loadRequestId !== this.loadRequestCounter) {
+                    console.log(`[TrackDetail] Ignoring stale fetch for track ${track.id}`);
+                    return;
+                }
+                
+                if (response.ok) {
+                    const analysisData = await response.json();
+                    
+                    // Double-check after JSON parsing (user might have switched during parse)
+                    if (loadRequestId !== this.loadRequestCounter) {
+                        console.log(`[TrackDetail] Ignoring stale fetch for track ${track.id} (post-parse)`);
+                        return;
+                    }
+                    
+                    // Verify current track still matches fetched track
+                    if (!this.currentTrack || this.currentTrack.id !== track.id) {
+                        console.log(`[TrackDetail] Current track changed, ignoring fetch for track ${track.id}`);
+                        return;
+                    }
+                    
+                    // Safe to update - still the current track
+                    this.currentTrack.waveform = analysisData.waveform;
+                    this.currentTrack.beat_grid = analysisData.beat_grid;
+                    // cue_points already included in initial data, but update if API has newer
+                    if (analysisData.cue_points && analysisData.cue_points.length > 0) {
+                        this.currentTrack.cue_points = analysisData.cue_points;
+                    }
+                    console.log(`[TrackDetail] Analysis data loaded successfully for track ${track.id}`);
+                    
+                    // Re-render using this.currentTrack to avoid stale reference
+                    this.renderWaveformAndCues(this.currentTrack);
+                } else {
+                    console.warn(`[TrackDetail] Failed to load analysis data:`, response.status);
+                }
+            } catch (error) {
+                console.error(`[TrackDetail] Error loading analysis data:`, error);
+            }
+        }
+    }
+
+    renderWaveformAndCues(track) {
         if (
             !track.waveform ||
             (!track.waveform.color_data && !track.waveform.preview_data)
         ) {
             this.waveformRenderer.clear();
-            this.cueManager.loadCues([], 0);
+            this.cueManager.loadCues(track.cue_points || [], track.duration || 0);
         } else {
-            // Load waveform and cues immediately if data exists
+            // Load waveform and cues
             if (track.duration && track.duration > 0) {
                 this.waveformRenderer.loadWaveform(
                     track.waveform,

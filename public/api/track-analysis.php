@@ -1,48 +1,85 @@
 <?php
+// Increase memory limit for parsing Rekordbox data
+ini_set('memory_limit', '256M');
+
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../../src/RekordboxReader.php';
 
 use RekordboxReader\RekordboxReader;
 
-// Simple in-memory cache using static variable
+// Per-track file-based cache to avoid memory issues
 class TrackDataCache {
-    private static $data = null;
-    private static $cacheTime = null;
-    private static $cacheTTL = 3600; // 1 hour
+    private static $cacheTTL = 3600; // 1 hour  
+    private static $cacheDir = __DIR__ . '/../../output/cache/tracks';
     
-    public static function getData() {
-        // Check if cache is valid
-        if (self::$data !== null && (time() - self::$cacheTime) < self::$cacheTTL) {
-            return self::$data;
+    public static function getTrack($trackId) {
+        // Create cache directory if not exists
+        if (!is_dir(self::$cacheDir)) {
+            mkdir(self::$cacheDir, 0755, true);
         }
         
-        // Load fresh data
+        $cacheFile = self::$cacheDir . "/track_{$trackId}.cache";
+        
+        // Check if cache file exists and is valid
+        if (file_exists($cacheFile)) {
+            $cacheAge = time() - filemtime($cacheFile);
+            if ($cacheAge < self::$cacheTTL) {
+                // Cache hit - load from file
+                $serialized = file_get_contents($cacheFile);
+                $track = unserialize($serialized);
+                if ($track !== false) {
+                    return $track;
+                }
+            }
+        }
+        
+        // Cache miss - need to parse from full dataset
+        // Unfortunately we need RekordboxReader but cache result per-track
         $exportPath = __DIR__ . '/../../Rekordbox-USB';
         if (!is_dir($exportPath)) {
             return null;
         }
         
-        $reader = new RekordboxReader($exportPath, __DIR__ . '/../../output', false);
-        self::$data = $reader->run();
-        self::$cacheTime = time();
-        
-        return self::$data;
-    }
-    
-    public static function getTrack($trackId) {
-        $data = self::getData();
-        if (!$data || !isset($data['tracks'])) {
+        try {
+            $reader = new RekordboxReader($exportPath, __DIR__ . '/../../output', false);
+            $data = $reader->run();
+            
+            // Cache ALL tracks while we have the data loaded (one-time cost)
+            foreach ($data['tracks'] as $t) {
+                $cacheFile = self::$cacheDir . "/track_{$t['id']}.cache";
+                $cacheData = [
+                    'id' => $t['id'],
+                    'waveform' => $t['waveform'] ?? null,
+                    'beat_grid' => $t['beat_grid'] ?? null,
+                    'cue_points' => $t['cue_points'] ?? []
+                ];
+                file_put_contents($cacheFile, serialize($cacheData), LOCK_EX);
+            }
+            
+            // Find requested track
+            $track = null;
+            foreach ($data['tracks'] as $t) {
+                if ($t['id'] == $trackId) {
+                    $track = $t;
+                    break;
+                }
+            }
+            
+            if (!$track) {
+                return null;
+            }
+            
+            return [
+                'id' => $track['id'],
+                'waveform' => $track['waveform'] ?? null,
+                'beat_grid' => $track['beat_grid'] ?? null,
+                'cue_points' => $track['cue_points'] ?? []
+            ];
+        } catch (\Exception $e) {
+            error_log("TrackDataCache error: " . $e->getMessage());
             return null;
         }
-        
-        foreach ($data['tracks'] as $track) {
-            if ($track['id'] == $trackId) {
-                return $track;
-            }
-        }
-        
-        return null;
     }
 }
 

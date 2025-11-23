@@ -34,7 +34,8 @@ try {
                 'file_path' => $track['file_path'],
                 'analyze_path' => $track['analyze_path'] ?? '',
                 'play_count' => $track['play_count'] ?? 0,
-                'comment' => $track['comment'] ?? ''
+                'comment' => $track['comment'] ?? '',
+                'cue_points' => $track['cue_points'] ?? []  // Include cue_points (small data ~300 bytes)
             ];
         }
         

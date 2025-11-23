@@ -4,6 +4,21 @@
 This project is a PHP-based web GUI tool designed to read and display Rekordbox USB/SD export databases. It's a re-implementation of a Python tool into a pure PHP, modular structure. The primary goal is to provide a modern web interface for DJ-specific functionalities, including dual-deck playback, waveform visualization, beat grid analysis, hot cue management, and advanced synchronization features, mirroring the professional experience of Rekordbox.
 
 ## Recent Changes (November 2025)
+- **Staged Data-Loading Architecture (November 23)**: Major architectural improvement to solve PHP Memory Exhausted error:
+  - **Problem**: Embedding full track data (waveform + beat grid) inline caused 18MB JSON payload → PHP Memory Exhausted (134MB limit)
+  - **Solution**: Implemented staged data-loading with lazy fetch architecture:
+    - Initial page load: Only lightweight metadata + cue_points (~30KB for 15 tracks)
+    - On-demand loading: Waveform/beat_grid fetched via `/api/track-analysis.php` when needed
+  - **Per-Track File Caching**: First API call parses all data (256MB memory limit), caches each track individually (~2MB/track)
+    - Cache hit performance: 0.079s (7x faster than uncached 0.557s)
+    - Cache persistence: File-based (not static), TTL 1 hour
+    - Smart caching: First miss caches ALL tracks opportunistically
+  - **Frontend Updates**:
+    - `dual-player.js`: Async loadTrack() with fetch for analysis data
+    - `track-detail.js`: Async loadTrack() with automatic re-render after fetch completes
+    - Both components share cache transparently
+  - **Fixed JavaScript Errors**: All onclick handlers (showPlaylist, showAllTracks, filterTracks, toggleTrackDetailPanel, loadTrackToDeck) attached to window object
+  - **Result**: Fast initial load, no memory errors, waveforms load on-demand, scalable to hundreds of tracks
 - **Documentation Merge & Parser Fix (November 22)**: Comprehensive documentation update dan critical parser fixes:
   - **Merged DOCUMENTATION.md into README.md**: Single comprehensive documentation file
   - **Added Kaitai Struct Specifications**: Complete PDB and ANLZ format documentation dengan binary structure diagrams
