@@ -153,6 +153,39 @@ try {
             ]);
             break;
 
+        case 'scan':
+            $sourceDb = $input['sourceDb'] ?? '';
+            $referenceDb = $input['referenceDb'] ?? null;
+
+            if (empty($sourceDb)) {
+                throw new Exception('Source database path required');
+            }
+
+            // Convert to absolute paths from project root
+            $sourceDb = __DIR__ . '/../../' . $sourceDb;
+            if (!empty($referenceDb)) {
+                $referenceDb = __DIR__ . '/../../' . $referenceDb;
+            }
+
+            if (!file_exists($sourceDb)) {
+                throw new Exception('Source database not found: ' . $sourceDb);
+            }
+
+            // Use a temporary recovered path (not actually used for scanning)
+            $tempRecoveredPath = dirname($sourceDb) . '/temp_scan.pdb';
+            
+            $recovery = new DatabaseRecovery($sourceDb, $tempRecoveredPath, $referenceDb, $logger);
+            $scanResults = $recovery->scanDatabase();
+            $log = $recovery->getRecoveryLog();
+
+            echo json_encode([
+                'success' => true,
+                'scan_results' => $scanResults,
+                'log' => $log,
+                'message' => 'Database scan completed'
+            ]);
+            break;
+
         case 'test_corruption':
             $corruptDb = __DIR__ . '/../../Rekordbox-USB-Corrupted/PIONEER/rekordbox/export.pdb';
             

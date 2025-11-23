@@ -495,4 +495,556 @@ class DatabaseRecovery {
             'log_entries' => count($this->recoveryLog)
         ];
     }
+
+    /**
+     * Scan database and detect corruption types
+     * Returns detailed analysis of what's wrong with the database
+     */
+    public function scanDatabase() {
+        $this->log("=== Starting Database Scan ===");
+        $this->loadDatabase();
+        
+        $scanResults = [
+            'file_info' => $this->scanFileInfo(),
+            'header' => $this->scanMagicHeader(),
+            'metadata' => $this->scanMetadata(),
+            'version' => $this->scanVersion(),
+            'pages' => $this->scanPages(),
+            'tables' => $this->scanTables(),
+            'data_integrity' => $this->scanDataIntegrity(),
+            'relationships' => $this->scanRelationships(),
+            'summary' => []
+        ];
+        
+        $scanResults['summary'] = $this->generateScanSummary($scanResults);
+        
+        $this->log("=== Scan Complete ===");
+        
+        return $scanResults;
+    }
+    
+    /**
+     * Scan basic file information
+     */
+    private function scanFileInfo() {
+        $fileSize = strlen($this->data);
+        $this->log("File size: " . number_format($fileSize) . " bytes (" . round($fileSize / 1024 / 1024, 2) . " MB)");
+        
+        return [
+            'status' => 'ok',
+            'size_bytes' => $fileSize,
+            'size_mb' => round($fileSize / 1024 / 1024, 2),
+            'readable' => true,
+            'issues' => []
+        ];
+    }
+    
+    /**
+     * Scan magic header (first 4 bytes)
+     */
+    private function scanMagicHeader() {
+        $this->log("Scanning magic header...");
+        
+        if (strlen($this->data) < 4) {
+            $this->log("ERROR: File too small for magic header");
+            return [
+                'status' => 'error',
+                'corrupt' => true,
+                'message' => 'File too small',
+                'issues' => ['File size less than 4 bytes']
+            ];
+        }
+        
+        $magicBytes = substr($this->data, 0, 4);
+        $magicHex = bin2hex($magicBytes);
+        $this->log("Magic bytes: 0x" . strtoupper($magicHex));
+        
+        $issues = [];
+        $status = 'ok';
+        $expectedMagic = null;
+        
+        // Check against reference DB if available
+        if ($this->referenceDb && file_exists($this->referenceDb)) {
+            $refData = file_get_contents($this->referenceDb);
+            $refMagic = substr($refData, 0, 4);
+            $expectedMagic = $refMagic;
+            $refMagicHex = bin2hex($refMagic);
+            
+            if ($magicBytes !== $refMagic) {
+                $issues[] = "Magic header mismatch (expected: 0x" . strtoupper($refMagicHex) . ")";
+                $status = 'error';
+                $this->log("ERROR: Magic header differs from reference");
+            } else {
+                $this->log("OK: Magic header matches reference");
+            }
+        } else {
+            // Without reference DB, check for known valid Rekordbox signatures
+            // Rekordbox databases typically start with specific byte patterns
+            $validSignatures = [
+                "\x00\x00\x00\x00", // Common Rekordbox signature
+                "00000000"          // Alternative format
+            ];
+            
+            $isValid = false;
+            $expectedHex = "00000000";
+            
+            // Check if it matches any known valid signature
+            foreach ($validSignatures as $validSig) {
+                if (substr($magicBytes, 0, strlen($validSig)) === $validSig) {
+                    $isValid = true;
+                    break;
+                }
+            }
+            
+            // Also check if all bytes are zeros (typical for Rekordbox)
+            $bytes = unpack('C*', $magicBytes);
+            $allZeros = true;
+            foreach ($bytes as $byte) {
+                if ($byte !== 0) {
+                    $allZeros = false;
+                    break;
+                }
+            }
+            
+            if (!$allZeros && !$isValid) {
+                $issues[] = "Magic header does not match expected Rekordbox signature (expected: 0x{$expectedHex}, got: 0x" . strtoupper($magicHex) . ")";
+                $status = 'error';
+                $this->log("ERROR: Invalid magic header signature");
+            } else {
+                $this->log("OK: Magic header appears valid (all zeros)");
+            }
+        }
+        
+        return [
+            'status' => $status,
+            'corrupt' => count($issues) > 0,
+            'magic_hex' => '0x' . strtoupper($magicHex),
+            'magic_bytes' => array_values(unpack('C*', $magicBytes)),
+            'issues' => $issues
+        ];
+    }
+    
+    /**
+     * Scan database metadata header
+     */
+    private function scanMetadata() {
+        $this->log("Scanning metadata header...");
+        
+        if (strlen($this->data) < 24) {
+            $this->log("ERROR: File too small for metadata header");
+            return [
+                'status' => 'error',
+                'corrupt' => true,
+                'message' => 'File too small for metadata',
+                'issues' => ['File size less than 24 bytes']
+            ];
+        }
+        
+        $header = unpack('V6data', substr($this->data, 0, 24));
+        $pageSize = $header['data2'];
+        $numTables = $header['data3'];
+        $nextUnusedPage = $header['data4'];
+        $sequence = $header['data6'];
+        
+        $this->log("Page size: {$pageSize}");
+        $this->log("Number of tables: {$numTables}");
+        $this->log("Next unused page: {$nextUnusedPage}");
+        $this->log("Sequence: {$sequence}");
+        
+        $issues = [];
+        $status = 'ok';
+        
+        $validPageSizes = [512, 1024, 2048, 4096, 8192, 16384];
+        if (!in_array($pageSize, $validPageSizes)) {
+            $issues[] = "Invalid page size: {$pageSize} (valid: " . implode(', ', $validPageSizes) . ")";
+            $status = 'error';
+            $this->log("ERROR: Invalid page size");
+        }
+        
+        if ($numTables < 1 || $numTables > 100) {
+            $issues[] = "Suspicious number of tables: {$numTables}";
+            $status = ($status === 'error') ? 'error' : 'warning';
+            $this->log("WARNING: Unusual number of tables");
+        }
+        
+        $expectedPages = intval(strlen($this->data) / max($pageSize, 1));
+        if ($nextUnusedPage > $expectedPages * 2) {
+            $issues[] = "Next unused page ({$nextUnusedPage}) exceeds expected range";
+            $status = ($status === 'error') ? 'error' : 'warning';
+            $this->log("WARNING: Next unused page value seems incorrect");
+        }
+        
+        if (count($issues) === 0) {
+            $this->log("OK: Metadata header looks valid");
+        }
+        
+        return [
+            'status' => $status,
+            'corrupt' => count($issues) > 0,
+            'page_size' => $pageSize,
+            'num_tables' => $numTables,
+            'next_unused_page' => $nextUnusedPage,
+            'sequence' => $sequence,
+            'issues' => $issues
+        ];
+    }
+    
+    /**
+     * Scan version information
+     */
+    private function scanVersion() {
+        $this->log("Scanning version info...");
+        
+        $header = unpack('V6data', substr($this->data, 0, 24));
+        $pageSize = $header['data2'];
+        
+        $detectedVersion = "Unknown";
+        $confidence = 0;
+        
+        if ($pageSize == 4096) {
+            $detectedVersion = "Rekordbox 6.x";
+            $confidence = 80;
+        } else if ($pageSize == 8192) {
+            $detectedVersion = "Rekordbox 5.x";
+            $confidence = 70;
+        } else if ($pageSize == 512) {
+            $detectedVersion = "Rekordbox 4.x or earlier";
+            $confidence = 60;
+        }
+        
+        $this->log("Detected version: {$detectedVersion} (confidence: {$confidence}%)");
+        
+        return [
+            'status' => $confidence > 0 ? 'ok' : 'warning',
+            'detected_version' => $detectedVersion,
+            'confidence' => $confidence,
+            'issues' => $confidence < 50 ? ['Unable to reliably detect version'] : []
+        ];
+    }
+    
+    /**
+     * Scan page structure
+     */
+    private function scanPages() {
+        $this->log("Scanning page structure...");
+        
+        $header = unpack('V6data', substr($this->data, 0, 24));
+        $pageSize = $header['data2'];
+        
+        if ($pageSize < 512) {
+            return [
+                'status' => 'error',
+                'corrupt' => true,
+                'message' => 'Invalid page size',
+                'issues' => ['Cannot scan pages with invalid page size']
+            ];
+        }
+        
+        $totalPages = intval(strlen($this->data) / $pageSize);
+        $validPages = 0;
+        $corruptPages = 0;
+        $emptyPages = 0;
+        $pageSample = [];
+        
+        $samplesToCheck = min($totalPages, 20);
+        
+        for ($i = 0; $i < $samplesToCheck; $i++) {
+            $pageNum = intval(($i / $samplesToCheck) * $totalPages);
+            $offset = $pageNum * $pageSize;
+            
+            if ($offset + $pageSize > strlen($this->data)) {
+                break;
+            }
+            
+            $pageData = substr($this->data, $offset, min($pageSize, 100));
+            $isEmpty = (trim($pageData, "\0") === '');
+            
+            if ($isEmpty) {
+                $emptyPages++;
+            } else if ($this->isPageRecoverable($offset, $pageSize)) {
+                $validPages++;
+                if (count($pageSample) < 5) {
+                    $pageSample[] = [
+                        'page_num' => $pageNum,
+                        'offset' => $offset,
+                        'has_data' => true
+                    ];
+                }
+            } else {
+                $corruptPages++;
+            }
+        }
+        
+        $this->log("Pages scanned: {$samplesToCheck}");
+        $this->log("Valid pages: {$validPages}");
+        $this->log("Corrupt pages: {$corruptPages}");
+        $this->log("Empty pages: {$emptyPages}");
+        
+        $issues = [];
+        $status = 'ok';
+        
+        if ($corruptPages > $validPages) {
+            $issues[] = "More corrupt pages ({$corruptPages}) than valid pages ({$validPages})";
+            $status = 'error';
+        } else if ($corruptPages > 0) {
+            $issues[] = "{$corruptPages} corrupt pages detected";
+            $status = 'warning';
+        }
+        
+        return [
+            'status' => $status,
+            'corrupt' => $corruptPages > 0,
+            'total_pages' => $totalPages,
+            'pages_scanned' => $samplesToCheck,
+            'valid_pages' => $validPages,
+            'corrupt_pages' => $corruptPages,
+            'empty_pages' => $emptyPages,
+            'page_size' => $pageSize,
+            'sample_pages' => $pageSample,
+            'issues' => $issues
+        ];
+    }
+    
+    /**
+     * Scan table index
+     */
+    private function scanTables() {
+        $this->log("Scanning table index...");
+        
+        $header = unpack('V6data', substr($this->data, 0, 24));
+        $numTables = $header['data3'];
+        $pageSize = $header['data2'];
+        
+        if ($numTables < 1 || $pageSize < 512) {
+            return [
+                'status' => 'error',
+                'corrupt' => true,
+                'message' => 'Invalid metadata',
+                'issues' => ['Cannot scan tables with invalid metadata']
+            ];
+        }
+        
+        $tables = [];
+        $offset = 24;
+        $validTables = 0;
+        $issues = [];
+        
+        for ($i = 0; $i < min($numTables, 50); $i++) {
+            if ($offset + 16 > strlen($this->data)) {
+                break;
+            }
+            
+            $tableEntry = unpack('V4data', substr($this->data, $offset, 16));
+            $tableType = $tableEntry['data1'];
+            $firstPage = $tableEntry['data3'];
+            $lastPage = $tableEntry['data4'];
+            
+            if ($tableType > 0 && $firstPage > 0) {
+                $validTables++;
+                if (count($tables) < 10) {
+                    $tables[] = [
+                        'index' => $i,
+                        'type' => $tableType,
+                        'first_page' => $firstPage,
+                        'last_page' => $lastPage,
+                        'num_pages' => $lastPage - $firstPage + 1
+                    ];
+                }
+            }
+            
+            $offset += 16;
+        }
+        
+        $this->log("Valid tables found: {$validTables}/{$numTables}");
+        
+        $status = 'ok';
+        if ($validTables < $numTables / 2) {
+            $issues[] = "Less than half of tables are valid ({$validTables}/{$numTables})";
+            $status = 'error';
+        } else if ($validTables < $numTables) {
+            $issues[] = "Some tables are invalid ({$validTables}/{$numTables})";
+            $status = 'warning';
+        }
+        
+        return [
+            'status' => $status,
+            'corrupt' => count($issues) > 0,
+            'expected_tables' => $numTables,
+            'valid_tables' => $validTables,
+            'table_sample' => $tables,
+            'issues' => $issues
+        ];
+    }
+    
+    /**
+     * Scan data integrity (check for readable text, valid structures)
+     */
+    private function scanDataIntegrity() {
+        $this->log("Scanning data integrity...");
+        
+        $sampleSize = min(100000, strlen($this->data));
+        $sample = substr($this->data, 1000, $sampleSize);
+        
+        $readableChars = 0;
+        $controlChars = 0;
+        $nullBytes = 0;
+        
+        for ($i = 0; $i < strlen($sample); $i++) {
+            $char = ord($sample[$i]);
+            
+            if ($char === 0) {
+                $nullBytes++;
+            } else if ($char >= 32 && $char <= 126) {
+                $readableChars++;
+            } else if ($char > 0 && $char < 32) {
+                $controlChars++;
+            }
+        }
+        
+        $readablePercent = round(($readableChars / strlen($sample)) * 100, 2);
+        $controlPercent = round(($controlChars / strlen($sample)) * 100, 2);
+        $nullPercent = round(($nullBytes / strlen($sample)) * 100, 2);
+        
+        $this->log("Readable characters: {$readablePercent}%");
+        $this->log("Control characters: {$controlPercent}%");
+        $this->log("Null bytes: {$nullPercent}%");
+        
+        $pattern = '/\/(.*?)\.(mp3|wav|flac|m4a|aif|aiff)/i';
+        preg_match_all($pattern, $this->data, $matches);
+        $trackPathsFound = count($matches[0]);
+        
+        $this->log("Track paths found: {$trackPathsFound}");
+        
+        $issues = [];
+        $status = 'ok';
+        
+        if ($readablePercent < 10) {
+            $issues[] = "Very low readable text ratio ({$readablePercent}%)";
+            $status = 'warning';
+        }
+        
+        if ($controlPercent > 30) {
+            $issues[] = "High control character ratio ({$controlPercent}%)";
+            $status = ($status === 'error') ? 'error' : 'warning';
+        }
+        
+        if ($trackPathsFound === 0) {
+            $issues[] = "No track paths found in database";
+            $status = 'error';
+        }
+        
+        return [
+            'status' => $status,
+            'corrupt' => count($issues) > 0,
+            'readable_percent' => $readablePercent,
+            'control_chars_percent' => $controlPercent,
+            'null_bytes_percent' => $nullPercent,
+            'track_paths_found' => $trackPathsFound,
+            'sample_size_bytes' => $sampleSize,
+            'issues' => $issues
+        ];
+    }
+    
+    /**
+     * Scan relationships (detect orphaned data)
+     */
+    private function scanRelationships() {
+        $this->log("Scanning relationships...");
+        
+        $pattern = '/\/(.*?)\.(mp3|wav|flac|m4a|aif|aiff)/i';
+        preg_match_all($pattern, $this->data, $fileMatches);
+        $filePaths = count($fileMatches[0]);
+        
+        $playlistPattern = '/playlist|folder|crate/i';
+        preg_match_all($playlistPattern, $this->data, $playlistMatches);
+        $playlistRefs = count($playlistMatches[0]);
+        
+        $this->log("File path references: {$filePaths}");
+        $this->log("Playlist references: {$playlistRefs}");
+        
+        $issues = [];
+        $status = 'ok';
+        
+        if ($filePaths === 0) {
+            $issues[] = "No file paths found - database may be completely corrupt";
+            $status = 'error';
+        }
+        
+        return [
+            'status' => $status,
+            'corrupt' => count($issues) > 0,
+            'file_paths' => $filePaths,
+            'playlist_refs' => $playlistRefs,
+            'issues' => $issues
+        ];
+    }
+    
+    /**
+     * Generate overall scan summary
+     */
+    private function generateScanSummary($scanResults) {
+        $totalIssues = 0;
+        $criticalIssues = 0;
+        $warnings = 0;
+        $recommendations = [];
+        
+        foreach ($scanResults as $category => $result) {
+            if ($category === 'summary' || !is_array($result)) continue;
+            
+            if (isset($result['status'])) {
+                if ($result['status'] === 'error') {
+                    $criticalIssues++;
+                }
+                if ($result['status'] === 'warning') {
+                    $warnings++;
+                }
+            }
+            
+            if (isset($result['issues']) && is_array($result['issues'])) {
+                $totalIssues += count($result['issues']);
+            }
+        }
+        
+        $overallHealth = 'healthy';
+        if ($criticalIssues > 0) {
+            $overallHealth = 'critical';
+            $recommendations[] = "Database has critical issues - recovery required";
+        } else if ($warnings > 2) {
+            $overallHealth = 'degraded';
+            $recommendations[] = "Database has multiple warnings - consider recovery";
+        } else if ($warnings > 0) {
+            $overallHealth = 'minor_issues';
+            $recommendations[] = "Database has minor issues - monitoring recommended";
+        }
+        
+        if (isset($scanResults['header']['corrupt']) && $scanResults['header']['corrupt']) {
+            $recommendations[] = "Run Recovery Method 1: Header Reconstruction";
+        }
+        
+        if (isset($scanResults['metadata']['corrupt']) && $scanResults['metadata']['corrupt']) {
+            $recommendations[] = "Run Recovery Method 2: Metadata Inference";
+        }
+        
+        if (isset($scanResults['pages']['corrupt_pages']) && $scanResults['pages']['corrupt_pages'] > 0) {
+            $recommendations[] = "Run Recovery Method 3: Page Pattern Scan";
+        }
+        
+        if (isset($scanResults['data_integrity']['corrupt']) && $scanResults['data_integrity']['corrupt']) {
+            $recommendations[] = "Run Recovery Method 7: Data Sanity Check";
+        }
+        
+        $this->log("Overall health: {$overallHealth}");
+        $this->log("Total issues: {$totalIssues}");
+        $this->log("Critical issues: {$criticalIssues}");
+        $this->log("Warnings: {$warnings}");
+        
+        return [
+            'overall_health' => $overallHealth,
+            'total_issues' => $totalIssues,
+            'critical_issues' => $criticalIssues,
+            'warnings' => $warnings,
+            'recommendations' => $recommendations,
+            'scan_timestamp' => date('Y-m-d H:i:s')
+        ];
+    }
 }

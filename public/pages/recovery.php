@@ -109,6 +109,28 @@ require_once __DIR__ . '/../partials/head.php';
             </div>
         </div>
 
+        <!-- Database Scanner -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4 flex items-center">
+                <i class="fas fa-search mr-2 text-cyan-400"></i>
+                Database Scanner
+            </h2>
+            <p class="text-gray-400 mb-4">Scan database untuk mendeteksi jenis korupsi dan mendapatkan analisa lengkap</p>
+            <button onclick="scanDatabase()" class="bg-cyan-600 hover:bg-cyan-700 px-6 py-3 rounded flex items-center text-lg font-medium">
+                <i class="fas fa-search mr-2"></i>
+                Scan Database
+            </button>
+        </div>
+
+        <!-- Scan Results -->
+        <div id="scanResults" class="bg-gray-800 rounded-lg p-6 mb-6 hidden">
+            <h2 class="text-xl font-bold mb-4 flex items-center">
+                <i class="fas fa-clipboard-check mr-2 text-purple-400"></i>
+                Hasil Analisa
+            </h2>
+            <div id="scanContent"></div>
+        </div>
+
         <!-- Recovery Methods -->
         <div class="bg-gray-800 rounded-lg p-6 mb-6">
             <h2 class="text-xl font-bold mb-4 flex items-center">
@@ -330,6 +352,217 @@ require_once __DIR__ . '/../partials/head.php';
                 log(`Exception: ${error.message}`, 'error');
                 updateStatus('Recovery failed', 'error');
             }
+        }
+
+        async function scanDatabase() {
+            updateStatus('Scanning database...', 'processing');
+            log('Starting database scan', 'info');
+            document.getElementById('scanResults').classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/recovery.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'scan',
+                        sourceDb: document.getElementById('sourceDb').value,
+                        referenceDb: document.getElementById('referenceDb').value
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success && result.scan_results) {
+                    log('Scan completed successfully', 'success');
+                    displayScanResults(result.scan_results);
+                    updateStatus('Scan completed', 'success');
+                    
+                    if (result.log) {
+                        result.log.forEach(entry => log(entry, 'info'));
+                    }
+                } else {
+                    log(`Error: ${result.error || 'Scan failed'}`, 'error');
+                    updateStatus('Scan failed', 'error');
+                }
+            } catch (error) {
+                log(`Exception: ${error.message}`, 'error');
+                updateStatus('Scan failed', 'error');
+            }
+        }
+
+        function displayScanResults(scan) {
+            const container = document.getElementById('scanContent');
+            const resultsDiv = document.getElementById('scanResults');
+            
+            const healthColors = {
+                'healthy': 'text-green-400',
+                'minor_issues': 'text-yellow-400',
+                'degraded': 'text-orange-400',
+                'critical': 'text-red-400'
+            };
+            
+            const statusIcons = {
+                'ok': '<i class="fas fa-check-circle text-green-400"></i>',
+                'warning': '<i class="fas fa-exclamation-triangle text-yellow-400"></i>',
+                'error': '<i class="fas fa-times-circle text-red-400"></i>'
+            };
+            
+            let html = '';
+            
+            if (scan.summary) {
+                const healthColor = healthColors[scan.summary.overall_health] || 'text-gray-400';
+                html += `
+                    <div class="bg-gray-700 rounded-lg p-6 mb-6">
+                        <h3 class="text-2xl font-bold mb-4 ${healthColor}">
+                            <i class="fas fa-heartbeat mr-2"></i>
+                            Overall Health: ${scan.summary.overall_health.replace('_', ' ').toUpperCase()}
+                        </h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            <div class="bg-gray-800 p-4 rounded">
+                                <div class="text-gray-400 text-sm">Total Issues</div>
+                                <div class="text-2xl font-bold">${scan.summary.total_issues}</div>
+                            </div>
+                            <div class="bg-gray-800 p-4 rounded">
+                                <div class="text-gray-400 text-sm">Critical</div>
+                                <div class="text-2xl font-bold text-red-400">${scan.summary.critical_issues}</div>
+                            </div>
+                            <div class="bg-gray-800 p-4 rounded">
+                                <div class="text-gray-400 text-sm">Warnings</div>
+                                <div class="text-2xl font-bold text-yellow-400">${scan.summary.warnings}</div>
+                            </div>
+                            <div class="bg-gray-800 p-4 rounded">
+                                <div class="text-gray-400 text-sm">Scanned</div>
+                                <div class="text-sm font-bold text-cyan-400">${scan.summary.scan_timestamp}</div>
+                            </div>
+                        </div>
+                        ${scan.summary.recommendations && scan.summary.recommendations.length > 0 ? `
+                            <div class="bg-gray-800 p-4 rounded">
+                                <h4 class="font-bold mb-2 text-purple-400"><i class="fas fa-lightbulb mr-2"></i>Rekomendasi</h4>
+                                <ul class="space-y-1">
+                                    ${scan.summary.recommendations.map(r => `<li class="text-sm"><i class="fas fa-arrow-right mr-2 text-purple-400"></i>${r}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+            
+            html += '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
+            
+            if (scan.file_info) {
+                html += createScanCard('File Info', 'fa-file', scan.file_info, [
+                    {label: 'Size', value: `${scan.file_info.size_mb} MB (${scan.file_info.size_bytes.toLocaleString()} bytes)`},
+                    {label: 'Readable', value: scan.file_info.readable ? 'Yes' : 'No'}
+                ]);
+            }
+            
+            if (scan.header) {
+                html += createScanCard('Magic Header', 'fa-file-signature', scan.header, [
+                    {label: 'Magic Hex', value: scan.header.magic_hex, mono: true},
+                    {label: 'Magic Bytes', value: `[${scan.header.magic_bytes ? scan.header.magic_bytes.join(', ') : ''}]`, mono: true}
+                ]);
+            }
+            
+            if (scan.metadata) {
+                html += createScanCard('Metadata', 'fa-info-circle', scan.metadata, [
+                    {label: 'Page Size', value: scan.metadata.page_size},
+                    {label: 'Tables', value: scan.metadata.num_tables},
+                    {label: 'Next Unused Page', value: scan.metadata.next_unused_page},
+                    {label: 'Sequence', value: scan.metadata.sequence}
+                ]);
+            }
+            
+            if (scan.version) {
+                html += createScanCard('Version', 'fa-code-branch', scan.version, [
+                    {label: 'Detected', value: scan.version.detected_version},
+                    {label: 'Confidence', value: `${scan.version.confidence}%`}
+                ]);
+            }
+            
+            if (scan.pages) {
+                html += createScanCard('Pages', 'fa-file-alt', scan.pages, [
+                    {label: 'Total Pages', value: scan.pages.total_pages},
+                    {label: 'Scanned', value: scan.pages.pages_scanned},
+                    {label: 'Valid', value: `${scan.pages.valid_pages}`, color: 'text-green-400'},
+                    {label: 'Corrupt', value: `${scan.pages.corrupt_pages}`, color: scan.pages.corrupt_pages > 0 ? 'text-red-400' : ''},
+                    {label: 'Empty', value: `${scan.pages.empty_pages}`, color: 'text-gray-500'},
+                    {label: 'Page Size', value: `${scan.pages.page_size} bytes`}
+                ]);
+            }
+            
+            if (scan.tables) {
+                html += createScanCard('Tables', 'fa-table', scan.tables, [
+                    {label: 'Expected', value: scan.tables.expected_tables},
+                    {label: 'Valid', value: `${scan.tables.valid_tables}`, color: 'text-green-400'}
+                ]);
+            }
+            
+            if (scan.data_integrity) {
+                html += createScanCard('Data Integrity', 'fa-shield-alt', scan.data_integrity, [
+                    {label: 'Readable Text', value: `${scan.data_integrity.readable_percent}%`},
+                    {label: 'Control Chars', value: `${scan.data_integrity.control_chars_percent}%`},
+                    {label: 'Null Bytes', value: `${scan.data_integrity.null_bytes_percent}%`},
+                    {label: 'Track Paths Found', value: scan.data_integrity.track_paths_found, color: scan.data_integrity.track_paths_found > 0 ? 'text-green-400' : 'text-red-400'}
+                ]);
+            }
+            
+            if (scan.relationships) {
+                html += createScanCard('Relationships', 'fa-link', scan.relationships, [
+                    {label: 'File Paths', value: scan.relationships.file_paths},
+                    {label: 'Playlist Refs', value: scan.relationships.playlist_refs}
+                ]);
+            }
+            
+            html += '</div>';
+            
+            container.innerHTML = html;
+            resultsDiv.classList.remove('hidden');
+        }
+
+        function createScanCard(title, icon, data, fields) {
+            const statusIcon = data.status ? (
+                data.status === 'ok' ? '<i class="fas fa-check-circle text-green-400"></i>' :
+                data.status === 'warning' ? '<i class="fas fa-exclamation-triangle text-yellow-400"></i>' :
+                '<i class="fas fa-times-circle text-red-400"></i>'
+            ) : '';
+            
+            let html = `
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-bold flex items-center">
+                            <i class="fas ${icon} mr-2 text-blue-400"></i>${title}
+                        </h3>
+                        ${statusIcon}
+                    </div>
+                    <div class="space-y-2 text-sm">
+            `;
+            
+            fields.forEach(field => {
+                const colorClass = field.color || 'text-gray-300';
+                const monoClass = field.mono ? 'font-mono' : '';
+                html += `
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">${field.label}:</span>
+                        <span class="${colorClass} ${monoClass}">${field.value}</span>
+                    </div>
+                `;
+            });
+            
+            if (data.issues && data.issues.length > 0) {
+                html += '<div class="mt-3 pt-3 border-t border-gray-600">';
+                html += '<div class="text-red-400 font-semibold mb-1"><i class="fas fa-exclamation-circle mr-1"></i>Issues:</div>';
+                data.issues.forEach(issue => {
+                    html += `<div class="text-xs text-red-300 ml-4">• ${issue}</div>`;
+                });
+                html += '</div>';
+            }
+            
+            html += `
+                    </div>
+                </div>
+            `;
+            
+            return html;
         }
     </script>
 
