@@ -16,10 +16,13 @@
                 <div class="notification-area" id="syncNotification"></div>
                 <div class="flex gap-1 items-center">
                     <a href="/table" class="px-4 py-2 bg-gray-800 text-sm">
-                        <div class="text-sm text-cyan-400 font-mono">v2.1</div>
+                        <div class="text-sm text-cyan-400 font-mono">v2.2</div>
                     </a>
                     <a href="/table" class="px-4 py-2 bg-gray-800 text-sm">
                         <i class="fas fa-table"></i> Tables
+                    </a>
+                    <a href="/recovery" class="px-4 py-2 bg-gray-800 text-sm">
+                        <i class="fas fa-medkit"></i> Recovery
                     </a>
                     <a href="/debug" class="px-4 py-2 bg-gray-800 text-sm">
                         <i class="fas fa-chart-line"></i> Debug

@@ -25,7 +25,7 @@ class DatabaseRecovery {
     private $logger;
     private $recoveryLog = [];
 
-    const VALID_SIGNATURE = 0x; // Rekordbox PDB signature
+    const VALID_SIGNATURE = 0x00000000; // Rekordbox PDB signature (placeholder)
     const DEFAULT_PAGE_SIZE = 4096;
     const DEFAULT_NUM_TABLES = 20;
 

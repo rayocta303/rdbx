@@ -42,6 +42,10 @@ try {
                 throw new Exception('Source and target databases required');
             }
 
+            // Convert to absolute paths from project root
+            $sourceDb = __DIR__ . '/../../' . $sourceDb;
+            $targetDb = __DIR__ . '/../../' . $targetDb;
+
             $corruptor = new DatabaseCorruptor($sourceDb, $targetDb, $logger);
             
             foreach ($scenarios as $scenario) {
@@ -83,6 +87,13 @@ try {
                 throw new Exception('Corrupt and recovered database paths required');
             }
 
+            // Convert to absolute paths from project root
+            $corruptDb = __DIR__ . '/../../' . $corruptDb;
+            $recoveredDb = __DIR__ . '/../../' . $recoveredDb;
+            if (!empty($referenceDb)) {
+                $referenceDb = __DIR__ . '/../../' . $referenceDb;
+            }
+
             $recovery = new DatabaseRecovery($corruptDb, $recoveredDb, $referenceDb, $logger);
             
             $result = false;
@@ -120,6 +131,13 @@ try {
                 throw new Exception('Corrupt and recovered database paths required');
             }
 
+            // Convert to absolute paths from project root
+            $corruptDb = __DIR__ . '/../../' . $corruptDb;
+            $recoveredDb = __DIR__ . '/../../' . $recoveredDb;
+            if (!empty($referenceDb)) {
+                $referenceDb = __DIR__ . '/../../' . $referenceDb;
+            }
+
             $recovery = new DatabaseRecovery($corruptDb, $recoveredDb, $referenceDb, $logger);
             $result = $recovery->recoverAll();
 
@@ -136,7 +154,7 @@ try {
             break;
 
         case 'test_corruption':
-            $corruptDb = 'Rekordbox-USB-Corrupted/PIONEER/rekordbox/export.pdb';
+            $corruptDb = __DIR__ . '/../../Rekordbox-USB-Corrupted/PIONEER/rekordbox/export.pdb';
             
             if (!file_exists($corruptDb)) {
                 echo json_encode([

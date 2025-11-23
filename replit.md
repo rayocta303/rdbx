@@ -4,6 +4,16 @@
 This project is a PHP-based web GUI tool designed to read and display Rekordbox USB/SD export databases. It's a re-implementation of a Python tool into a pure PHP, modular structure. The primary goal is to provide a modern web interface for DJ-specific functionalities, including dual-deck playback, waveform visualization, beat grid analysis, hot cue management, and advanced synchronization features, mirroring the professional experience of Rekordbox.
 
 ## Recent Changes (November 2025)
+- **Database Recovery Tool (November 23)**: Comprehensive corruption simulation and recovery system:
+  - **Corruption Scenarios**: 10 simulasi korupsi database (Magic Header, Metadata Header, Page Headers, Row Bitmap, Table Index, Row Structure, Field Data, Playlist Structure, Cross-Table Relationships, Version Mismatch)
+  - **Recovery Methods**: 10 metode recovery untuk memperbaiki database yang corrupt
+  - **Recovery UI**: Web interface di `/recovery` untuk testing corruption dan recovery
+  - **API Endpoints**: `/api/recovery.php` untuk programmatic access
+  - **Test Results**: ✅ Successfully corrupted and recovered database dengan semua 10 methods
+  - **Directory Structure**: `Rekordbox-USB-Corrupted/` untuk testing tanpa merusak data asli
+  - **Recovery Stats**: Corrected 560 corrupted characters, recovered 41 page headers, found 8 track paths
+
+## Recent Changes (November 2025)
 - **Staged Data-Loading Architecture (November 23)**: Major architectural improvement to solve PHP Memory Exhausted error:
   - **Problem**: Embedding full track data (waveform + beat grid) inline caused 18MB JSON payload → PHP Memory Exhausted (134MB limit)
   - **Solution**: Implemented staged data-loading with lazy fetch architecture:

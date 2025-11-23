@@ -1,26 +1,28 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Database Recovery Tool - Rekordbox</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        .scenario-card {
-            transition: all 0.3s ease;
-        }
-        .scenario-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-        .log-entry {
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-        }
-    </style>
-</head>
-<body class="bg-gray-900 text-gray-100">
+<?php
+error_reporting(0);
+ini_set('display_errors', 0);
+
+require_once __DIR__ . '/../../src/Utils/DatabaseCorruptor.php';
+require_once __DIR__ . '/../../src/Utils/DatabaseRecovery.php';
+
+use RekordboxReader\Utils\DatabaseCorruptor;
+use RekordboxReader\Utils\DatabaseRecovery;
+
+require_once __DIR__ . '/../partials/head.php';
+?>
+<style>
+    .scenario-card {
+        transition: all 0.3s ease;
+    }
+    .scenario-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .log-entry {
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+    }
+</style>
     <div class="container mx-auto px-4 py-8 max-w-7xl">
         <div class="mb-8">
             <h1 class="text-4xl font-bold mb-2">
@@ -330,5 +332,11 @@
             }
         }
     </script>
-</body>
-</html>
+
+<script>
+// Override track detail initialization to prevent errors on recovery page
+window.toggleTrackDetailPanel = function() {};
+window.loadTrackToDeck = function() {};
+</script>
+
+<?php require_once __DIR__ . '/../partials/footer.php'; ?>
