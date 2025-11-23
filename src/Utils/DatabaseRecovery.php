@@ -312,18 +312,59 @@ class DatabaseRecovery {
     private function isPageRecoverable($offset, $pageSize) {
         if ($offset + $pageSize > strlen($this->data)) return false;
         
-        // Check if page contains structured data (e.g., readable strings, valid integers)
-        $payload = substr($this->data, $offset + 50, 200);
-        $readableChars = 0;
+        // For page 0 (header page), always consider it recoverable
+        if ($offset == 0) return true;
         
-        for ($i = 0; $i < strlen($payload); $i++) {
-            $char = ord($payload[$i]);
-            if (($char >= 32 && $char <= 126) || $char == 0) {
-                $readableChars++;
-            }
+        // Check page structure according to Rekordbox PDB specification
+        // Pages should have proper header structure at offset
+        if ($offset + 0x20 > strlen($this->data)) return false;
+        
+        // Read page header structure
+        $pageHeader = substr($this->data, $offset, 0x20);
+        
+        // First 4 bytes should typically be zeros (not strict requirement)
+        // Bytes 0x04-0x07: page_index (should match calculated page index)
+        // Bytes 0x08-0x0b: type (table type)
+        // Bytes 0x0c-0x0f: next_page
+        // Byte 0x1b: page_flags
+        
+        if (strlen($pageHeader) < 0x20) return false;
+        
+        $headerData = unpack('V8', $pageHeader);
+        $pageFlags = ord($pageHeader[0x1b]);
+        
+        // According to Deep Symmetry docs:
+        // - Data pages have page_flags & 0x40 == 0 (0x24 or 0x34)
+        // - "Strange" (non-data) pages have page_flags & 0x40 != 0 (0x44 or 0x64)
+        // Both are valid page types, not corruption!
+        
+        // A page is valid if it has reasonable page_flags
+        $knownPageFlags = [0x00, 0x24, 0x34, 0x44, 0x64];
+        
+        // Accept any page with known flags OR any page that looks structured
+        if (in_array($pageFlags, $knownPageFlags)) {
+            return true;
         }
         
-        return ($readableChars / strlen($payload)) > 0.3; // 30% readable
+        // Also accept if page_index seems reasonable
+        $pageIndex = $headerData[2]; // data2 is page_index
+        $expectedPageIndex = intval($offset / $pageSize);
+        
+        if ($pageIndex === $expectedPageIndex) {
+            return true;
+        }
+        
+        // Accept any page with some structure (not all zeros or all 0xFF)
+        $allZeros = true;
+        $allFF = true;
+        for ($i = 0; $i < min(64, strlen($pageHeader)); $i++) {
+            $byte = ord($pageHeader[$i]);
+            if ($byte !== 0) $allZeros = false;
+            if ($byte !== 0xFF) $allFF = false;
+        }
+        
+        // If page is not all zeros or all 0xFF, consider it valid
+        return !$allZeros && !$allFF;
     }
 
     private function rebuildPageHeader($offset, $pageSize) {
@@ -935,9 +976,10 @@ class DatabaseRecovery {
         }
         
         $totalPages = intval(strlen($this->data) / $pageSize);
-        $validPages = 0;
-        $corruptPages = 0;
+        $dataPages = 0;
+        $strangePages = 0;
         $emptyPages = 0;
+        $corruptPages = 0;
         $pageSample = [];
         
         $samplesToCheck = min($totalPages, 20);
@@ -950,37 +992,69 @@ class DatabaseRecovery {
                 break;
             }
             
+            // Check if page is empty (all zeros)
             $pageData = substr($this->data, $offset, min($pageSize, 100));
             $isEmpty = (trim($pageData, "\0") === '');
             
             if ($isEmpty) {
                 $emptyPages++;
-            } else if ($this->isPageRecoverable($offset, $pageSize)) {
-                $validPages++;
+                continue;
+            }
+            
+            // Check page_flags to determine page type (data vs strange)
+            if ($offset + 0x1c > strlen($this->data)) {
+                $corruptPages++;
+                continue;
+            }
+            
+            $pageFlags = ord($this->data[$offset + 0x1b]);
+            
+            // According to Rekordbox spec:
+            // Data pages: page_flags & 0x40 == 0 (typically 0x24 or 0x34)
+            // Strange pages: page_flags & 0x40 != 0 (typically 0x44 or 0x64)
+            // Both are VALID, not corrupt!
+            
+            if (($pageFlags & 0x40) == 0) {
+                // Data page
+                $dataPages++;
                 if (count($pageSample) < 5) {
                     $pageSample[] = [
                         'page_num' => $pageNum,
                         'offset' => $offset,
-                        'has_data' => true
+                        'type' => 'data',
+                        'flags' => sprintf('0x%02X', $pageFlags)
                     ];
                 }
             } else {
-                $corruptPages++;
+                // Strange (non-data) page - this is normal, not corrupt
+                $strangePages++;
+                if (count($pageSample) < 5 && $strangePages <= 2) {
+                    $pageSample[] = [
+                        'page_num' => $pageNum,
+                        'offset' => $offset,
+                        'type' => 'strange (non-data)',
+                        'flags' => sprintf('0x%02X', $pageFlags)
+                    ];
+                }
             }
         }
         
+        $validPages = $dataPages + $strangePages;
+        
         $this->log("Pages scanned: {$samplesToCheck}");
-        $this->log("Valid pages: {$validPages}");
-        $this->log("Corrupt pages: {$corruptPages}");
+        $this->log("Data pages: {$dataPages}");
+        $this->log("Strange (non-data) pages: {$strangePages}");
         $this->log("Empty pages: {$emptyPages}");
+        $this->log("Corrupt pages: {$corruptPages}");
         
         $issues = [];
         $status = 'ok';
         
-        if ($corruptPages > $validPages) {
-            $issues[] = "More corrupt pages ({$corruptPages}) than valid pages ({$validPages})";
+        // Only flag actual corruption, not normal page types
+        if ($corruptPages > $validPages / 2) {
+            $issues[] = "High number of corrupt pages ({$corruptPages})";
             $status = 'error';
-        } else if ($corruptPages > 0) {
+        } else if ($corruptPages > 2) {
             $issues[] = "{$corruptPages} corrupt pages detected";
             $status = 'warning';
         }
@@ -991,6 +1065,8 @@ class DatabaseRecovery {
             'total_pages' => $totalPages,
             'pages_scanned' => $samplesToCheck,
             'valid_pages' => $validPages,
+            'data_pages' => $dataPages,
+            'strange_pages' => $strangePages,
             'corrupt_pages' => $corruptPages,
             'empty_pages' => $emptyPages,
             'page_size' => $pageSize,
