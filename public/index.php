@@ -9,7 +9,7 @@ $stats = null;
 $error = null;
 
 try {
-    $exportPath = __DIR__ . '/../Rekordbox-USB';
+    $exportPath = __DIR__ . '/../Rekordbox-USB-Corrupted';
     
     if (is_dir($exportPath)) {
         $reader = new RekordboxReader($exportPath, __DIR__ . '/../output', false);
