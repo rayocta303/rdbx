@@ -15,6 +15,7 @@ require_once __DIR__ . '/Parsers/HistoryParser.php';
 require_once __DIR__ . '/Parsers/ColumnsParser.php';
 require_once __DIR__ . '/Parsers/ArtworkParser.php';
 require_once __DIR__ . '/Utils/Logger.php';
+require_once __DIR__ . '/Utils/DatabaseRecovery.php';
 
 use RekordboxReader\Parsers\PdbParser;
 use RekordboxReader\Parsers\TrackParser;
@@ -29,6 +30,7 @@ use RekordboxReader\Parsers\HistoryParser;
 use RekordboxReader\Parsers\ColumnsParser;
 use RekordboxReader\Parsers\ArtworkParser;
 use RekordboxReader\Utils\Logger;
+use RekordboxReader\Utils\DatabaseRecovery;
 
 class RekordboxReader {
     private $exportPath;
@@ -38,11 +40,15 @@ class RekordboxReader {
     private $pdbPath;
     private $pdbExtPath;
     private $stats;
+    private $autoRecover;
+    private $referenceDb;
 
-    public function __construct($exportPath, $outputDir = 'output', $verbose = false) {
+    public function __construct($exportPath, $outputDir = 'output', $verbose = false, $autoRecover = true, $referenceDb = null) {
         $this->exportPath = $exportPath;
         $this->outputDir = $outputDir;
         $this->verbose = $verbose;
+        $this->autoRecover = $autoRecover;
+        $this->referenceDb = $referenceDb;
 
         if (!is_dir($this->outputDir)) {
             mkdir($this->outputDir, 0755, true);
@@ -59,7 +65,8 @@ class RekordboxReader {
             'valid_playlists' => 0,
             'corrupt_playlists' => 0,
             'anlz_files_processed' => 0,
-            'processing_time' => 0
+            'processing_time' => 0,
+            'database_recovered' => false
         ];
     }
 
@@ -103,6 +110,10 @@ class RekordboxReader {
 
         if (!file_exists($this->pdbPath)) {
             throw new \Exception("export.pdb not found at {$this->pdbPath}");
+        }
+
+        if ($this->autoRecover) {
+            $this->attemptDatabaseRecovery();
         }
 
         $pdbParser = new PdbParser($this->pdbPath, $this->logger);
@@ -263,6 +274,95 @@ class RekordboxReader {
         }
 
         return $tracks;
+    }
+
+    private function attemptDatabaseRecovery() {
+        try {
+            $pdbData = file_get_contents($this->pdbPath);
+            
+            if (strlen($pdbData) < 24) {
+                $this->logger->warning("Database file too small, attempting recovery...");
+                $this->performRecovery();
+                return;
+            }
+            
+            $header = unpack('V6', substr($pdbData, 0, 24));
+            $signature = $header[1];
+            $pageSize = $header[2];
+            $numTables = $header[3];
+            $nextUnused = $header[4];
+            
+            $needsRecovery = false;
+            $issues = [];
+            
+            if ($signature !== 0) {
+                $issues[] = "Invalid signature: $signature (expected 0)";
+                $needsRecovery = true;
+            }
+            
+            if (!in_array($pageSize, [512, 1024, 2048, 4096, 8192])) {
+                $issues[] = "Invalid page size: $pageSize";
+                $needsRecovery = true;
+            }
+            
+            if ($numTables < 1 || $numTables > 50) {
+                $issues[] = "Invalid table count: $numTables";
+                $needsRecovery = true;
+            }
+            
+            $maxPages = floor(strlen($pdbData) / max($pageSize, 1));
+            if ($nextUnused > $maxPages * 2 || $nextUnused < 1) {
+                $issues[] = "Invalid next_unused_page: $nextUnused (max pages: $maxPages)";
+                $needsRecovery = true;
+            }
+            
+            if ($needsRecovery) {
+                $this->logger->warning("Database corruption detected:");
+                foreach ($issues as $issue) {
+                    $this->logger->warning("  - $issue");
+                }
+                $this->logger->info("Attempting automatic recovery...");
+                $this->performRecovery();
+            }
+            
+        } catch (\Exception $e) {
+            $this->logger->warning("Error checking database health: " . $e->getMessage());
+        }
+    }
+
+    private function performRecovery() {
+        $backupPath = $this->pdbPath . '.backup';
+        
+        if (!file_exists($backupPath)) {
+            copy($this->pdbPath, $backupPath);
+            $this->logger->info("Created backup: $backupPath");
+        }
+        
+        $recovery = new DatabaseRecovery(
+            $this->pdbPath,
+            $this->pdbPath,
+            $this->referenceDb,
+            $this->logger
+        );
+        
+        $success = $recovery->recoverAll();
+        
+        if ($success) {
+            $this->stats['database_recovered'] = true;
+            $this->logger->info("✓ Database recovery completed successfully");
+            
+            $recoveryLog = $recovery->getRecoveryLog();
+            $this->logger->info("Recovery performed " . count($recoveryLog) . " operations");
+        } else {
+            $this->logger->error("✗ Database recovery failed");
+            
+            if (file_exists($backupPath)) {
+                copy($backupPath, $this->pdbPath);
+                $this->logger->info("Restored from backup");
+            }
+            
+            throw new \Exception("Database is corrupted and recovery failed");
+        }
     }
 
     private function printSummary() {

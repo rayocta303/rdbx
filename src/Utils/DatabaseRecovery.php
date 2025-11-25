@@ -37,11 +37,17 @@ class DatabaseRecovery {
     }
 
     private function loadDatabase() {
-        if (!file_exists($this->corruptDb)) {
-            throw new \Exception("Corrupt database not found: {$this->corruptDb}");
+        // Load from recovered file if it exists (for sequential recovery steps)
+        // Otherwise load from corrupt file (first step)
+        $sourceFile = file_exists($this->recoveredDb) ? $this->recoveredDb : $this->corruptDb;
+        
+        if (!file_exists($sourceFile)) {
+            throw new \Exception("Database not found: {$sourceFile}");
         }
-        $this->data = file_get_contents($this->corruptDb);
-        $this->log("Loaded corrupt database: " . strlen($this->data) . " bytes");
+        
+        $this->data = file_get_contents($sourceFile);
+        $source = ($sourceFile === $this->recoveredDb) ? "recovered" : "corrupt";
+        $this->log("Loaded {$source} database: " . strlen($this->data) . " bytes");
     }
 
     private function saveDatabase() {
@@ -732,9 +738,16 @@ class DatabaseRecovery {
     /**
      * Recovery Method 10: Auto-Detect Version
      * Detect database version from structure patterns
+     * SKIP if using reference database (header already copied)
      */
     public function recoverVersionInfo() {
         $this->loadDatabase();
+        
+        // If we have reference DB, skip this step (header already copied)
+        if ($this->referenceDb && file_exists($this->referenceDb)) {
+            $this->log("Skipping version recovery (using reference DB header)");
+            return true;
+        }
         
         // Try to detect version from page structure
         $header = unpack('V6data', substr($this->data, 0, 24));
@@ -749,19 +762,8 @@ class DatabaseRecovery {
         
         $this->log("Detected version: {$detectedVersion}");
         
-        // Reset sequence to 1
-        $newHeader = pack('V6',
-            $header['data1'],
-            $header['data2'],
-            $header['data3'],
-            $header['data4'],
-            0, // Reset unknown
-            1  // Reset sequence to 1
-        );
-        
-        $this->data = $newHeader . substr($this->data, 24);
-        $this->saveDatabase();
-        $this->log("Version info normalized");
+        // DON'T reset sequence - preserve it from header recovery
+        $this->log("Version info detection complete (header preserved)");
         
         return true;
     }
@@ -790,6 +792,141 @@ class DatabaseRecovery {
             $this->log("Recovery failed: " . $e->getMessage());
             return false;
         }
+    }
+
+    /**
+     * Minimal Header Repair - Fix ONLY corrupt fields by scanning actual pages
+     * This preserves original track data while fixing header corruption
+     */
+    public function minimalHeaderRepair() {
+        $this->log("=== Starting Minimal Header Repair ===");
+        $this->loadDatabase();
+        
+        // Read current header
+        $header = unpack('V6', substr($this->data, 0, 24));
+        $pageSize = $header[2];
+        $numTables = $header[3];
+        
+        $this->log("Current header: signature={$header[1]}, page_size=$pageSize, num_tables=$numTables, next_unused={$header[4]}, sequence={$header[6]}");
+        
+        // Scan all table page chains to find actual last pages
+        $maxPageSeen = 0;
+        $tableUpdates = [];
+        
+        for ($tableIdx = 0; $tableIdx < $numTables; $tableIdx++) {
+            $tableOffset = 24 + ($tableIdx * 16);
+            $tableEntry = unpack('V4', substr($this->data, $tableOffset, 16));
+            
+            $type = $tableEntry[1];
+            $emptyCandidate = $tableEntry[2];
+            $lastPage = $tableEntry[3];  // offset 0x08
+            $firstPage = $tableEntry[4]; // offset 0x0c
+            
+            if ($firstPage == 0 || $firstPage > 10000) {
+                // Invalid or empty table
+                continue;
+            }
+            
+            // Traverse page chain from firstPage
+            $actualLastPage = $this->traversePageChain($firstPage, $pageSize);
+            
+            if ($actualLastPage > 0) {
+                $maxPageSeen = max($maxPageSeen, $actualLastPage);
+                
+                if ($actualLastPage != $lastPage) {
+                    $this->log("Table $tableIdx: fixing last_page from $lastPage to $actualLastPage");
+                    $tableUpdates[$tableIdx] = [
+                        'type' => $type,
+                        'empty' => $emptyCandidate,
+                        'last_page' => $actualLastPage,
+                        'first_page' => $firstPage
+                    ];
+                }
+            }
+        }
+        
+        // Calculate correct next_unused_page
+        $correctNextUnused = $maxPageSeen + 1;
+        $this->log("Calculated next_unused_page: $correctNextUnused (max page seen: $maxPageSeen)");
+        
+        // Update header - ONLY fix next_unused_page, preserve everything else
+        $newHeader = pack('V6',
+            $header[1],  // signature (preserve)
+            $header[2],  // page_size (preserve)
+            $header[3],  // num_tables (preserve)
+            $correctNextUnused,  // next_unused_page (FIX THIS)
+            $header[5],  // unknown (preserve)
+            $header[6]   // sequence (preserve - will be validated by Rekordbox)
+        );
+        
+        $this->data = $newHeader . substr($this->data, 24);
+        
+        // Update table directory entries that need fixing
+        foreach ($tableUpdates as $tableIdx => $update) {
+            $tableOffset = 24 + ($tableIdx * 16);
+            $tableBytes = pack('V4',
+                $update['type'],
+                $update['empty'],
+                $update['last_page'],
+                $update['first_page']
+            );
+            
+            for ($i = 0; $i < 16; $i++) {
+                $this->data[$tableOffset + $i] = $tableBytes[$i];
+            }
+        }
+        
+        $this->saveDatabase();
+        $this->log("=== Minimal Header Repair Complete ===");
+        $this->log("Fixed next_unused_page and " . count($tableUpdates) . " table entries");
+        
+        return true;
+    }
+    
+    /**
+     * Traverse a table's page chain to find the actual last page
+     */
+    private function traversePageChain($startPage, $pageSize) {
+        $currentPage = $startPage;
+        $lastValidPage = $startPage;
+        $maxIterations = 1000; // Prevent infinite loops
+        $iteration = 0;
+        
+        while ($iteration < $maxIterations) {
+            $pageOffset = $currentPage * $pageSize;
+            
+            // Check if page offset is valid
+            if ($pageOffset + $pageSize > strlen($this->data)) {
+                break;
+            }
+            
+            // Read page header to get next_page pointer
+            // DeviceSQL page structure: first 4 bytes = page_index, next 4 bytes = type, etc.
+            $pageHeader = unpack('V*', substr($this->data, $pageOffset, 32));
+            
+            if (empty($pageHeader)) {
+                break;
+            }
+            
+            $lastValidPage = $currentPage;
+            
+            // Page header structure (from Kaitai spec):
+            // 0x04: page_type
+            // 0x08: next_page
+            // 0x0c: unknown
+            // etc.
+            $nextPage = isset($pageHeader[3]) ? $pageHeader[3] : 0;
+            
+            // If next_page is 0 or invalid, we've reached the end
+            if ($nextPage == 0 || $nextPage > 10000 || $nextPage == $currentPage) {
+                break;
+            }
+            
+            $currentPage = $nextPage;
+            $iteration++;
+        }
+        
+        return $lastValidPage;
     }
 
     /**
