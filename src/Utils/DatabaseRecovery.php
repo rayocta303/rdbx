@@ -119,8 +119,7 @@ class DatabaseRecovery {
                 $newHeader[1] = 0;
             }
             
-            // Detect page size
-            $possiblePageSizes = [512, 1024, 2048, 4096, 8192];
+            // Validate page size
             $validPageSizes = [512, 1024, 2048, 4096, 8192];
             
             if (!in_array($currentHeader[2], $validPageSizes)) {
@@ -139,15 +138,36 @@ class DatabaseRecovery {
                 $this->log("Num tables OK: {$currentHeader[3]}");
             }
             
-            // Calculate correct next_unused_page
+            // CRITICAL FIX: Calculate correct next_unused_page
+            // This field is at offset 0x0c and MUST point to the first unused page in the file
             $pageSize = $newHeader[2];
             $numTables = $newHeader[3];
             $maxPage = floor(strlen($this->data) / $pageSize);
             
-            if ($currentHeader[4] > $maxPage * 2 || $currentHeader[4] < 1) {
-                $lastUsedPage = $this->findLastUsedPageFromTableDirectory($pageSize, $numTables);
-                $correctNextUnused = $lastUsedPage + 1;
-                $this->log("Invalid next_unused_page {$currentHeader[4]}, calculated: $correctNextUnused (last used: $lastUsedPage)");
+            // Check if next_unused_page value is reasonable
+            // It should be:
+            // 1. Greater than 0 (page 0 is the header)
+            // 2. Less than or equal to total pages in file
+            // 3. Greater than any page referenced in table directory
+            
+            $needsFixing = false;
+            if ($currentHeader[4] > $maxPage || $currentHeader[4] < 1) {
+                $needsFixing = true;
+                $this->log("Invalid next_unused_page {$currentHeader[4]} (file has $maxPage pages max)");
+            }
+            
+            // Also scan table directory to find the highest used page
+            $lastUsedPage = $this->findLastUsedPageFromTableDirectory($pageSize, $numTables);
+            
+            if ($currentHeader[4] <= $lastUsedPage && $currentHeader[4] > 0) {
+                // next_unused_page should be AFTER last used page
+                $needsFixing = true;
+                $this->log("next_unused_page {$currentHeader[4]} conflicts with table directory (last used: $lastUsedPage)");
+            }
+            
+            if ($needsFixing) {
+                $correctNextUnused = min($lastUsedPage + 1, $maxPage);
+                $this->log("Fixing next_unused_page: {$currentHeader[4]} → $correctNextUnused");
                 $newHeader[4] = $correctNextUnused;
             } else {
                 $this->log("Next unused page OK: {$currentHeader[4]}");
@@ -200,20 +220,38 @@ class DatabaseRecovery {
     
     /**
      * Find last used page by scanning table directory
+     * IMPORTANT: Rekordbox PDB table entries have swapped field ordering vs Deep Symmetry docs!
+     * Offset 0x08: Last page (not first as documented)
+     * Offset 0x0c: First page (not last as documented)
      */
     private function findLastUsedPageFromTableDirectory($pageSize, $numTables) {
         $offset = 24;
         $maxPage = 0;
+        $maxReasonablePage = floor(strlen($this->data) / $pageSize);
         
         for ($i = 0; $i < $numTables; $i++) {
             if ($offset + 16 > strlen($this->data)) break;
             
             $tableEntry = unpack('V4', substr($this->data, $offset, 16));
-            $lastPage = $tableEntry[4];
+            $type = $tableEntry[1];
+            $emptyCandidate = $tableEntry[2];
             
-            // Only count if value seems reasonable
-            if ($lastPage > 0 && $lastPage < 10000) {
+            // CRITICAL: Real Rekordbox files have last_page BEFORE first_page in the binary structure
+            // This differs from Deep Symmetry documentation but matches all tested Rekordbox files
+            $lastPage = $tableEntry[3];   // Offset 0x08 contains last page
+            $firstPage = $tableEntry[4];  // Offset 0x0c contains first page
+            
+            // Validate before using: both pages must be reasonable
+            // first_page should be > 0 and last_page should be >= first_page
+            if ($firstPage > 0 && $lastPage >= $firstPage && $lastPage < $maxReasonablePage) {
                 $maxPage = max($maxPage, $lastPage);
+                $this->log("Table $i: type=$type first=$firstPage last=$lastPage");
+            } else if ($firstPage > 0 && $firstPage < $maxReasonablePage) {
+                // If last_page is corrupt but first_page is valid, use first_page
+                $maxPage = max($maxPage, $firstPage);
+                $this->log("Table $i: using first_page=$firstPage (last_page=$lastPage seems corrupt)");
+            } else {
+                $this->log("Table $i: SKIPPED - invalid pages (first=$firstPage last=$lastPage)");
             }
             
             $offset += 16;
@@ -222,6 +260,7 @@ class DatabaseRecovery {
         // Fallback: calculate from file size
         if ($maxPage == 0) {
             $maxPage = floor(strlen($this->data) / $pageSize) - 1;
+            $this->log("No valid pages found in table directory, using file size: $maxPage");
         }
         
         return $maxPage;
@@ -469,31 +508,60 @@ class DatabaseRecovery {
             $tableEntry = unpack('V4', substr($this->data, $offset, 16));
             $type = $tableEntry[1];
             $emptyCandidate = $tableEntry[2];
-            $firstPage = $tableEntry[3];
-            $lastPage = $tableEntry[4];
+            
+            // CRITICAL: Rekordbox table directory field order (verified from real files)
+            // Offset 0x08: last_page (entry 3)
+            // Offset 0x0c: first_page (entry 4)
+            $lastPage = $tableEntry[3];
+            $firstPage = $tableEntry[4];
             
             $newEntry = $tableEntry;
             $needsFix = false;
             
-            // Fix unreasonable first_page values
+            // CRITICAL FIX: Detect and fix corruption where a huge value appears
+            // This typically happens when bytes are shifted or corrupted
+            // Example: 8755478 instead of 62
+            
+            // Fix unreasonable page values (> file bounds)
             if ($firstPage > $maxReasonablePage) {
-                $this->log("Table $i: first_page=$firstPage too large, finding actual page");
+                $this->log("Table $i: CORRUPT first_page=$firstPage (max=$maxReasonablePage)");
+                
+                // Try to find actual first page by scanning
                 $actualPage = $this->findTablePageByScanning($type, $pageSize);
-                if ($actualPage > 0) {
-                    $newEntry[3] = $actualPage;
-                    $newEntry[4] = $actualPage;
+                if ($actualPage > 0 && $actualPage < $maxReasonablePage) {
+                    $newEntry[4] = $actualPage;  // first_page
+                    $newEntry[3] = $actualPage;  // last_page (assume single page if unknown)
                     $needsFix = true;
-                    $this->log("Table $i: fixed to page $actualPage");
+                    $this->log("Table $i: fixed first_page to $actualPage (scanned)");
+                } else {
+                    // Fallback: set to a safe default (skip table)
+                    $newEntry[4] = 1;
+                    $newEntry[3] = 1;
+                    $needsFix = true;
+                    $this->log("Table $i: could not find page, set to safe default (1)");
                 }
             }
             
-            // Fix swapped first/last pages
-            if ($lastPage > 0 && $firstPage > 0 && $lastPage < $firstPage && $firstPage < $maxReasonablePage) {
+            if ($lastPage > $maxReasonablePage) {
+                $this->log("Table $i: CORRUPT last_page=$lastPage (max=$maxReasonablePage)");
+                // If first_page is valid, use it as last_page too
+                if ($firstPage > 0 && $firstPage < $maxReasonablePage) {
+                    $newEntry[3] = $firstPage;
+                    $needsFix = true;
+                    $this->log("Table $i: fixed last_page to match first_page ($firstPage)");
+                }
+            }
+            
+            // Validate logical ordering: last_page >= first_page
+            // In real Rekordbox files, this is ALWAYS true
+            if ($newEntry[4] > 0 && $newEntry[3] > 0 && $newEntry[3] < $newEntry[4]) {
+                // This indicates the fields might be in wrong positions
+                // Swap them to fix
                 $temp = $newEntry[3];
                 $newEntry[3] = $newEntry[4];
                 $newEntry[4] = $temp;
                 $needsFix = true;
-                $this->log("Table $i: swapped first/last pages ($lastPage <-> $firstPage)");
+                $this->log("Table $i: swapped last/first pages to fix ordering");
             }
             
             if ($needsFix) {
